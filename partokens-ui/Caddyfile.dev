@@ -1,0 +1,95 @@
+http://127.0.0.1:8080 {
+	encode zstd gzip
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), geolocation=(), microphone=()"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	@uiHealth path /_ui/healthz
+	handle @uiHealth {
+		header Cache-Control "no-store"
+		respond 204
+	}
+
+	@docsInternal path /_docs/*
+	handle @docsInternal {
+		uri strip_prefix /_docs
+		reverse_proxy 127.0.0.1:3001
+	}
+
+	@backend path /api/* /v1/* /v1beta/* /pg/* /mj/* /*/mj/* /suno/* /kling/* /jimeng /jimeng/* /dashboard/billing/*
+	handle @backend {
+		reverse_proxy https://partokens.com {
+			header_up Host partokens.com
+			transport http {
+				tls_server_name partokens.com
+			}
+		}
+	}
+
+	@officialAssets path /assets/*
+	handle @officialAssets {
+		reverse_proxy https://partokens.com {
+			header_up Host partokens.com
+			transport http {
+				tls_server_name partokens.com
+			}
+		}
+	}
+
+	@officialAdmin path /channels /channels/* /models /models/* /users /users/* /redemption-codes /redemption-codes/* /subscriptions /subscriptions/* /system-info /system-info/* /system-settings /system-settings/*
+	handle @officialAdmin {
+		reverse_proxy https://partokens.com {
+			header_up Host partokens.com
+			transport http {
+				tls_server_name partokens.com
+			}
+		}
+	}
+
+	@uiAssets path /_ui/*
+	handle @uiAssets {
+		header Cache-Control "no-store"
+		reverse_proxy 127.0.0.1:5173
+	}
+
+	@devHmr path /rsbuild-hmr* /_rspack/lazy/* /*.hot-update.json /*.hot-update.js
+	handle @devHmr {
+		reverse_proxy 127.0.0.1:5173
+	}
+
+	@localizedDocs path_regexp localizedDocs ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)/docs(/.*)?$
+	handle @localizedDocs {
+		reverse_proxy 127.0.0.1:3001
+	}
+
+	@standalone path_regexp standalone ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(/.*)?$
+	handle @standalone {
+		header {
+			Cache-Control "no-store"
+			Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
+		}
+		reverse_proxy 127.0.0.1:5173
+	}
+
+	@technical path / /oauth /oauth/* /user/reset
+	handle @technical {
+		header {
+			Cache-Control "no-store"
+			Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
+		}
+		reverse_proxy 127.0.0.1:5173
+	}
+
+	handle {
+		reverse_proxy https://partokens.com {
+			header_up Host partokens.com
+			transport http {
+				tls_server_name partokens.com
+			}
+		}
+	}
+}

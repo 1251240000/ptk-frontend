@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "upstreamCommit": "f7d8f97338f8db84c61c54da84b0b967e5ea179b",
+  "trackedRoots": [
+    "content/docs/zh/api/ai-model",
+    "content/docs/zh/guide/feature-guide/user",
+    "content/docs/zh/guide/console"
+  ],
+  "curatedInputs": {
+    "overview": [
+      "content/docs/zh/guide/feature-guide/user/api.mdx"
+    ],
+    "authentication": [
+      "content/docs/zh/guide/feature-guide/user/auth.mdx",
+      "content/docs/zh/guide/feature-guide/user/token.mdx"
+    ],
+    "first-request": [
+      "content/docs/zh/guide/feature-guide/user/api.mdx",
+      "content/docs/zh/guide/feature-guide/user/token.mdx"
+    ],
+    "models-and-groups": [
+      "content/docs/zh/guide/feature-guide/user/pricing.mdx"
+    ],
+    "chat-guide": [
+      "content/docs/zh/guide/console/chat.mdx",
+      "content/docs/zh/guide/console/playground.mdx"
+    ],
+    "image-guide": [
+      "content/docs/zh/api/ai-model/images/openai/post-v1-images-generations.mdx",
+      "content/docs/zh/api/ai-model/images/openai/post-v1-images-edits.mdx"
+    ],
+    "errors-and-limits": [
+      "content/docs/zh/guide/feature-guide/user/log.mdx"
+    ],
+    "api-chat-completions": [
+      "content/docs/zh/api/ai-model/chat/openai/createchatcompletion.mdx"
+    ],
+    "api-responses": [
+      "content/docs/zh/api/ai-model/chat/openai/createresponse.mdx"
+    ],
+    "api-embeddings": [
+      "content/docs/zh/api/ai-model/embeddings/createembedding.mdx"
+    ],
+    "api-image-generations": [
+      "content/docs/zh/api/ai-model/images/openai/post-v1-images-generations.mdx"
+    ],
+    "api-image-edits": [
+      "content/docs/zh/api/ai-model/images/openai/post-v1-images-edits.mdx"
+    ],
+    "api-audio-transcriptions": [
+      "content/docs/zh/api/ai-model/audio/openai/createtranscription.mdx"
+    ],
+    "api-models": [
+      "content/docs/zh/api/ai-model/models/list/listmodels.mdx"
+    ]
+  },
+  "files": {
+    "content/docs/zh/api/ai-model/audio/geminirelayv1beta-383836364.mdx": "a636a678f4db0badaee4918dd721140ab70eafcaba972d6bf0f0c2461a943fdd",
+    "content/docs/zh/api/ai-model/audio/meta.json": "02f8cb3b92dd0faa89f66591699504fa4ba01a6dc8d8e4984e8a87ba27e74e87",
+    "content/docs/zh/api/ai-model/audio/openai/createspeech.mdx": "769d1a627407181f3ee9fab79222d3564ab86dd4d8f197b6f9f574f206bf798e",
+    "content/docs/zh/api/ai-model/audio/openai/createtranscription.mdx": "94a6a66afb35bcf30978da8349ea3f3e6674daec585c830097d2fcc3741807c5",
+    "content/docs/zh/api/ai-model/audio/openai/createtranslation.mdx": "9e3b694b7567b538d91fc4c4b63510d69a855768facc2f27e3526d8afef9563a",
+    "content/docs/zh/api/ai-model/audio/openai/meta.json": "b87d53cab86fa173a888c3b71b4ed083586e1f8ac9b6c5ee242aa3a6d327f474",
+    "content/docs/zh/api/ai-model/chat/createmessage.mdx": "8514adf42406248d5369a2f12a53e50ecada928e34d037ca52add8220d8f3bd4",
+    "content/docs/zh/api/ai-model/chat/gemini/geminirelayv1beta-391536411.mdx": "4f66fc1bdf6812ec55f8112086a1b0e3adb3e80d382ec55dbe7ef78d4211fed2",
+    "content/docs/zh/api/ai-model/chat/gemini/geminirelayv1beta.mdx": "e74337aae60da6833bb454b3cf1eeb518fc70588849b6ccf09da1f126a597ce3",
+    "content/docs/zh/api/ai-model/chat/gemini/meta.json": "451cd3948dd8a56907f568d5ff9e1cd2bded6fd7543f0803e0b40cae000f4db1",
+    "content/docs/zh/api/ai-model/chat/meta.json": "73044869c6b7d782d7c5f75a8745aa655e6e598a2ddbe8143f63a3ef68720da0",
+    "content/docs/zh/api/ai-model/chat/openai/createchatcompletion.mdx": "929deba578d5fbfc3d9a61f4629b865d885659eb25930fedb08ba06baac666e6",
+    "content/docs/zh/api/ai-model/chat/openai/createresponse.mdx": "6620fe7b8dd2f62df8cfdaacbf3423f5616c481d387db1c9d8e2390ff4fb7012",
+    "content/docs/zh/api/ai-model/chat/openai/meta.json": "b87d53cab86fa173a888c3b71b4ed083586e1f8ac9b6c5ee242aa3a6d327f474",
+    "content/docs/zh/api/ai-model/completions/createcompletion.mdx": "bb2564dc44a7eb2c18329dde9fea38c4928b57f1c01c8237e95021b8aec46218",
+    "content/docs/zh/api/ai-model/completions/meta.json": "0e4acc54f9c9b0135e44d022c3dac476b6565af0e70145bceced429d3c12fbaf",
+    "content/docs/zh/api/ai-model/embeddings/createembedding.mdx": "ceb3f8c79df828011b5a006abccf8268be701077d5d2b2836c3c8628bc707b05",
+    "content/docs/zh/api/ai-model/embeddings/createengineembedding.mdx": "546e92bd7193d27c38c8c9a9809c6dccf40b4d34fed16a7b9a76962b208a5938",
+    "content/docs/zh/api/ai-model/embeddings/meta.json": "7c2e2c3bc36426ebe7aa095d8593ab3ae100bd0d938d33b01efe14bfe312d5e5",
+    "content/docs/zh/api/ai-model/images/gemini/geminirelayv1beta-383837589.mdx": "6d02b1c6aea077746000a760eb9be3d5a3605d73b1ef8a906a5512525e7f9097",
+    "content/docs/zh/api/ai-model/images/gemini/geminirelayv1beta-389846313.mdx": "ce82c1dfd1fcc80e36614f7054de8f4c684656661f15dd1cbc4133cdfbd21a58",
+    "content/docs/zh/api/ai-model/images/gemini/meta.json": "451cd3948dd8a56907f568d5ff9e1cd2bded6fd7543f0803e0b40cae000f4db1",
+    "content/docs/zh/api/ai-model/images/meta.json": "0429bf406367314c1ab41e2d7960903710d142ffae5d4f6ffd1c3be5e19a9a88",
+    "content/docs/zh/api/ai-model/images/openai/meta.json": "b87d53cab86fa173a888c3b71b4ed083586e1f8ac9b6c5ee242aa3a6d327f474",
+    "content/docs/zh/api/ai-model/images/openai/post-v1-images-edits.mdx": "ff4b00974d449941fce021f4af5ac912c2ababc678bcc6c2ab1e67e6e963c816",
+    "content/docs/zh/api/ai-model/images/openai/post-v1-images-generations.mdx": "d58cfb3e719bd76eb3067d34f5b7baa6225f10c519ee7708aa307a4ebd048dbf",
+    "content/docs/zh/api/ai-model/images/qwen/createimage.mdx": "6706259e2aff5cc361934ab8900f992b4143e48574ec6688b67861c4bd08dfee",
+    "content/docs/zh/api/ai-model/images/qwen/editimage.mdx": "5121de5c0590ae3b5842642bb39316ee60c985d6e5fd321ad2fd674e5c21aad4",
+    "content/docs/zh/api/ai-model/images/qwen/meta.json": "5c3ddb5002b305b484fa491e596b91eb46317f8a0ead65eb9bacec7687e4136b",
+    "content/docs/zh/api/ai-model/meta.json": "d3040ee7b1751d59d56962a0437236a35c6539188cff850bebbab04065a1e59b",
+    "content/docs/zh/api/ai-model/models/list/listmodels.mdx": "54d32c1b2440bd93bc160ced6fecff46d80b21a471aed5913c49cf396061dfca",
+    "content/docs/zh/api/ai-model/models/list/listmodelsgemini.mdx": "89329e789e5a375efff42bb3a88316e61180dc128c8c67f8cbaa825c19535e50",
+    "content/docs/zh/api/ai-model/models/list/meta.json": "334987827942a88e12746ccdf69702fab1d3c13174ff0f0f9a45b1aec5dfc618",
+    "content/docs/zh/api/ai-model/models/meta.json": "f05279e89ce3b8b934d267261b2330df72b9a895a428111893e16953ae6dcc19",
+    "content/docs/zh/api/ai-model/moderations/createmoderation.mdx": "716f2ef7c8911877fd695ce9cb14fc190f7bd405f381e91a29dc25ba47347046",
+    "content/docs/zh/api/ai-model/moderations/meta.json": "64993f4a3356a40a3b2785a1c9aa664bc98b34524fb1ce45041c3bcaf01375de",
+    "content/docs/zh/api/ai-model/realtime/createrealtimesession.mdx": "4c9da7997550470a953230cbe718baacc492a8707f6d91900d81b4b61291dbb6",
+    "content/docs/zh/api/ai-model/realtime/meta.json": "79fc7886372d55f3f8183631444cf6e97c87dc368c87bcdb1e481e7485b85818",
+    "content/docs/zh/api/ai-model/rerank/creatererank.mdx": "1fc631156a598cafd3d30ce60e58854114d329ea6bc981dfe4448157f98055d7",
+    "content/docs/zh/api/ai-model/rerank/meta.json": "36cfb2b92bfbf85e681fedbcce3c69d290dae547cf0be25af9815cbeec925a13",
+    "content/docs/zh/api/ai-model/unimplemented/files/createfile.mdx": "284f76a1ec21e7f94bec7e1397abc463564953c5d51900606f6f9f994f058659",
+    "content/docs/zh/api/ai-model/unimplemented/files/deletefile.mdx": "9964288a37470a4a03fc588c69f2329268e195c06a8a30463cffd5fa6dfbc7a9",
+    "content/docs/zh/api/ai-model/unimplemented/files/downloadfile.mdx": "5c28d97d3add6fea9157c9f4cd06ee5b6b2c10b8fddfd1f66763518949ee32e9",
+    "content/docs/zh/api/ai-model/unimplemented/files/listfiles.mdx": "d8dd12f41e252933b7e831def9ec0417d973d4fae722ee6ed623eaca55bcca4e",
+    "content/docs/zh/api/ai-model/unimplemented/files/meta.json": "e5fe72184b0112b6d89814306d075dee485236b863a77ebf94cb212e487a88ca",
+    "content/docs/zh/api/ai-model/unimplemented/files/retrievefile.mdx": "9c0d35e43d18fe4e4d231e4e28739fcf8b71b927427b1bfc87586edd237cfee8",
+    "content/docs/zh/api/ai-model/unimplemented/fine-tuning/cancelfinetune.mdx": "70823c7e838bc699c0ded5ce48643172a25293077eadc3b4946501442d4c0398",
+    "content/docs/zh/api/ai-model/unimplemented/fine-tuning/createfinetune.mdx": "045b8ded72e167d2adc543c84ef7e37fc42f9030ab04620b56b7f3b132d6724d",
+    "content/docs/zh/api/ai-model/unimplemented/fine-tuning/listfinetuneevents.mdx": "19573d9ed8341295a59118653fa5b284f174332f6f7b036aaaa8bf83dbd7ccee",
+    "content/docs/zh/api/ai-model/unimplemented/fine-tuning/listfinetunes.mdx": "4cb37ce100bccb36f349f5bcdf6f8aa9e1f732233a0e0c7dd46acc87f531b4e3",
+    "content/docs/zh/api/ai-model/unimplemented/fine-tuning/meta.json": "6e99c653da29b7dc7a9ca1e79c82e03881f6441a125523c9c2514469b8945b0a",
+    "content/docs/zh/api/ai-model/unimplemented/fine-tuning/retrievefinetune.mdx": "9fae2dae12800ce6f23249f951549cbd72bd02750bc21ccb69d600c0b19e8522",
+    "content/docs/zh/api/ai-model/unimplemented/meta.json": "dfc61091f32ff0e597084230ead125d474e1f1c3a761a891d4a85c3e9370d32d",
+    "content/docs/zh/api/ai-model/videos/createvideogeneration.mdx": "55048a4175cdc8c5c919d71957c389b6277ed2d31801ade93ca8e5be7b575f68",
+    "content/docs/zh/api/ai-model/videos/getvideogeneration.mdx": "f8c2f0a75618dd74d046095f111671fbcda5b0da6c725ebcaa3716628eb49111",
+    "content/docs/zh/api/ai-model/videos/jimeng/createjimengvideo.mdx": "413777b5c2fba3a004a1bdb1e8f047c3dd9ef985b4c7783284469e1df4469cf6",
+    "content/docs/zh/api/ai-model/videos/jimeng/meta.json": "a9832ed378e19fa503007c1b4bec3b6e9d4e5e80ed20f207845e83bc5ea58498",
+    "content/docs/zh/api/ai-model/videos/kling/createklingimage2video.mdx": "eb76e27fd5f5b932e205e3dd4c494e83714ccae39f14cfdfa6cdb946cd18dce2",
+    "content/docs/zh/api/ai-model/videos/kling/createklingtext2video.mdx": "ffbdb0d84fe1a95d008aaeb21663bd8b76aa7d9e089b026d1822d88d2324d8f7",
+    "content/docs/zh/api/ai-model/videos/kling/getklingimage2video.mdx": "88e4a81d1ba80c15efd491337f702015ab3f410c09ba3dc78dd4c76b41f55536",
+    "content/docs/zh/api/ai-model/videos/kling/getklingtext2video.mdx": "51bca492fb5a0480c2a833239cc26cf542214f5f0852e58c6ba5a7331a1108c5",
+    "content/docs/zh/api/ai-model/videos/kling/meta.json": "66da145650c864e0ca96a1b0f6904c037ab0ff9487fe61bdbd1177b49fa8dde9",
+    "content/docs/zh/api/ai-model/videos/meta.json": "b794520ad32064b74a14285ba1cd0b83676089306076069cb51cb1238be6c54f",
+    "content/docs/zh/api/ai-model/videos/sora/createvideo.mdx": "c446adc42d204504a38fa59a1130cfe8a4e51d81e1a3cb96e935324928fda6d5",
+    "content/docs/zh/api/ai-model/videos/sora/getvideo.mdx": "f9bddf0c0e71e715dd69107f8268cac58d011a2ff3c7433fa3e307cc401ff29e",
+    "content/docs/zh/api/ai-model/videos/sora/getvideocontent.mdx": "9149e3ce60c6c8ab8318927f5aa654a0c29a9f1dfea131c60f21d015251008d3",
+    "content/docs/zh/api/ai-model/videos/sora/meta.json": "396db2ab183892b645f733c1c7cfbaa434614b712b5ebd95ac0597558f3638fe",
+    "content/docs/zh/guide/console/api-token.mdx": "6cbc497ddf5784b9efe9a5b4e8c1ec63cebfcb76b91891fec57d22f2c7ba1e7d",
+    "content/docs/zh/guide/console/channel-management.mdx": "109a678e04cd6aaa1b0a66fa006605ff443fa0e8eb402d5fc9faac7a365d1bf2",
+    "content/docs/zh/guide/console/chat.mdx": "35c242872eb4247e88eccecd5b06f985c7782f3f464765689e9069c2e4a580ac",
+    "content/docs/zh/guide/console/dashboard.mdx": "719c62f1a62cd4cef91b8b0aea353c3681ccb2be91f10db8a14ba65cd2341ae9",
+    "content/docs/zh/guide/console/drawing-log.mdx": "805411dfb9e6ef6622f302fcdf6ec4021c6794c4d6effc993c263a46154085ec",
+    "content/docs/zh/guide/console/meta.json": "06bd1ab0a399792fef6460751da19192c46640279dfd84ccacbae59026af94f8",
+    "content/docs/zh/guide/console/playground.mdx": "83d2d09d4f9a27ea48cafc77d5c2fa2254c707600735221885aeb1c64cec034e",
+    "content/docs/zh/guide/console/profile.mdx": "50a15bf5d6b59647b10820fa1068181c6ef215a96f186b60404c7472a5a5651a",
+    "content/docs/zh/guide/console/redeem-code-management.mdx": "c828af7788e1d34a3d0a9e0bd9288dd18cf606aa9d7268255b1e9d7df590892f",
+    "content/docs/zh/guide/console/settings/chat-settings.mdx": "749c9d2b1aad249bbe45f1ed9dda1015ad5d51720f9f123ccb594ed0bf05ba12",
+    "content/docs/zh/guide/console/settings/dashboard-settings.mdx": "0dbd11e063920f71a7633524cd415bd95592c05033f3265203aa268a17dfdee2",
+    "content/docs/zh/guide/console/settings/drawing-settings.mdx": "4fbca03ffb60cf8441b32368e1179f8a47b53de9236ee31cf93918580bfa0c7e",
+    "content/docs/zh/guide/console/settings/meta.json": "6eba9ee2e672fd9d2cf5720667f599e19d3ebe4ebb6a6a2db1e8e6bfdac5942f",
+    "content/docs/zh/guide/console/settings/model-settings.mdx": "b382ec491d3fa2ef6d8f2f1f60697ac3937c195f8d5894c3468f86bcee9692e8",
+    "content/docs/zh/guide/console/settings/operation-settings.mdx": "efc7fd82d4ae248576c745b6a459f4f80ea54e99e99f2f1a0ff76bfcc26ccc53",
+    "content/docs/zh/guide/console/settings/other-settings.mdx": "7b6451608a95536b696badb8013129348fe1ec68da98956b556a1a3bb9d83a6d",
+    "content/docs/zh/guide/console/settings/payment-settings.mdx": "38e20df3f2c5452786acf474c36164772ca1d1bc0c2e036bf01726b20ae312fe",
+    "content/docs/zh/guide/console/settings/rate-limit-settings.mdx": "5699964041bda7f66600837c73a129507c0c413da8b6a726aa8b8ab862fb300e",
+    "content/docs/zh/guide/console/settings/rate-settings.mdx": "dfad99915b3fa9c6ce717724644f2117797f1955b68f0e1b65320ed50c6d8484",
+    "content/docs/zh/guide/console/settings/system-settings.mdx": "8106d2a72f90daffcce6a474c54405d38fcbb802cbcd71a7ce143c0ce19a62ad",
+    "content/docs/zh/guide/console/task-log.mdx": "3be15fe5002d4d72b82ceccf9aca26973c53842e04fe2cf663a0a8ac0332fd12",
+    "content/docs/zh/guide/console/usage-log.mdx": "430e184702775cf2eb77a38a515aec42086a9abee0987359aead8d9bfe00d410",
+    "content/docs/zh/guide/console/user-management.mdx": "7cf76b3104833b1eb7b8bc58b0885b031db05290274064f9f47fe28ff96ae4e8",
+    "content/docs/zh/guide/console/wallet.mdx": "c58059c4479cd2cbd5f89c92af2a545dcefd3a975019f99cd2a0cd3c53795945",
+    "content/docs/zh/guide/feature-guide/user/api.mdx": "1d675f9e557c46406a745b6552d6314a2b8cd520026f27c73d3e8089eb3716d1",
+    "content/docs/zh/guide/feature-guide/user/auth.mdx": "2149603587ecc73998a50c00c91676c19b6b3cff08191107a27885ef126fb06d",
+    "content/docs/zh/guide/feature-guide/user/chat-apps.mdx": "5426a621c44dc3752a90c22945e1e66fc83ada38bee9d95b975567392fa0d156",
+    "content/docs/zh/guide/feature-guide/user/log.mdx": "2b62930c81be795b531e9e5cf94ccadb99fb842935f1f937f4cc881b935b014e",
+    "content/docs/zh/guide/feature-guide/user/meta.json": "a0f56f8ec795df02c88bf1df66bd013809487ba1c50428e6886444dc891d329a",
+    "content/docs/zh/guide/feature-guide/user/personal-setting.mdx": "8a12f4cb2a190059d4fa9723e8319923a9365c2622dea529c260a3534917047e",
+    "content/docs/zh/guide/feature-guide/user/pricing.mdx": "54ab31e666abac88e8d4b903f363f3546a9992d5f510c4fc124b77285801e1c3",
+    "content/docs/zh/guide/feature-guide/user/subscription.mdx": "c3b485d942a6e9e50363179998c8f1bcbe7c70cdd0439a0f9f13e3615604b85e",
+    "content/docs/zh/guide/feature-guide/user/task.mdx": "699169183bce38749ab2cadd198cdd4217ed858def816956679ea28705c70c35",
+    "content/docs/zh/guide/feature-guide/user/token.mdx": "be8ab264341df13f222508d3606ae6cd44dc2b31802c7b747e241e28fa8a506a",
+    "content/docs/zh/guide/feature-guide/user/topup.mdx": "ee90921fbcc027c244f3058909989ad05a1696eb5f89773d801a96039d72de70"
+  }
+}

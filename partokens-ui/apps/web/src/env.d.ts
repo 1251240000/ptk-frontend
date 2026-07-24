@@ -1,0 +1,16 @@
+/// <reference types="@rsbuild/core/types" />
+
+interface ImportMetaEnv {
+  readonly PUBLIC_PARTOKENS_SOURCE_URL?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
+interface Window {
+  turnstile?: {
+    render: (container: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void }) => string
+    remove: (widgetId: string) => void
+  }
+}

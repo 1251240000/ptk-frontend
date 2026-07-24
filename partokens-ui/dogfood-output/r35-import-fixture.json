@@ -1,0 +1,30 @@
+[
+  {
+    "id": "qa-import-source",
+    "ownerNamespace": "qa",
+    "title": "Imported QA conversation",
+    "createdAt": 1784700000000,
+    "updatedAt": 1784700000000,
+    "model": "gemini-2.5-flash",
+    "group": "trial",
+    "parameters": {
+      "stream": true,
+      "temperature": 0.5,
+      "topP": 1,
+      "maxTokens": 2048,
+      "frequencyPenalty": 0,
+      "presencePenalty": 0,
+      "seed": null
+    },
+    "messages": [
+      {
+        "id": "qa-import-message",
+        "role": "user",
+        "content": "Imported conversation check",
+        "status": "complete",
+        "createdAt": 1784700000000
+      }
+    ],
+    "schemaVersion": 1
+  }
+]

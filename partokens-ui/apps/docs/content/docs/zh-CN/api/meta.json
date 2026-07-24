@@ -1,0 +1,12 @@
+{
+  "title": "API 参考",
+  "pages": [
+    "chat-completions",
+    "responses",
+    "embeddings",
+    "image-generations",
+    "image-edits",
+    "audio-transcriptions",
+    "models"
+  ]
+}

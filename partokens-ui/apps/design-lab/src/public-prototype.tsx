@@ -1,0 +1,481 @@
+import {
+  Activity,
+  ArrowRight,
+  Bell,
+  BookOpen,
+  Bot,
+  Box,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  CircleUserRound,
+  CircleDollarSign,
+  Clipboard,
+  Code2,
+  ExternalLink,
+  FileCheck2,
+  FileText,
+  Globe2,
+  Image as ImageIcon,
+  KeyRound,
+  Languages,
+  LockKeyhole,
+  Menu,
+  MessageSquare,
+  Moon,
+  Network,
+  Plus,
+  Route,
+  Send,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Sun,
+  TerminalSquare,
+  X,
+} from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+
+import {
+  brandLogoUrl,
+  getCurrentNotice,
+  getLegalDocument,
+  getLocaleContent,
+  type LegalKind,
+} from '@partokens/content'
+import { localeLabels, locales, resources, type AppLocale } from '@partokens/i18n'
+import { homePageCopy } from './public-home-copy'
+
+export type PublicPrototypeScreen =
+  | 'home'
+  | 'models'
+  | 'docs'
+  | 'about'
+  | 'notices'
+  | 'legal-user'
+  | 'legal-service'
+  | 'legal-privacy'
+
+type PublicTarget = PublicPrototypeScreen | 'signin' | 'console'
+type Theme = 'light' | 'dark'
+
+type PublicPrototypeProps = {
+  screen: PublicPrototypeScreen
+  locale: AppLocale
+  theme: Theme
+  online: boolean | null
+  version?: string
+  onLocale: (locale: AppLocale) => void
+  onTheme: () => void
+  go: (target: PublicTarget) => void
+}
+
+const requestExample = `curl https://partokens.com/v1/chat/completions \\
+  -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"your-model","messages":[{"role":"user","content":"Hello"}]}'`
+
+const sdkExamples = {
+  shell: requestExample,
+  javascript: `import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.PARTOKENS_API_KEY,
+  baseURL: "https://partokens.com/v1",
+});`,
+  python: `from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["PARTOKENS_API_KEY"],
+    base_url="https://partokens.com/v1",
+)`,
+}
+
+const r3Translations: Record<AppLocale, Record<string, string>> = {
+  'zh-CN': {
+    Product: '产品', Resources: '资源', Legal: '条款', Contact: '联系', 'Account data': '账户数据', Embeddings: '向量嵌入', Copied: '已复制', Today: '今天', Generate: '生成',
+    'Available models depend on live configuration.': '可用模型以服务端实时配置为准。',
+    'The server remains authoritative for billing and routing.': '计费与路由结果始终以服务端为准。',
+    'Existing API service is unaffected.': '现有 API 服务不受影响。',
+    'Versioned notices': '版本化通知',
+    'Material changes are published as versioned notices with a new effective date and a readable description of the change.': '重大变更会以版本化通知发布，并提供新的生效日期与清晰的变更说明。',
+  },
+  'zh-TW': {
+    Product: '產品', Resources: '資源', Legal: '條款', Contact: '聯絡', 'Account data': '帳戶資料', Embeddings: '向量嵌入', Copied: '已複製', Today: '今天', Generate: '生成',
+    'Available models depend on live configuration.': '可用模型以伺服器即時設定為準。',
+    'The server remains authoritative for billing and routing.': '計費與路由結果始終以伺服器為準。',
+    'Existing API service is unaffected.': '現有 API 服務不受影響。',
+    'Versioned notices': '版本化通知',
+    'Material changes are published as versioned notices with a new effective date and a readable description of the change.': '重大變更會以版本化通知發布，並提供新的生效日期與清楚的變更說明。',
+  },
+  en: {
+    Product: 'Product', Resources: 'Resources', Legal: 'Legal', Contact: 'Contact', 'Account data': 'Account data', Embeddings: 'Embeddings', Copied: 'Copied', Today: 'Today', Generate: 'Generate',
+    'Available models depend on live configuration.': 'Available models depend on live configuration.',
+    'The server remains authoritative for billing and routing.': 'The server remains authoritative for billing and routing.',
+    'Existing API service is unaffected.': 'Existing API service is unaffected.',
+    'Versioned notices': 'Versioned notices',
+    'Material changes are published as versioned notices with a new effective date and a readable description of the change.': 'Material changes are published as versioned notices with a new effective date and a readable description of the change.',
+  },
+  ja: {
+    Product: '製品', Resources: 'リソース', Legal: '法的情報', Contact: 'お問い合わせ', 'Account data': 'アカウントデータ', Embeddings: '埋め込み', Copied: 'コピーしました', Today: '今日', Generate: '生成',
+    'Available models depend on live configuration.': '利用可能なモデルはサーバーの現在の設定に基づきます。',
+    'The server remains authoritative for billing and routing.': '課金とルーティングは常にサーバーの結果が優先されます。',
+    'Existing API service is unaffected.': '既存の API サービスには影響しません。',
+    'Versioned notices': 'バージョン付き通知',
+    'Material changes are published as versioned notices with a new effective date and a readable description of the change.': '重要な変更は、新しい施行日と分かりやすい変更内容を含むバージョン付き通知として公開します。',
+  },
+  ru: {
+    Product: 'Продукт', Resources: 'Ресурсы', Legal: 'Документы', Contact: 'Контакты', 'Account data': 'Данные аккаунта', Embeddings: 'Эмбеддинги', Copied: 'Скопировано', Today: 'Сегодня', Generate: 'Создать',
+    'Available models depend on live configuration.': 'Доступные модели определяются текущей конфигурацией сервера.',
+    'The server remains authoritative for billing and routing.': 'Итоговые данные оплаты и маршрутизации определяет сервер.',
+    'Existing API service is unaffected.': 'Существующий API продолжает работать без изменений.',
+    'Versioned notices': 'Версионные уведомления',
+    'Material changes are published as versioned notices with a new effective date and a readable description of the change.': 'Существенные изменения публикуются как версионные уведомления с новой датой вступления и понятным описанием.',
+  },
+  fr: {
+    Product: 'Produit', Resources: 'Ressources', Legal: 'Mentions légales', Contact: 'Contact', 'Account data': 'Données du compte', Embeddings: 'Embeddings', Copied: 'Copié', Today: 'Aujourd’hui', Generate: 'Générer',
+    'Available models depend on live configuration.': 'Les modèles disponibles dépendent de la configuration actuelle du serveur.',
+    'The server remains authoritative for billing and routing.': 'Le serveur reste la référence pour la facturation et le routage.',
+    'Existing API service is unaffected.': 'Le service API existant reste inchangé.',
+    'Versioned notices': 'Avis versionnés',
+    'Material changes are published as versioned notices with a new effective date and a readable description of the change.': 'Les changements importants sont publiés dans des avis versionnés avec une nouvelle date d’effet et une description claire.',
+  },
+  vi: {
+    Product: 'Sản phẩm', Resources: 'Tài nguyên', Legal: 'Pháp lý', Contact: 'Liên hệ', 'Account data': 'Dữ liệu tài khoản', Embeddings: 'Vector nhúng', Copied: 'Đã sao chép', Today: 'Hôm nay', Generate: 'Tạo',
+    'Available models depend on live configuration.': 'Mô hình khả dụng phụ thuộc vào cấu hình hiện tại của máy chủ.',
+    'The server remains authoritative for billing and routing.': 'Máy chủ luôn là nguồn quyết định cho việc tính phí và định tuyến.',
+    'Existing API service is unaffected.': 'Dịch vụ API hiện tại không bị ảnh hưởng.',
+    'Versioned notices': 'Thông báo theo phiên bản',
+    'Material changes are published as versioned notices with a new effective date and a readable description of the change.': 'Các thay đổi quan trọng được công bố bằng thông báo theo phiên bản, kèm ngày hiệu lực mới và mô tả rõ ràng.',
+  },
+}
+
+function translate(locale: AppLocale, key: string) {
+  return r3Translations[locale][key] ?? (resources[locale].translation as Record<string, string>)[key] ?? key
+}
+
+function Brand() {
+  return <span className="r3-brand"><span><img src={brandLogoUrl} alt="" /></span><strong>Partokens</strong></span>
+}
+
+function RouteButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return <button type="button" className="pt-button" data-variant="primary" onClick={onClick}><span>{children}</span><span className="pt-button-endcap"><ArrowRight size={16} /></span></button>
+}
+
+function PublicShell({ children, ...props }: PublicPrototypeProps & { children: ReactNode }) {
+  const { locale, theme, screen, online, version, onLocale, onTheme, go } = props
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const mobileNavRef = useRef<HTMLDivElement>(null)
+  const mobileCloseRef = useRef<HTMLButtonElement>(null)
+  const t = (key: string) => translate(locale, key)
+  const navigate = (target: PublicTarget) => {
+    setMobileOpen(false)
+    go(target)
+  }
+  const navItems: Array<{ target: PublicPrototypeScreen; label: string }> = [
+    { target: 'home', label: t('Home') },
+    { target: 'models', label: t('Models') },
+    { target: 'docs', label: t('Docs') },
+    { target: 'about', label: t('About') },
+  ]
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const previousFocus = document.activeElement as HTMLElement | null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    mobileCloseRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMobileOpen(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(mobileNavRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), a[href]') ?? [])
+      if (focusable.length === 0) return
+      const first = focusable[0]!
+      const last = focusable[focusable.length - 1]!
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = previousOverflow
+      previousFocus?.focus()
+    }
+  }, [mobileOpen])
+
+  return <div className="r3-public-screen">
+    <header className="r3-public-header">
+      <button type="button" className="r3-brand-button" onClick={() => navigate('home')} aria-label="Partokens"><Brand /></button>
+      <nav className="r3-public-nav" aria-label={t('Primary navigation')}>
+        {navItems.map((item) => <button type="button" key={item.target} aria-current={screen === item.target ? 'page' : undefined} onClick={() => navigate(item.target)}>{item.label}</button>)}
+      </nav>
+      <div className="r3-header-tools">
+        <button type="button" className="pt-icon-button" aria-label={t('Notices')} title={t('Notices')} data-active={screen === 'notices' || undefined} onClick={() => navigate('notices')}><Bell size={18} /></button>
+        <label className="r3-locale-control">
+          <Languages size={17} />
+          <span className="sr-only">{t('Language')}</span>
+          <select value={locale} aria-label={t('Language')} onChange={(event) => onLocale(event.target.value as AppLocale)}>
+            {locales.map((item) => <option value={item} key={item}>{localeLabels[item]}</option>)}
+          </select>
+        </label>
+        <button type="button" className="pt-icon-button" aria-label={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} title={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} onClick={onTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
+        <button type="button" className="pt-button r3-signin-button" data-variant="quiet" onClick={() => navigate('signin')}>{t('Sign in')}</button>
+        <RouteButton onClick={() => navigate('console')}>{t('Console')}</RouteButton>
+        <button type="button" className="pt-icon-button r3-mobile-menu-button" aria-label={t('Menu')} title={t('Menu')} onClick={() => setMobileOpen(true)}><Menu size={19} /></button>
+      </div>
+    </header>
+
+    {mobileOpen ? <div ref={mobileNavRef} className="r3-mobile-nav" role="dialog" aria-modal="true" aria-label={t('Menu')}>
+      <header><Brand /><button ref={mobileCloseRef} type="button" className="pt-icon-button" aria-label={t('Close')} title={t('Close')} onClick={() => setMobileOpen(false)}><X size={18} /></button></header>
+      <nav>{navItems.map((item) => <button type="button" key={item.target} aria-current={screen === item.target ? 'page' : undefined} onClick={() => navigate(item.target)}>{item.label}<ChevronRight size={18} /></button>)}<button type="button" aria-current={screen === 'notices' ? 'page' : undefined} onClick={() => navigate('notices')}>{t('Notices')}<ChevronRight size={18} /></button></nav>
+      <div className="r3-mobile-nav-footer">
+        <label className="r3-locale-control"><Globe2 size={17} /><select value={locale} aria-label={t('Language')} onChange={(event) => onLocale(event.target.value as AppLocale)}>{locales.map((item) => <option value={item} key={item}>{localeLabels[item]}</option>)}</select></label>
+        <button type="button" className="pt-icon-button" aria-label={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} title={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} onClick={onTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
+        <RouteButton onClick={() => navigate('console')}>{t('Console')}</RouteButton>
+      </div>
+    </div> : null}
+
+    {children}
+
+    <footer className="r3-public-footer">
+      <div className="r3-footer-main">
+        <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale).aboutLead}</p><span className={online ? 'r3-service-state is-online' : 'r3-service-state'}><i />{online ? t('Available') : t('Awaiting status')}{version ? <code>{version}</code> : null}</span></div>
+        <div className="r3-footer-links">
+          <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('models')}>{t('Models')}</button><button type="button" onClick={() => navigate('console')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console')}>{t('Image studio')}</button></div>
+          <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('docs')}>{t('Docs')}</button><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><a href="https://partokens.com/api/status" target="_blank" rel="noreferrer">{t('Status')}<ExternalLink size={13} /></a></div>
+          <div><strong>{t('Legal')}</strong><button type="button" onClick={() => navigate('legal-user')}>{t('User Agreement')}</button><button type="button" onClick={() => navigate('legal-service')}>{t('Terms of Service')}</button><button type="button" onClick={() => navigate('legal-privacy')}>{t('Privacy Policy')}</button></div>
+          <div><strong>{t('Contact')}</strong><a href="mailto:admin@partokens.com">admin@partokens.com</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer">Telegram<ExternalLink size={13} /></a></div>
+        </div>
+      </div>
+      <div className="r3-footer-bottom"><span>© {new Date().getFullYear()} Partokens</span><span>R3.1 · {t('Draft content')}</span></div>
+    </footer>
+  </div>
+}
+
+function PageIntro({ eyebrow, title, description, children }: { eyebrow: string; title: string; description: string; children?: ReactNode }) {
+  return <header className="r3-page-intro"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{children}</header>
+}
+
+function HomeSectionHeading({ eyebrow, title, body, centered = false }: { eyebrow: string; title: string; body?: string; centered?: boolean }) {
+  return <div className={`r3-home-section-heading ${centered ? 'is-centered' : ''}`}><span>{eyebrow}</span><h2>{title}</h2>{body ? <p>{body}</p> : null}</div>
+}
+
+function HomeProductPreview({ locale, online, version }: Pick<PublicPrototypeProps, 'locale' | 'online' | 'version'>) {
+  const t = (key: string) => translate(locale, key)
+  const copy = homePageCopy[locale]
+  return <div className="r3-product-preview" aria-label={t('Playground')}>
+    <header><div className="r3-window-dots" aria-hidden="true"><i /><i /><i /></div><strong>{t('Playground')}</strong><span className={online ? 'r3-service-state is-online' : 'r3-service-state'}><i />{online ? t('Available') : t('Awaiting status')}{version ? <code>{version}</code> : null}</span></header>
+    <div className="r3-preview-shell">
+      <aside aria-hidden="true"><span><img src={brandLogoUrl} alt="" /></span><MessageSquare className="is-active" size={18} /><ImageIcon size={18} /><KeyRound size={18} /><Activity size={18} /></aside>
+      <section>
+        <header><div><span>{t('Playground')}</span><strong>{t('New chat')}</strong></div><span><Sparkles size={14} />{t('Models')} / {t('Sign in')}<ChevronDown size={14} /></span></header>
+        <div className="r3-preview-messages"><div className="r3-preview-user"><p>{copy.samples.question}</p><CircleUserRound size={22} /></div><div className="r3-preview-assistant"><span><Bot size={16} /></span><p>{copy.samples.answer}</p></div></div>
+        <div className="r3-preview-composer"><span>{copy.samples.composer}</span><button type="button" aria-label={t('Send')} title={t('Send')}><Send size={15} /></button></div>
+        <small><ShieldCheck size={14} />{t('Local history')}</small>
+      </section>
+    </div>
+  </div>
+}
+
+function HomeFeatureCopy({ kicker, title, body, icon: Icon, note }: { kicker: string; title: string; body: string; icon: typeof MessageSquare; note: string }) {
+  return <div className="r3-home-feature-copy"><span>{kicker}</span><h3>{title}</h3><p>{body}</p><small><Icon size={16} />{note}</small></div>
+}
+
+function HomeChatVisual({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
+  const t = (key: string) => translate(locale, key)
+  const copy = homePageCopy[locale]
+  return <div className="r3-home-product-frame r3-home-chat-visual">
+    <aside><header><strong>{t('Recent chats')}</strong><Plus size={16} /></header><small>{t('Today')}</small><span className="is-active"><MessageSquare size={15} />{copy.samples.chatTitle}</span><span><MessageSquare size={15} />{copy.samples.chatSecond}</span><footer><ShieldCheck size={14} />{t('Local history')}</footer></aside>
+    <section><header><strong>{copy.samples.chatTitle}</strong><span><Sparkles size={14} />{t('Models')}</span></header><div><p>{copy.samples.question}</p><span><Bot size={15} /></span><p>{copy.samples.answer}</p></div><footer><span>{copy.samples.composer}</span><Send size={15} /></footer></section>
+  </div>
+}
+
+function HomeImageVisual({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
+  const t = (key: string) => translate(locale, key)
+  const copy = homePageCopy[locale]
+  return <div className="r3-home-product-frame r3-home-image-visual">
+    <header><strong><ImageIcon size={17} />{t('Image studio')}</strong><div><button type="button" aria-label={t('Preferences')} title={t('Preferences')}><SlidersHorizontal size={15} /></button><span><Sparkles size={15} />{t('Generate')}</span></div></header>
+    <div><article className="r3-home-prompt-node"><span><MessageSquare size={14} />{t('Prompt')}</span><p>{copy.samples.imagePrompt}</p></article><span className="r3-home-canvas-link" aria-hidden="true"><i /><ArrowRight size={18} /></span><article className="r3-home-result-node"><span><ImageIcon size={14} />{t('Result')}</span><div aria-hidden="true"><i /><i /><i /></div></article><small aria-hidden="true">− &nbsp; 78% &nbsp; +</small></div>
+  </div>
+}
+
+function HomeControlVisual({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
+  const t = (key: string) => translate(locale, key)
+  return <div className="r3-home-product-frame r3-home-control-visual">
+    <header><strong><Activity size={17} />{t('Overview')}</strong><span><LockKeyhole size={14} />{t('Sign in')}</span></header>
+    <section><div><span>{t('Account balance')}</span><strong>—</strong></div><div><span>{t('30-day use')}</span><strong>—</strong></div></section>
+    <div><article><span><KeyRound size={16} /></span><p><strong>{t('API keys')}</strong><small>{t('Create a key')}</small></p><ChevronRight size={16} /></article><article><span><Activity size={16} /></span><p><strong>{t('Usage logs')}</strong><small>{t('Account data')}</small></p><ChevronRight size={16} /></article></div>
+  </div>
+}
+
+function HomePage({ locale, online, version, go }: Pick<PublicPrototypeProps, 'locale' | 'online' | 'version' | 'go'>) {
+  const t = (key: string) => translate(locale, key)
+  const copy = homePageCopy[locale]
+  const actions = [
+    { icon: MessageSquare, title: t('New chat'), body: copy.started.actionBodies[0], target: 'console' as const, tone: 'lilac' },
+    { icon: ImageIcon, title: t('Image studio'), body: copy.started.actionBodies[1], target: 'console' as const, tone: 'mint' },
+    { icon: KeyRound, title: t('Create a key'), body: copy.started.actionBodies[2], target: 'console' as const, tone: 'coral' },
+  ]
+  const valueIcons = [Code2, Route, Activity, ShieldCheck, SlidersHorizontal, Languages]
+  return <main className="r3-home-page">
+    <section className="r3-home-hero">
+      <div className="r3-home-hero-copy"><span>{copy.hero.eyebrow}</span><h1>Partokens</h1><h2>{copy.hero.title}</h2><p>{copy.hero.body}</p><div><RouteButton onClick={() => go('console')}>{t('Enter console')}</RouteButton><button type="button" className="pt-button" data-variant="secondary" onClick={() => go('docs')}><BookOpen size={16} />{t('Docs')}</button></div><small><LockKeyhole size={14} />{copy.hero.note}</small></div>
+      <HomeProductPreview locale={locale} online={online} version={version} />
+    </section>
+
+    <section className="r3-home-started">
+      <HomeSectionHeading eyebrow="GET STARTED" title={copy.started.title} body={copy.started.body} />
+      <div>{actions.map(({ icon: Icon, title, body, target, tone }) => <button type="button" key={title} data-tone={tone} onClick={() => go(target)}><span><Icon size={19} /></span><p><strong>{title}</strong><small>{body}</small></p><ArrowRight size={17} /></button>)}</div>
+    </section>
+
+    <section className="r3-home-features">
+      <HomeSectionHeading eyebrow="PRODUCT" title={copy.features.title} body={copy.features.body} centered />
+      <article><HomeFeatureCopy kicker={copy.features.chat.kicker} title={copy.features.chat.title} body={copy.features.chat.body} icon={ShieldCheck} note={t('Local history')} /><HomeChatVisual locale={locale} /></article>
+      <article className="is-reversed"><HomeFeatureCopy kicker={copy.features.image.kicker} title={copy.features.image.title} body={copy.features.image.body} icon={ImageIcon} note={t('Image studio')} /><HomeImageVisual locale={locale} /></article>
+      <article><HomeFeatureCopy kicker={copy.features.control.kicker} title={copy.features.control.title} body={copy.features.control.body} icon={KeyRound} note={t('Account data')} /><HomeControlVisual locale={locale} /></article>
+    </section>
+
+    <section className="r3-home-values">
+      <HomeSectionHeading eyebrow={copy.values.eyebrow} title={copy.values.title} />
+      <div>{copy.values.items.map((item, index) => { const Icon = valueIcons[index] ?? Route; return <article key={item.title}><code>0{index + 1}</code><Icon size={20} /><h3>{item.title}</h3><p>{item.body}</p></article> })}</div>
+    </section>
+
+    <section className="r3-home-faq">
+      <HomeSectionHeading eyebrow="FAQ" title={copy.faq.title} body={copy.faq.body} />
+      <div>{copy.faq.items.map(([question, answer], index) => <details key={question} open={index === 0}><summary><span>{question}</span><ChevronDown size={19} /></summary><p>{answer}</p></details>)}</div>
+    </section>
+  </main>
+}
+
+function ModelsPage({ locale, go }: Pick<PublicPrototypeProps, 'locale' | 'go'>) {
+  const t = (key: string) => translate(locale, key)
+  const endpoints = [
+    { icon: MessageSquare, label: t('Chat completions'), path: '/v1/chat/completions', tone: 'lilac' },
+    { icon: ImageIcon, label: t('Images'), path: '/v1/images/generations', tone: 'mint' },
+    { icon: Network, label: t('Embeddings'), path: '/v1/embeddings', tone: 'coral' },
+  ]
+  return <main className="r3-page r3-models-page">
+    <PageIntro eyebrow={t('Model catalog')} title={t('Models')} description={t('Compare available model routes, capabilities, and billing modes.')}>
+      <span className="r3-truth-note"><ShieldCheck size={16} />{t('This deployment requires an account before showing model pricing.')}</span>
+    </PageIntro>
+
+    <section className="r3-route-overview" aria-labelledby="route-overview-title">
+      <div className="r3-section-copy"><span>API ROUTES</span><h2 id="route-overview-title">{t('Compatible access')}</h2><p>{t('Use the Partokens compatible endpoint in clients that support a custom OpenAI base URL.')}</p><code>https://partokens.com/v1</code></div>
+      <div className="r3-endpoint-list">
+        {endpoints.map(({ icon: Icon, label, path, tone }) => <article key={path} data-tone={tone}><span><Icon size={18} /></span><div><strong>{label}</strong><code>{path}</code></div><Route size={18} /></article>)}
+      </div>
+    </section>
+
+    <section className="r3-model-gate">
+      <div className="r3-gate-visual" aria-hidden="true">
+        <div><span /><span /><span /></div>
+        <Route size={22} />
+        <div><span /><span /><span /></div>
+      </div>
+      <div className="r3-gate-copy"><span><LockKeyhole size={15} />{t('Account data')}</span><h2>{t('Sign in to view model pricing')}</h2><p>{t('This deployment requires an account before showing model pricing.')}</p><ul><li><CheckCircle2 size={15} />{t('Available models depend on live configuration.')}</li><li><CheckCircle2 size={15} />{t('Model pricing and multipliers in context.')}</li><li><CheckCircle2 size={15} />{t('The server remains authoritative for billing and routing.')}</li></ul><RouteButton onClick={() => go('signin')}>{t('Sign in')}</RouteButton></div>
+    </section>
+  </main>
+}
+
+function CodeBlock({ code, label, copyLabel, copiedLabel }: { code: string; label: string; copyLabel: string; copiedLabel: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    await navigator.clipboard?.writeText(code)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1400)
+  }
+  return <div className="r3-code-block"><header><span>{label}</span><button type="button" className="pt-icon-button" data-size="small" aria-label={copyLabel} title={copyLabel} onClick={() => void copy()}>{copied ? <Check size={15} /> : <Clipboard size={15} />}</button></header><pre><code>{code}</code></pre><span className="sr-only" role="status">{copied ? copiedLabel : ''}</span></div>
+}
+
+function DocsPage({ locale, go }: Pick<PublicPrototypeProps, 'locale' | 'go'>) {
+  const t = (key: string) => translate(locale, key)
+  const [sdk, setSdk] = useState<keyof typeof sdkExamples>('shell')
+  const steps = [
+    { href: '#base-url', label: t('Base URL') },
+    { href: '#authentication', label: t('Authentication') },
+    { href: '#first-request', label: t('First request') },
+    { href: '#sdk', label: 'SDK' },
+    { href: '#reference', label: t('API reference') },
+  ]
+  return <main className="r3-page r3-docs-page">
+    <aside className="r3-docs-index"><span>{t('Quick start')}</span><nav>{steps.map((step, index) => <a key={step.href} href={step.href}><code>0{index + 1}</code>{step.label}</a>)}</nav><button type="button" onClick={() => go('console')}><KeyRound size={16} />{t('Create a key')}<ChevronRight size={15} /></button></aside>
+    <article className="r3-docs-article">
+      <PageIntro eyebrow="PARTOKENS API" title={t('Docs')} description={t('Start with an API key and one compatible request.')} />
+      <section id="base-url" className="r3-docs-section"><span>01</span><div><h2>{t('Base URL')}</h2><p>{t('Use the Partokens compatible endpoint in clients that support a custom OpenAI base URL.')}</p><div className="r3-inline-endpoint"><Globe2 size={16} /><code>https://partokens.com/v1</code></div></div></section>
+      <section id="authentication" className="r3-docs-section"><span>02</span><div><h2>{t('Authentication')}</h2><p>{t('Create a scoped API key in the console and send it as a Bearer token.')}</p><button type="button" className="r3-text-link" onClick={() => go('console')}><KeyRound size={15} />{t('Create a key')}<ArrowRight size={14} /></button></div></section>
+      <section id="first-request" className="r3-docs-section"><span>03</span><div><h2>{t('First request')}</h2><p>{t('Replace the model name with one available to your account group.')}</p><CodeBlock code={requestExample} label="cURL" copyLabel={t('Copy request')} copiedLabel={t('Copied')} /></div></section>
+      <section id="sdk" className="r3-docs-section"><span>04</span><div><h2>SDK</h2><p>{t('Use the OpenAI-compatible endpoint in your CLI or SDK. The full key is never stored in this browser.')}</p><div className="pt-segmented r3-sdk-tabs" aria-label="SDK"><button type="button" aria-pressed={sdk === 'shell'} onClick={() => setSdk('shell')}>Shell</button><button type="button" aria-pressed={sdk === 'javascript'} onClick={() => setSdk('javascript')}>JavaScript</button><button type="button" aria-pressed={sdk === 'python'} onClick={() => setSdk('python')}>Python</button></div><CodeBlock code={sdkExamples[sdk]} label={sdk === 'shell' ? 'cURL' : sdk === 'javascript' ? 'JavaScript' : 'Python'} copyLabel={t('Copy request')} copiedLabel={t('Copied')} /></div></section>
+      <section id="reference" className="r3-docs-reference"><TerminalSquare size={22} /><div><h2>{t('Full reference')}</h2><p>{t('API response fields follow the OpenAI-compatible schema for each endpoint.')}</p></div><button type="button" className="pt-button" data-variant="secondary"><BookOpen size={16} />{t('API reference')}</button></section>
+    </article>
+  </main>
+}
+
+function AboutPage({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
+  const t = (key: string) => translate(locale, key)
+  const content = getLocaleContent(locale)
+  const principles = [
+    { icon: Route, title: t('Visible state'), body: t('Availability, quota, and billing belong beside the action they affect.') },
+    { icon: Code2, title: t('Compatible access'), body: t('Existing clients work through one consistent API boundary.') },
+    { icon: ShieldCheck, title: t('Independent UI'), body: t('User experience can evolve without modifying the New API source.') },
+  ]
+  return <main className="r3-page r3-about-page">
+    <PageIntro eyebrow={t('About Partokens')} title={content.aboutTitle} description={content.aboutLead} />
+    <section className="r3-about-statement"><span>PARTOKENS / ROUTE</span><p>{content.aboutBody}</p><div aria-hidden="true"><span>Prompt</span><ArrowRight size={18} /><span>Route</span><ArrowRight size={18} /><span>Result</span></div></section>
+    <section className="r3-principles">{principles.map(({ icon: Icon, title, body }, index) => <article key={title}><code>0{index + 1}</code><Icon size={21} /><h2>{title}</h2><p>{body}</p></article>)}</section>
+    <section className="r3-service-boundary"><div><span>SERVICE BOUNDARY</span><h2>{t('Independent UI')}</h2></div><div><strong>Partokens UI</strong><ArrowRight size={19} /><strong>New API</strong><ArrowRight size={19} /><strong>{t('Provider route')}</strong></div></section>
+  </main>
+}
+
+function LegalPage({ locale, screen, go }: Pick<PublicPrototypeProps, 'locale' | 'screen' | 'go'>) {
+  const t = (key: string) => translate(locale, key)
+  const kindByScreen: Record<'legal-user' | 'legal-service' | 'legal-privacy', LegalKind> = {
+    'legal-user': 'user-agreement',
+    'legal-service': 'service-agreement',
+    'legal-privacy': 'privacy-policy',
+  }
+  const kind = kindByScreen[screen as keyof typeof kindByScreen] ?? 'service-agreement'
+  const document = getLegalDocument(locale, kind)
+  const legalLinks: Array<{ target: PublicPrototypeScreen; kind: LegalKind }> = [
+    { target: 'legal-user', kind: 'user-agreement' },
+    { target: 'legal-service', kind: 'service-agreement' },
+    { target: 'legal-privacy', kind: 'privacy-policy' },
+  ]
+  return <main className="r3-page r3-legal-layout">
+    <aside className="r3-legal-index"><span>{t('Legal')}</span><nav>{legalLinks.map((link) => { const item = getLegalDocument(locale, link.kind); return <button type="button" key={link.kind} aria-current={kind === link.kind ? 'page' : undefined} onClick={() => go(link.target)}><FileText size={16} />{item.title}</button> })}</nav><div><FileCheck2 size={16} /><span>{t('Draft content')}<small>{t('Owner review required')}</small></span></div></aside>
+    <article className="r3-legal-document">
+      <PageIntro eyebrow={t('Legal draft')} title={document.title} description={document.summary} />
+      <div className="r3-legal-meta"><span><FileCheck2 size={15} />{t('Draft content')}</span><span>{t('Effective date')}: <code>{document.effectiveDate}</code></span><span>{t('Owner review required')}</span></div>
+      <div className="r3-legal-body">{document.sections.map((section, index) => <section key={section.title}><span>0{index + 1}</span><div><h2>{section.title}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div></section>)}</div>
+    </article>
+  </main>
+}
+
+function NoticesPage({ locale, version }: Pick<PublicPrototypeProps, 'locale' | 'version'>) {
+  const t = (key: string) => translate(locale, key)
+  const notice = getCurrentNotice(locale)
+  return <main className="r3-page r3-notices-page">
+    <PageIntro eyebrow="RELEASE NOTES" title={t('Notices')} description={notice.title} />
+    <section className="r3-notice-entry">
+      <aside><span>CURRENT</span><code>{notice.version}</code><small>{version ? `${t('Status')} / ${version}` : t('Draft content')}</small></aside>
+      <article><header><span className="r3-release-badge"><Bell size={15} />R3.1</span><time dateTime="2026-07-20">2026-07-20</time></header><h2>{notice.title}</h2><p>{notice.body}</p><div><span><CheckCircle2 size={16} />{t('Existing API service is unaffected.')}</span><span><ShieldCheck size={16} />{t('User experience can evolve without modifying the New API source.')}</span></div></article>
+    </section>
+    <section className="r3-notice-policy"><CircleDollarSign size={20} /><div><h2>{t('Versioned notices')}</h2><p>{t('Material changes are published as versioned notices with a new effective date and a readable description of the change.')}</p></div></section>
+  </main>
+}
+
+export function PublicPrototype(props: PublicPrototypeProps) {
+  let page: ReactNode
+  if (props.screen === 'home') page = <HomePage locale={props.locale} online={props.online} version={props.version} go={props.go} />
+  else if (props.screen === 'models') page = <ModelsPage locale={props.locale} go={props.go} />
+  else if (props.screen === 'docs') page = <DocsPage locale={props.locale} go={props.go} />
+  else if (props.screen === 'about') page = <AboutPage locale={props.locale} />
+  else if (props.screen === 'notices') page = <NoticesPage locale={props.locale} version={props.version} />
+  else page = <LegalPage locale={props.locale} screen={props.screen} go={props.go} />
+
+  return <PublicShell {...props}>{page}</PublicShell>
+}

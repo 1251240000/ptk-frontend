@@ -1,0 +1,84 @@
+{$PARTOKENS_SITE_ADDRESS:http://127.0.0.1:8080} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), geolocation=(), microphone=()"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	@uiHealth path /_ui/healthz
+	handle @uiHealth {
+		header Cache-Control "no-store"
+		respond 204
+	}
+
+	@docsStatic path /_docs/_next/static/*
+	handle @docsStatic {
+		uri strip_prefix /_docs
+		reverse_proxy {$PARTOKENS_DOCS_ORIGIN:http://127.0.0.1:3001} {
+			header_down Cache-Control "public, max-age=31536000, immutable"
+		}
+	}
+
+	@docsInternal path /_docs/*
+	handle @docsInternal {
+		uri strip_prefix /_docs
+		reverse_proxy {$PARTOKENS_DOCS_ORIGIN:http://127.0.0.1:3001}
+	}
+
+	@backend path /api/* /v1/* /v1beta/* /pg/* /mj/* /*/mj/* /suno/* /kling/* /jimeng /jimeng/* /dashboard/billing/*
+	handle @backend {
+		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+	}
+
+	@officialAssets path /assets/*
+	handle @officialAssets {
+		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+	}
+
+	@officialAdmin path /channels /channels/* /models /models/* /users /users/* /redemption-codes /redemption-codes/* /subscriptions /subscriptions/* /system-info /system-info/* /system-settings /system-settings/*
+	handle @officialAdmin {
+		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+	}
+
+	@uiAssets path /_ui/*
+	handle @uiAssets {
+		header Cache-Control "public, max-age=31536000, immutable"
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		file_server
+	}
+
+	@localizedDocs path_regexp localizedDocs ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)/docs(/.*)?$
+	handle @localizedDocs {
+		reverse_proxy {$PARTOKENS_DOCS_ORIGIN:http://127.0.0.1:3001}
+	}
+
+	@localizedUI path_regexp localizedUI ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(/.*)?$
+	handle @localizedUI {
+		header {
+			Cache-Control "no-store"
+			Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
+		}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		try_files {path} /index.html
+		file_server
+	}
+
+	@technicalUI path / /oauth /oauth/* /user/reset
+	handle @technicalUI {
+		header {
+			Cache-Control "no-store"
+			Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
+		}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle {
+		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+	}
+}

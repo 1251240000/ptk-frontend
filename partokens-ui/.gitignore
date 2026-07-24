@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.rsbuild-cache/
+coverage/
+apps/docs/.next/
+apps/docs/.source/
+release/
+release.tmp/
+*.tsbuildinfo
+.DS_Store
+*.log
+.env
+.env.local
+apps/docs/.next/
