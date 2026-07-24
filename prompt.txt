@@ -1,0 +1,77 @@
+
+  继续开发 `/Users/dj/Desktop/partokens/partokens-ui`。
+
+  当前进度：
+
+  1. `#system` 已基于 `satnaing/shadcn-admin` 2.2.1 完成重构，是后续页面的视觉与交互基准。
+  2. 已完成以下控制台页面：
+     - API 密钥：`#console-keys`
+     - 使用日志：`#console-logs`
+     - 数据看板：`#console-analytics`
+  3. 通用控制台外壳：
+     - `apps/design-lab/src/shadcn-console-shell.tsx`
+  4. 已完成的新页面：
+     - `apps/design-lab/src/shadcn-api-keys-screen.tsx`
+     - `apps/design-lab/src/shadcn-usage-logs-screen.tsx`
+     - `apps/design-lab/src/shadcn-analytics-screen.tsx`
+  5. 路由分发：`apps/design-lab/src/App.tsx`
+  6. 通用样式：`apps/design-lab/src/shadcn-admin.css`
+  7. 已有验证报告：
+     - `dogfood-output/r37-api-keys/report.md`
+     - `dogfood-output/r38-usage-logs/report.md`
+     - `dogfood-output/r39-analytics/report.md`
+  8. design-lab 地址：`http://127.0.0.1:4180/`
+
+  下一阶段目标：
+
+  - 页面：控制台概览
+  - 路由：`#console`
+  - 新实现文件：`apps/design-lab/src/shadcn-overview-screen.tsx`
+  - 新验证报告：`dogfood-output/r40-overview/report.md`
+
+  核心要求：
+
+  1. 完全沿用现有 shadcn-admin/New York 工程、视觉、信息密度和交互语言。
+  2. 必须复用 `ConsoleShell`，设置 `activeRoute='console'`，不得复制控制台外壳。
+  3. 保持 `#system`、`#console-keys`、`#console-logs`、`#console-analytics` 的视觉、功能、响应式和焦点管理不变。
+  4. 只重构 `#console`，不要顺带迁移 Playground、Image Studio、Wallet、Profile 或其他旧页面。
+  5. 旧概览重点参考：
+     - `apps/design-lab/src/console-data-prototype.tsx` 中的 `OverviewPage`、`MetricStrip`
+     - `apps/design-lab/src/console-data-prototype.css`
+     - `apps/design-lab/src/console-data-copy.ts`
+  6. 保留真实业务内容：账户余额、近期/累计用量、请求数、请求就绪状态、API 服务状态、版本、可用接口、请求链路和近期使用记录。
+  7. “Create a key”“Open Playground”“Notices”“Inspect logs”“View all”等操作必须导航到现有真实 hash，不做占位按钮。
+  8. 桌面端近期使用记录采用标准 Table；390px 移动端改为可扫描列表，不压缩桌面表格。
+  9. 优先复用 `packages/design-system` 组件；缺失的通用组件按 shadcn-admin/New York 模式补入 design-system。
+  10. 不引入 Clerk、TanStack Router、示例 Dashboard 数据或 shadcn-admin 默认业务。
+  11. 不使用旧 Partokens 视觉，不添加 Hero、营销内容、装饰性图表或无业务价值的卡片。
+  12. Loading、Error、Empty、Disabled、Toast 必须真实可触发。可围绕刷新、服务状态和近期使用数据实现，但不要为了测试虚构无意义控件。
+  13. 近期记录详情如需 Overlay，桌面使用 Dialog、移动端使用 Sheet；必须支持 Escape、焦点约束和关闭后的焦点回归。
+  14. 修改 `App.tsx` 时，只将 `#console` 排除出旧 `ConsoleDataPrototype` 并切换到 `ShadcnOverviewScreen`。
+  15. 不修改旧 prototype 文件，不覆盖已有 dogfood 输出。
+  16. 工作区可能包含用户修改和未跟踪文件；禁止 reset、checkout、clean、删除或覆盖无关文件，手工编辑使用 `apply_patch`。
+
+  实施流程：
+
+  1. 检查 4180 端口、git 状态、共享外壳、目标旧实现和 `#console` 路由分发。
+  2. 明确旧页面必须保留的数据、状态、导航和响应式行为。
+  3. 实现 `shadcn-overview-screen.tsx` 并接入 `ConsoleShell`。
+  4. 仅修改目标 hash 的路由分发。
+  5. 运行 typecheck 和 build，随后进行浏览器 dogfood。
+  6. 发现问题立即修复并重新验证。
+  7. 新增 `dogfood-output/r40-overview/report.md` 和对应截图，不覆盖 r37-r39。
+
+  完成前必须验证：
+
+  - `bun --filter @partokens/design-lab typecheck`
+  - `bun --filter @partokens/design-lab build`
+  - 1440px Light/Dark
+  - 390px 移动端无横向溢出、截断、遮挡或重叠
+  - 所有页面操作、导航、Loading、Error、Empty、Disabled、Toast
+  - Dialog/Sheet/Sidebar 的 Escape、焦点约束和焦点回归
+  - 浏览器控制台无错误
+  - 路由回归：`#system`、`#console-keys`、`#console-logs`、`#console-analytics`、至少两个未迁移旧控制台路由、`#home`
+  - 启动或复用 4180 服务，并提供：
+    `http://127.0.0.1:4180/#console`
+
+  不要只给方案；直接实施、验证、修复并写入 r40 报告，全部完成后再结束任务。
