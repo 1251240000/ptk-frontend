@@ -1234,6 +1234,16 @@ const phaseSevenTranslationRows: Array<[string, ...string[]]> = [
   ['Passkey verification was cancelled', 'Passkey 验证已取消', 'Passkey 驗證已取消', 'Passkey verification was cancelled', 'Passkey 確認がキャンセルされました', 'Проверка Passkey отменена', 'La vérification Passkey a été annulée', 'Đã hủy xác minh Passkey'],
   ['Sign in to view model pricing', '登录后查看模型价格', '登入後查看模型價格', 'Sign in to view model pricing', 'ログインしてモデル価格を表示', 'Войдите, чтобы увидеть цены моделей', 'Connectez-vous pour voir les tarifs', 'Đăng nhập để xem giá mô hình'],
   ['This deployment requires an account before showing model pricing.', '当前部署要求登录后才能显示真实模型价格。', '目前部署要求登入後才能顯示真實模型價格。', 'This deployment requires an account before showing model pricing.', 'この環境ではモデル価格の表示にログインが必要です。', 'В этой конфигурации цены моделей доступны после входа.', 'Ce déploiement exige une connexion pour afficher les tarifs réels.', 'Bản triển khai này yêu cầu đăng nhập trước khi hiển thị giá mô hình.'],
+  ['Account menu', '账户菜单', '帳戶選單', 'Account menu', 'アカウントメニュー', 'Меню аккаунта', 'Menu du compte', 'Menu tài khoản'],
+  ['Account readiness, usage, and the next useful action in one view.', '在一个页面查看账户状态、用量和下一步操作。', '在同一頁查看帳戶狀態、用量與下一步操作。', 'Account readiness, usage, and the next useful action in one view.', 'アカウントの準備状況、使用量、次の操作を一画面で確認できます。', 'Готовность аккаунта, использование и следующее действие на одном экране.', 'État du compte, utilisation et prochaine action réunis dans une seule vue.', 'Xem trạng thái tài khoản, mức sử dụng và hành động tiếp theo trong một màn hình.'],
+  ['Change theme', '切换主题', '切換主題', 'Change theme', 'テーマを変更', 'Сменить тему', 'Changer de thème', 'Đổi giao diện'],
+  ['Component lab', '组件实验室', '元件實驗室', 'Component lab', 'コンポーネントラボ', 'Лаборатория компонентов', 'Laboratoire de composants', 'Phòng thử nghiệm thành phần'],
+  ['Developer console', '开发者控制台', '開發者控制台', 'Developer console', '開発者コンソール', 'Консоль разработчика', 'Console développeur', 'Bảng điều khiển nhà phát triển'],
+  ['Export', '导出', '匯出', 'Export', 'エクスポート', 'Экспорт', 'Exporter', 'Xuất'],
+  ['Inspect usage trends, model share, cost, and request routes.', '查看用量趋势、模型占比、费用和请求路由。', '查看用量趨勢、模型占比、費用與請求路由。', 'Inspect usage trends, model share, cost, and request routes.', '使用傾向、モデル比率、費用、リクエスト経路を確認します。', 'Анализируйте динамику использования, доли моделей, стоимость и маршруты запросов.', 'Analysez les tendances d’utilisation, la répartition des modèles, les coûts et les routes de requête.', 'Xem xu hướng sử dụng, tỷ lệ mô hình, chi phí và tuyến yêu cầu.'],
+  ['Overview actions', '概览操作', '概覽操作', 'Overview actions', '概要の操作', 'Действия обзора', 'Actions de la vue d’ensemble', 'Thao tác tổng quan'],
+  ['Refreshing...', '正在刷新...', '正在重新整理...', 'Refreshing...', '更新中...', 'Обновление...', 'Actualisation...', 'Đang làm mới...'],
+  ['Workspace', '工作区', '工作區', 'Workspace', 'ワークスペース', 'Рабочая область', 'Espace de travail', 'Không gian làm việc'],
 ]
 
 for (const [key, ...values] of phaseSevenTranslationRows) {

@@ -24,7 +24,7 @@ import { useSessionStore } from "@/stores/session";
 import { Modal } from "./modal";
 import { IconButton } from "./ui";
 
-export function ConsoleShell() {
+export function LegacyConsoleShell() {
   const { t } = useTranslation();
   const pathname = useLocation({ select: (state) => state.pathname });
   const params = useParams({ strict: false }) as { locale?: string };

@@ -181,6 +181,7 @@ export type QuotaDataPoint = {
   created_at?: number
   quota?: number
   token_used?: number
+  count?: number
   request_count?: number
   [key: string]: unknown
 }
@@ -374,7 +375,8 @@ export type UserSettingsInput = {
 const envelopeSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
-  data: z.unknown(),
+  // Business-level failures may be HTTP 200 responses without a data field.
+  data: z.unknown().optional(),
 })
 
 export const api = axios.create({
@@ -396,6 +398,13 @@ api.interceptors.request.use((config) => {
 function parseEnvelope<T>(input: unknown): ApiEnvelope<T> {
   const parsed = envelopeSchema.parse(input)
   return parsed as ApiEnvelope<T>
+}
+
+function parseMutationEnvelope<T>(input: unknown): ApiEnvelope<T> {
+  if (input && typeof input === 'object' && !('data' in input)) {
+    return parseEnvelope<T>({ ...input, data: undefined })
+  }
+  return parseEnvelope<T>(input)
 }
 
 export async function getStatus(): Promise<ApiEnvelope<PartokensStatus>> {
@@ -707,7 +716,7 @@ export async function streamPlaygroundCompletion(
 
 export async function createToken(input: TokenInput): Promise<ApiEnvelope<TokenSummary>> {
   const response = await api.post('/api/token/', input)
-  return parseEnvelope<TokenSummary>(response.data)
+  return parseMutationEnvelope<TokenSummary>(response.data)
 }
 
 export async function updateToken(input: TokenInput & { id: number }): Promise<ApiEnvelope<TokenSummary>> {
@@ -722,7 +731,7 @@ export async function updateTokenStatus(id: number, status: number): Promise<Api
 
 export async function deleteToken(id: number): Promise<ApiEnvelope<unknown>> {
   const response = await api.delete(`/api/token/${id}`)
-  return parseEnvelope(response.data)
+  return parseMutationEnvelope(response.data)
 }
 
 export async function deleteTokens(ids: number[]): Promise<ApiEnvelope<number>> {

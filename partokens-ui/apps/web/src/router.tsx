@@ -1,11 +1,12 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet, redirect, useLocation, useParams } from '@tanstack/react-router'
 import { LoaderCircle } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { isAppLocale, resolvePreferredLocale } from '@partokens/i18n'
 
-import { ConsoleShell } from '@/components/console-shell'
+import { LegacyConsoleShell } from '@/components/console-shell'
+import { ConsoleShell } from '@/components/console-foundation/console-shell'
 import { TopNav } from '@/components/top-nav'
 import { i18n } from '@/lib/i18n'
 import { AboutPage, LegalPage } from '@/pages/content-pages'
@@ -16,6 +17,10 @@ import { HomePage } from '@/pages/home-page'
 import { ModelsPage } from '@/pages/models-page'
 import { ForgotPasswordPage, OAuthCallbackPage, OtpPage, ResetPasswordPage, SignInPage, SignUpPage } from '@/pages/auth-pages'
 import { ProfilePage } from '@/pages/profile-page'
+import { ConsoleFoundationAnalyticsPage } from '@/pages/console-foundation-analytics-page'
+import { ConsoleFoundationKeysPage } from '@/pages/console-foundation-keys-page'
+import { ConsoleFoundationLogsPage } from '@/pages/console-foundation-logs-page'
+import { ConsoleFoundationOverviewPage } from '@/pages/console-foundation-page'
 import { WalletPage } from '@/pages/wallet-page'
 import { useSessionStore } from '@/stores/session'
 
@@ -38,8 +43,8 @@ function LocaleBoundary() {
     void i18n.changeLanguage(locale)
   }, [locale])
   if (!locale) return null
-  const isAuth = pathname.includes('/auth/')
-  return <>{isAuth ? null : <TopNav />}<Outlet /></>
+  const ownsFullViewport = pathname.includes('/auth/') || pathname.includes('/console-foundation/')
+  return <>{ownsFullViewport ? null : <TopNav />}<Outlet /></>
 }
 
 const localeRoute = createRoute({ getParentRoute: () => rootRoute, path: '$locale', component: LocaleBoundary })
@@ -54,7 +59,7 @@ const forgotRoute = createRoute({ getParentRoute: () => localeRoute, path: 'auth
 const localizedResetRoute = createRoute({ getParentRoute: () => localeRoute, path: 'auth/reset', component: ResetPasswordPage })
 const otpRoute = createRoute({ getParentRoute: () => localeRoute, path: 'auth/otp', component: OtpPage })
 
-function ConsoleGuard() {
+function AuthenticatedUserBoundary({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   const { user, resolved, resolve } = useSessionStore()
   const params = useParams({ strict: false }) as { locale?: string }
@@ -65,7 +70,15 @@ function ConsoleGuard() {
     else if (user.role >= 10) window.location.assign('/channels')
   }, [params.locale, resolved, user])
   if (!resolved || !user || user.role >= 10) return <div className="route-loader"><LoaderCircle className="spin" size={22} />{t('Loading account')}</div>
-  return <ConsoleShell />
+  return children
+}
+
+function ConsoleGuard() {
+  return <AuthenticatedUserBoundary><LegacyConsoleShell /></AuthenticatedUserBoundary>
+}
+
+function ConsoleFoundationGuard() {
+  return <AuthenticatedUserBoundary><ConsoleShell /></AuthenticatedUserBoundary>
 }
 
 const consoleRoute = createRoute({ getParentRoute: () => localeRoute, path: 'console', component: ConsoleGuard })
@@ -83,11 +96,19 @@ const studioComponent = lazyRouteComponent(() => import('@/pages/studio-page'), 
 const studioRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'studio', component: studioComponent })
 const studioDetailRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'studio/$projectId', component: studioComponent })
 
+const consoleFoundationRoute = createRoute({ getParentRoute: () => localeRoute, path: 'console-foundation', component: ConsoleFoundationGuard })
+const consoleFoundationIndexRoute = createRoute({ getParentRoute: () => consoleFoundationRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: '/$locale/console-foundation/overview', params: { locale: params.locale } }) } })
+const consoleFoundationOverviewRoute = createRoute({ getParentRoute: () => consoleFoundationRoute, path: 'overview', component: ConsoleFoundationOverviewPage })
+const consoleFoundationAnalyticsRoute = createRoute({ getParentRoute: () => consoleFoundationRoute, path: 'analytics', component: ConsoleFoundationAnalyticsPage })
+const consoleFoundationKeysRoute = createRoute({ getParentRoute: () => consoleFoundationRoute, path: 'keys', component: ConsoleFoundationKeysPage })
+const consoleFoundationLogsRoute = createRoute({ getParentRoute: () => consoleFoundationRoute, path: 'logs', component: ConsoleFoundationLogsPage })
+
 const oauthRoute = createRoute({ getParentRoute: () => rootRoute, path: 'oauth/$provider', component: OAuthCallbackPage })
 const technicalResetRoute = createRoute({ getParentRoute: () => rootRoute, path: 'user/reset', component: ResetPasswordPage })
 
 const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, logsRoute, walletRoute, profileRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
-const localeTree = localeRoute.addChildren([homeRoute, modelsRoute, docsRoute, aboutRoute, legalRoute, signInRoute, signUpRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree])
+const consoleFoundationTree = consoleFoundationRoute.addChildren([consoleFoundationIndexRoute, consoleFoundationOverviewRoute, consoleFoundationAnalyticsRoute, consoleFoundationKeysRoute, consoleFoundationLogsRoute])
+const localeTree = localeRoute.addChildren([homeRoute, modelsRoute, docsRoute, aboutRoute, legalRoute, signInRoute, signUpRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleFoundationTree])
 const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })

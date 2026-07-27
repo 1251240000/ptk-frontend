@@ -8,10 +8,12 @@ import {
   Image as ImageIcon,
   KeyRound,
   LayoutDashboard,
+  Link2,
   LogOut,
   MessageSquare,
   Moon,
   ReceiptText,
+  ShieldCheck,
   Sun,
   WalletCards,
 } from 'lucide-react'
@@ -55,6 +57,9 @@ export type ConsoleRoute =
   | 'console-studio'
   | 'console-wallet'
   | 'console-profile'
+  | 'console-security'
+  | 'console-connections'
+  | 'console-notifications'
 
 export type ConsoleScreenProps = {
   theme: Theme
@@ -92,6 +97,9 @@ const consoleNavigation: {
     items: [
       { label: 'Wallet', target: 'console-wallet', icon: WalletCards },
       { label: 'Profile', target: 'console-profile', icon: CircleUserRound },
+      { label: 'Security', target: 'console-security', icon: ShieldCheck },
+      { label: 'Connections', target: 'console-connections', icon: Link2 },
+      { label: 'Notifications', target: 'console-notifications', icon: Bell },
     ],
   },
 ]
@@ -105,10 +113,34 @@ const routeLabels: Record<ConsoleRoute, string> = {
   'console-studio': 'Image studio',
   'console-wallet': 'Wallet',
   'console-profile': 'Profile',
+  'console-security': 'Security',
+  'console-connections': 'Connections',
+  'console-notifications': 'Notifications',
+}
+
+function useConsoleNavigation(onNavigate: ConsoleScreenProps['onNavigate']) {
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  return (target: ConsoleRoute | 'system') => {
+    if (isMobile) setOpenMobile(false)
+    onNavigate(target)
+
+    if (isMobile) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          document.querySelector<HTMLButtonElement>('[data-console-sidebar-trigger]')?.focus()
+        })
+      })
+    }
+  }
 }
 
 function BrandMenu({ onNavigate }: Pick<ConsoleScreenProps, 'onNavigate'>) {
   const { isMobile } = useSidebar()
+  const navigate = useConsoleNavigation(onNavigate)
+  const selectRoute = (target: ConsoleRoute | 'system') => {
+    window.requestAnimationFrame(() => navigate(target))
+  }
 
   return (
     <SidebarMenu>
@@ -136,7 +168,7 @@ function BrandMenu({ onNavigate }: Pick<ConsoleScreenProps, 'onNavigate'>) {
             sideOffset={4}
           >
             <DropdownMenuLabel className='text-xs text-muted-foreground'>Workspace</DropdownMenuLabel>
-            <DropdownMenuItem className='gap-2 p-2' onSelect={() => onNavigate('console')}>
+            <DropdownMenuItem className='gap-2 p-2' onSelect={() => selectRoute('console')}>
               <div className='flex size-6 items-center justify-center rounded-sm border'>
                 <LayoutDashboard className='size-4' />
               </div>
@@ -144,7 +176,7 @@ function BrandMenu({ onNavigate }: Pick<ConsoleScreenProps, 'onNavigate'>) {
               <Check className='ms-auto size-4' />
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className='gap-2 p-2' onSelect={() => onNavigate('system')}>
+            <DropdownMenuItem className='gap-2 p-2' onSelect={() => selectRoute('system')}>
               <div className='flex size-6 items-center justify-center rounded-sm border'>
                 <BadgeCheck className='size-4' />
               </div>
@@ -158,12 +190,7 @@ function BrandMenu({ onNavigate }: Pick<ConsoleScreenProps, 'onNavigate'>) {
 }
 
 function ConsoleNavigation({ activeRoute, onNavigate }: Pick<ConsoleShellProps, 'activeRoute' | 'onNavigate'>) {
-  const { setOpenMobile } = useSidebar()
-
-  const navigate = (target: ConsoleRoute) => {
-    onNavigate(target)
-    setOpenMobile(false)
-  }
+  const navigate = useConsoleNavigation(onNavigate)
 
   return consoleNavigation.map((group) => (
     <SidebarGroup key={group.label}>
@@ -190,6 +217,10 @@ function ConsoleNavigation({ activeRoute, onNavigate }: Pick<ConsoleShellProps, 
 
 function UserMenu({ onNavigate }: Pick<ConsoleScreenProps, 'onNavigate'>) {
   const { isMobile } = useSidebar()
+  const navigate = useConsoleNavigation(onNavigate)
+  const selectRoute = (target: ConsoleRoute) => {
+    window.requestAnimationFrame(() => navigate(target))
+  }
 
   return (
     <SidebarMenu>
@@ -222,10 +253,12 @@ function UserMenu({ onNavigate }: Pick<ConsoleScreenProps, 'onNavigate'>) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => onNavigate('console-profile')}>
+              <DropdownMenuItem onSelect={() => selectRoute('console-profile')}>
                 <CircleUserRound />Profile
               </DropdownMenuItem>
-              <DropdownMenuItem><Bell />Notifications</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => selectRoute('console-notifications')}>
+                <Bell />Notifications
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem><LogOut />Sign out</DropdownMenuItem>
@@ -274,7 +307,7 @@ function ConsoleHeader({ activeRoute, theme, onTheme, onNavigate }: Omit<Console
   return (
     <header className='sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60'>
       <div className='flex h-full items-center gap-3 p-4 sm:gap-4'>
-        <SidebarTrigger ref={triggerRef} variant='outline' className='max-md:scale-110' />
+        <SidebarTrigger ref={triggerRef} variant='outline' className='max-md:scale-110' data-console-sidebar-trigger />
         <Separator orientation='vertical' className='h-6' />
         <div className='min-w-0 text-sm'>
           <span className='hidden text-muted-foreground sm:inline'>Console / </span>
@@ -282,7 +315,7 @@ function ConsoleHeader({ activeRoute, theme, onTheme, onNavigate }: Omit<Console
         </div>
         <div className='ms-auto flex items-center gap-1'>
           <ThemeMenu theme={theme} onTheme={onTheme} />
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant='ghost' size='icon' className='rounded-full' aria-label='Account menu'>
                 <CircleUserRound />
@@ -292,7 +325,7 @@ function ConsoleHeader({ activeRoute, theme, onTheme, onNavigate }: Omit<Console
               <DropdownMenuLabel>Mika Chen</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => onNavigate('console-profile')}><CircleUserRound />Profile</DropdownMenuItem>
-              <DropdownMenuItem><Bell />Notifications</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onNavigate('console-notifications')}><Bell />Notifications</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -6,7 +6,9 @@ import {
   beginPasskeyRegistration,
   bindEmail,
   calculateTopupAmount,
+  createToken,
   deleteAccount,
+  deleteToken,
   deleteTokens,
   getAffiliateCode,
   getBillingHistory,
@@ -101,6 +103,58 @@ describe('New API adapter contracts', () => {
       model_limits_enabled: true,
       allow_ips: '192.0.2.1',
     })
+  })
+
+  it('accepts successful create and delete responses without a data field', async () => {
+    api.defaults.adapter = async (config) => {
+      requests.push(config)
+      return {
+        config,
+        data: { success: true, message: '' },
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      }
+    }
+
+    const created = await createToken({
+      name: 'contract-key',
+      remain_quota: 500_000,
+      expired_time: -1,
+      unlimited_quota: false,
+      model_limits_enabled: false,
+      model_limits: '',
+      allow_ips: '',
+      group: 'default',
+      cross_group_retry: false,
+    })
+    const deleted = await deleteToken(17)
+
+    expect(created.success).toBe(true)
+    expect(created.data).toBeUndefined()
+    expect(deleted.success).toBe(true)
+    expect(requests.map(({ method, url }) => [method, url])).toEqual([
+      ['post', '/api/token/'],
+      ['delete', '/api/token/17'],
+    ])
+  })
+
+  it('accepts business failures that omit data so feature layers can project a safe error', async () => {
+    api.defaults.adapter = async (config) => ({
+      config,
+      data: { success: false, message: 'range unavailable' },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    })
+
+    const response = await getQuotaData({
+      start_timestamp: 1_700_000_000,
+      end_timestamp: 1_700_000_600,
+    })
+
+    expect(response.success).toBe(false)
+    expect(response.data).toBeUndefined()
   })
 
   it('keeps user log filters on the self-scoped list and stat routes', async () => {

@@ -53,19 +53,27 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 import { AuthPrototype, type AuthPrototypeScreen } from './auth-prototype'
-import { ConsoleDataPrototype, type ConsoleDataScreen } from './console-data-prototype'
 import { PublicPrototype, type PublicPrototypeScreen } from './public-prototype'
 import { ShadcnAnalyticsScreen } from './shadcn-analytics-screen'
 import { ShadcnApiKeysScreen } from './shadcn-api-keys-screen'
+import { ShadcnConnectionsScreen } from './shadcn-connections-screen'
+import { ShadcnImageStudioScreen } from './shadcn-image-studio-screen'
+import { ShadcnNotificationsScreen } from './shadcn-notifications-screen'
+import { ShadcnOverviewScreen } from './shadcn-overview-screen'
+import { ShadcnPlaygroundScreen } from './shadcn-playground-screen'
+import { ShadcnProfileScreen } from './shadcn-profile-screen'
+import { ShadcnSecurityScreen } from './shadcn-security-screen'
 import { ShadcnSystemScreen } from './shadcn-system-screen'
 import { ShadcnUsageLogsScreen } from './shadcn-usage-logs-screen'
+import { ShadcnWalletScreen } from './shadcn-wallet-screen'
+import type { ConsoleRoute } from './shadcn-console-shell'
 
-type Screen = 'system' | PublicPrototypeScreen | AuthPrototypeScreen | ConsoleDataScreen
+type Screen = 'system' | PublicPrototypeScreen | AuthPrototypeScreen | ConsoleRoute
 type Locale = 'zh-CN' | 'fr' | 'ru'
 type Theme = 'light' | 'dark'
 const publicScreens: PublicPrototypeScreen[] = ['home', 'models', 'docs', 'about', 'notices', 'legal-user', 'legal-service', 'legal-privacy']
 const authScreens: AuthPrototypeScreen[] = ['signin', 'signup', 'verify-email', 'forgot-password', 'reset-password', 'oauth-callback', 'auth-otp']
-const consoleDataScreens: ConsoleDataScreen[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile', 'console-security', 'console-connections', 'console-notifications']
+const consoleScreens: ConsoleRoute[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile', 'console-security', 'console-connections', 'console-notifications']
 
 function initialTheme(): Theme {
   const saved = window.localStorage.getItem('partokens-theme')
@@ -130,7 +138,7 @@ const localeLabels: Record<Locale, string> = { 'zh-CN': '简体中文', fr: 'Fra
 
 function screenFromHash(): Screen {
   const value = window.location.hash.replace('#', '')
-  const screens: Screen[] = ['home', 'system', 'models', 'docs', 'about', 'notices', 'legal-user', 'legal-service', 'legal-privacy', ...authScreens, ...consoleDataScreens]
+  const screens: Screen[] = ['home', 'system', 'models', 'docs', 'about', 'notices', 'legal-user', 'legal-service', 'legal-privacy', ...authScreens, ...consoleScreens]
   return screens.includes(value as Screen) ? value as Screen : 'home'
 }
 
@@ -336,9 +344,16 @@ export function App() {
   const isAuthPrototype = authScreens.includes(screen as AuthPrototypeScreen)
   const isShadcnAnalytics = screen === 'console-analytics'
   const isShadcnApiKeys = screen === 'console-keys'
+  const isShadcnConnections = screen === 'console-connections'
+  const isShadcnNotifications = screen === 'console-notifications'
+  const isShadcnOverview = screen === 'console'
+  const isShadcnPlayground = screen === 'console-playground'
+  const isShadcnProfile = screen === 'console-profile'
+  const isShadcnSecurity = screen === 'console-security'
+  const isShadcnStudio = screen === 'console-studio'
   const isShadcnUsageLogs = screen === 'console-logs'
-  const isConsoleDataPrototype = !isShadcnAnalytics && !isShadcnApiKeys && !isShadcnUsageLogs && consoleDataScreens.includes(screen as ConsoleDataScreen)
-  const usesSharedLocale = isPublicPrototype || isAuthPrototype || isConsoleDataPrototype
+  const isShadcnWallet = screen === 'console-wallet'
+  const usesSharedLocale = isPublicPrototype || isAuthPrototype
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -367,10 +382,17 @@ export function App() {
 
   return <>
     {isAuthPrototype ? <AuthPrototype screen={screen as AuthPrototypeScreen} locale={publicLocale} theme={theme} online={online} version={version} onLocale={setPublicLocale} onTheme={common.onTheme} go={go} /> : null}
-    {isConsoleDataPrototype ? <ConsoleDataPrototype screen={screen as ConsoleDataScreen} locale={publicLocale} theme={theme} online={online} version={version} onLocale={setPublicLocale} onTheme={common.onTheme} go={go} /> : null}
+    {isShadcnOverview ? <ShadcnOverviewScreen theme={theme} online={online} version={version} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnConnections ? <ShadcnConnectionsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnNotifications ? <ShadcnNotificationsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnPlayground ? <ShadcnPlaygroundScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnProfile ? <ShadcnProfileScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnSecurity ? <ShadcnSecurityScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnStudio ? <ShadcnImageStudioScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnAnalytics ? <ShadcnAnalyticsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnApiKeys ? <ShadcnApiKeysScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnUsageLogs ? <ShadcnUsageLogsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnWallet ? <ShadcnWalletScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {screen === 'system' ? <ShadcnSystemScreen theme={theme} onTheme={common.onTheme} onExit={() => go('home')} /> : null}
     {isPublicPrototype ? <PublicPrototype screen={screen as PublicPrototypeScreen} locale={publicLocale} theme={theme} online={online} version={version} onLocale={setPublicLocale} onTheme={common.onTheme} go={go} /> : null}
     {notice ? <div className="prototype-toast" role="status"><CircleHelp size={17} /><span>{notice}</span><IconButton label={t.close} onClick={() => setNotice('')}><X size={16} /></IconButton></div> : null}

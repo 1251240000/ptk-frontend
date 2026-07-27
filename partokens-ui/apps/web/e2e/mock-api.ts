@@ -19,6 +19,7 @@ type MockApiOptions = {
   role?: number
   requireTwoFactor?: boolean
   pricingRequiresAuth?: boolean
+  tokenCreateOmitsData?: boolean
   onRequest?: (request: Request) => void
 }
 
@@ -40,15 +41,35 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
   let tokens = [{
     id: 7,
     name: 'Studio fixture',
+    key: 'ABCD**********WXYZ',
     status: 1,
     group: 'default',
     remain_quota: 500_000,
+    used_quota: 120_000,
     unlimited_quota: false,
     expired_time: -1,
+    created_time: 1_720_000_000,
     accessed_time: 1_721_520_000,
     model_limits_enabled: true,
     model_limits: 'gpt-image-1',
     allow_ips: '',
+    cross_group_retry: false,
+  }, {
+    id: 6,
+    name: 'Automation fixture',
+    key: 'EFGH**********QRST',
+    status: 2,
+    group: 'default',
+    remain_quota: 1_000_000,
+    used_quota: 0,
+    unlimited_quota: false,
+    expired_time: 1_800_000_000,
+    created_time: 1_719_000_000,
+    accessed_time: 1_719_000_000,
+    model_limits_enabled: false,
+    model_limits: '',
+    allow_ips: '',
+    cross_group_retry: false,
   }]
 
   await page.route('**/api/**', async (route) => {
@@ -129,9 +150,9 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (path === '/api/token' && method === 'POST') {
       const input = request.postDataJSON() as Record<string, unknown>
-      const created = { ...input, id: nextTokenId++, status: 1, accessed_time: 0 }
+      const created = { ...input, id: nextTokenId++, key: 'IJKL**********MNOP', status: 1, used_quota: 0, created_time: 1_722_000_000, accessed_time: 1_722_000_000 }
       tokens = [...tokens, created as typeof tokens[number]]
-      await json(route, envelope(created))
+      await json(route, options.tokenCreateOmitsData ? { success: true, message: '' } : envelope(created))
       return
     }
     if (path === '/api/token' && method === 'PUT') {
@@ -154,7 +175,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (tokenMatch && method === 'DELETE') {
       tokens = tokens.filter((token) => token.id !== Number(tokenMatch[1]))
-      await json(route, envelope(null))
+      await json(route, { success: true, message: '' })
       return
     }
     const revealMatch = path.match(/^\/api\/token\/(\d+)\/key$/)
@@ -208,8 +229,19 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       await json(route, envelope('fixture-affiliate'))
       return
     }
-    if (path === '/api/data/self' || path === '/api/data/flow/self') {
-      await json(route, envelope([]))
+    if (path === '/api/data/self') {
+      await json(route, envelope([
+        { created_at: 1_721_433_600, model_name: 'gpt-4.1-mini', request_count: 8, token_used: 1_840, quota: 8_000 },
+        { created_at: 1_721_520_000, model_name: 'gpt-4.1-mini', request_count: 7, token_used: 1_420, quota: 7_000 },
+        { created_at: 1_721_520_000, model_name: 'gpt-image-1', request_count: 4, token_used: 640, quota: 20_000 },
+      ]))
+      return
+    }
+    if (path === '/api/data/flow/self') {
+      await json(route, envelope([
+        { token_id: 7, token_name: 'Studio fixture', use_group: 'default', model_name: 'gpt-4.1-mini', count: 15, token_used: 3_260, quota: 15_000 },
+        { token_id: 7, token_name: 'Studio fixture', use_group: 'default', model_name: 'gpt-image-1', count: 4, token_used: 640, quota: 20_000 },
+      ]))
       return
     }
     if (path === '/api/log/self') {
