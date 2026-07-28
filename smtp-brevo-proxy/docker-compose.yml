@@ -1,0 +1,35 @@
+services:
+  smtp-brevo-proxy:
+    build:
+      context: .
+    container_name: smtp-brevo-proxy
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      SMTP_LISTEN_HOST: 0.0.0.0
+      SMTP_LISTEN_PORT: 2525
+      TEMPLATE_DIR: /app/templates
+    ports:
+      - "${SMTP_PROXY_BIND_ADDRESS:-127.0.0.1}:${SMTP_PROXY_HOST_PORT:-2525}:2525"
+    healthcheck:
+      test: ["CMD", "python", "-m", "smtp_proxy.healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    networks:
+      - smtp-proxy
+
+networks:
+  smtp-proxy:
+    name: smtp-proxy
