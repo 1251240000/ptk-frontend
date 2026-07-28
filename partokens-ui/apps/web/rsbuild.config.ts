@@ -26,6 +26,7 @@ export default defineConfig({
   output: {
     target: 'web',
     minify: true,
+    manifest: true,
     distPath: {
       root: 'dist',
       js: '_ui/js',
@@ -61,4 +62,3 @@ export default defineConfig({
     buildCache: false,
   },
 })
-

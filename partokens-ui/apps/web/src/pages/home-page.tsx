@@ -7,6 +7,7 @@ import { isAppLocale } from '@partokens/i18n'
 import { useParams } from '@tanstack/react-router'
 
 import { RequestTrace } from '@/components/request-trace'
+import { canonicalConsolePath } from '@/lib/routes'
 
 export function HomePage() {
   const { t } = useTranslation()
@@ -26,7 +27,7 @@ export function HomePage() {
           <p className="hero-thesis">{t('Model access, measured clearly.')}</p>
           <p className="hero-copy">{t('One endpoint for the models you use, with cost, status, and quota visible before every request.')}</p>
           <div className="hero-actions">
-            <a className="button primary-button" href={`/${locale}/console/overview`}>{t('Enter console')}<ArrowRight size={17} /></a>
+            <a className="button primary-button" href={canonicalConsolePath(locale, 'overview')}>{t('Enter console')}<ArrowRight size={17} /></a>
             <a className="button secondary-button" href={`/${locale}/models`}>{t('Browse models')}</a>
           </div>
         </div>

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "rsbuild dev",
-    "build": "rsbuild build",
+    "build": "rsbuild build && bun scripts/check-console-bundles.ts",
+    "check:bundles": "bun scripts/check-console-bundles.ts",
     "preview": "rsbuild preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

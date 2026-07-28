@@ -14,6 +14,7 @@ import {
   getBillingHistory,
   getCheckinStatus,
   getFlowQuotaData,
+  getPricingWithSignal,
   getQuotaData,
   getLogStats,
   getLogs,
@@ -21,8 +22,12 @@ import {
   getPasskeyStatus,
   getSelfSubscriptions,
   getSubscriptionPlans,
+  getStatusWithSignal,
   getToken,
+  getTokens,
   getTwoFactorStatus,
+  getUserGroupsWithSignal,
+  getUserModels,
   performCheckin,
   redeemTopupCode,
   requestSubscriptionPayment,
@@ -32,6 +37,7 @@ import {
   setupTwoFactor,
   transferAffiliateQuota,
   updateToken,
+  updateTokenStatus,
   updateSubscriptionPreference,
   updateUserSettings,
   verifySensitiveAction,
@@ -89,12 +95,14 @@ describe('New API adapter contracts', () => {
       group: 'default',
       cross_group_retry: false,
     })
+    await updateTokenStatus(17, 2)
     await revealToken(17)
 
     expect(requests.map(({ method, url }) => [method, url])).toEqual([
       ['get', '/api/token/search'],
       ['get', '/api/token/17'],
       ['put', '/api/token/'],
+      ['put', '/api/token/?status_only=true'],
       ['post', '/api/token/17/key'],
     ])
     expect(requests[0]?.params).toEqual({ keyword: 'mobile', p: 2, size: 25 })
@@ -103,6 +111,7 @@ describe('New API adapter contracts', () => {
       model_limits_enabled: true,
       allow_ips: '192.0.2.1',
     })
+    expect(JSON.parse(String(requests[3]?.data))).toEqual({ id: 17, status: 2 })
   })
 
   it('accepts successful create and delete responses without a data field', async () => {
@@ -206,6 +215,26 @@ describe('New API adapter contracts', () => {
     ])
     expect(requests[0]?.params).toEqual(range)
     expect(JSON.parse(String(requests[1]?.data))).toEqual({ ids: [17, 18] })
+  })
+
+  it('forwards one cancellation signal through every Console read contract', async () => {
+    const signal = new AbortController().signal
+    const range = { start_timestamp: 1_700_000_000, end_timestamp: 1_700_003_600, default_time: 'hour' }
+
+    await getStatusWithSignal(signal)
+    await getPricingWithSignal(signal)
+    await getTokens({ p: 1, size: 20 }, signal)
+    await searchTokens({ keyword: 'fixture' }, signal)
+    await getToken(17, signal)
+    await getLogs({}, signal)
+    await getLogStats({}, signal)
+    await getQuotaData(range, signal)
+    await getFlowQuotaData(range, signal)
+    await getUserModels('default', signal)
+    await getUserGroupsWithSignal(signal)
+
+    expect(requests).toHaveLength(11)
+    expect(requests.every((request) => request.signal === signal)).toBe(true)
   })
 
   it('splits analytics ranges at the backend 30-day limit without overlapping boundaries', async () => {

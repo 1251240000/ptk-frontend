@@ -15,6 +15,28 @@ export const standardUser = {
   aff_count: 0,
 }
 
+const fixtureSessionId = '10000000-0000-4000-8000-000000000042'
+
+function authBundle(user: typeof standardUser, tokenVersion: number) {
+  const now = Math.floor(Date.now() / 1000)
+  return {
+    access_token: `fixture-access-${tokenVersion}`,
+    token_type: 'Bearer',
+    access_expires_at: now + 15 * 60,
+    user,
+    session: {
+      sid: fixtureSessionId,
+      current: true,
+      login_method: 'password',
+      ip: '127.0.0.1',
+      user_agent: 'Playwright',
+      created_at: now - 60,
+      last_active_at: now,
+      expires_at: now + 30 * 24 * 60 * 60,
+    },
+  }
+}
+
 type MockApiOptions = {
   role?: number
   requireTwoFactor?: boolean
@@ -37,6 +59,7 @@ async function json(route: Route, data: unknown, status = 200) {
 
 export async function installMockApi(page: Page, options: MockApiOptions = {}) {
   const user = { ...standardUser, role: options.role ?? standardUser.role }
+  let authVersion = 1
   let nextTokenId = 8
   let tokens = [{
     id: 7,
@@ -99,11 +122,23 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       return
     }
     if (path === '/api/user/login') {
-      await json(route, envelope(options.requireTwoFactor ? { ...user, require_2fa: true } : user))
+      await json(route, envelope(options.requireTwoFactor ? {
+        require_2fa: true,
+        flow_token: 'fixture-two-factor-flow',
+        expires_at: Math.floor(Date.now() / 1000) + 300,
+      } : authBundle(user, authVersion++)))
       return
     }
     if (path === '/api/user/login/2fa') {
-      await json(route, envelope(user))
+      await json(route, envelope(authBundle(user, authVersion++)))
+      return
+    }
+    if (path === '/api/user/auth/refresh' && method === 'POST') {
+      await json(route, envelope(authBundle(user, authVersion++)))
+      return
+    }
+    if (path === '/api/user/auth/logout' && method === 'POST') {
+      await json(route, envelope({ revoked_sid: fixtureSessionId, cookie_cleared: true }))
       return
     }
     if (path === '/api/user/self' && method === 'GET') {
@@ -115,11 +150,11 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       return
     }
     if (path === '/api/oauth/state') {
-      await json(route, envelope('fixture-oauth-state'))
+      await json(route, envelope({ flow_token: 'fixture-oauth-state', expires_at: Math.floor(Date.now() / 1000) + 600 }))
       return
     }
     if (path.startsWith('/api/oauth/')) {
-      await json(route, envelope(user))
+      await json(route, envelope(authBundle(user, authVersion++)))
       return
     }
     if (path === '/api/pricing') {
@@ -300,8 +335,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
 }
 
 export async function primeUserSession(page: Page) {
-  await page.addInitScript((userId) => {
-    window.localStorage.setItem('partokens-user-id', String(userId))
+  await page.addInitScript(() => {
     window.localStorage.setItem('partokens-locale', 'en')
-  }, standardUser.id)
+  })
 }

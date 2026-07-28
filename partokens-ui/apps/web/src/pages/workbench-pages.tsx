@@ -62,6 +62,7 @@ import {
   playgroundRequestCategory,
   resolvePlaygroundTitle,
 } from '@/lib/playground'
+import { canonicalConsolePath } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
 
 const PERSIST_DELAY_MS = 80
@@ -247,9 +248,10 @@ export function PlaygroundPage() {
   const routeToConversation = async (id: string | null) => {
     setCurrentId(id)
     setMobileHistoryOpen(false)
+    const playgroundPath = canonicalConsolePath(locale, 'playground')
     const target = id
-      ? `/${locale}/console/playground/${encodeURIComponent(id)}`
-      : `/${locale}/console/playground`
+      ? `${playgroundPath}/${encodeURIComponent(id)}`
+      : playgroundPath
     await navigate({ to: target as never })
   }
 

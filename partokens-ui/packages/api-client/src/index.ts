@@ -1,5 +1,14 @@
-import axios from 'axios'
+import axios, { type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import { z } from 'zod'
+
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    authRetry?: boolean
+    skipAuth?: boolean
+    skipAuthRefresh?: boolean
+    skipProactiveRefresh?: boolean
+  }
+}
 
 export type ApiEnvelope<T> = {
   success: boolean
@@ -50,7 +59,65 @@ export type CurrentUser = {
   linux_do_id?: string
   oidc_id?: string
   status?: number
-  [key: string]: unknown
+}
+
+export type LoginSession = {
+  sid: string
+  current: true
+  login_method: string
+  ip: string
+  user_agent: string
+  created_at: number
+  last_active_at: number
+  expires_at: number
+}
+
+export type AuthBundle = {
+  access_token: string
+  token_type: 'Bearer'
+  access_expires_at: number
+  user: CurrentUser
+  session: LoginSession
+}
+
+export type TwoFactorChallenge = {
+  require_2fa: true
+  flow_token: string
+  expires_at: number
+}
+
+export type AuthApiEnvelope<T> = {
+  success: boolean
+  message?: string
+  code?: string
+  data?: T
+}
+
+export type AuthMemorySnapshot = {
+  accessToken: string | null
+  accessExpiresAt: number | null
+  session: LoginSession | null
+  user: CurrentUser | null
+  revision: number
+}
+
+export type AuthRuntime = {
+  getSnapshot: () => AuthMemorySnapshot
+  install: (bundle: AuthBundle) => void
+  clear: (resolved: boolean) => void
+  onInvalidated?: () => void
+}
+
+export type RefreshOutcome =
+  | { kind: 'authenticated'; bundle: AuthBundle }
+  | { kind: 'anonymous'; code?: string }
+  | { kind: 'superseded' }
+
+export class AuthContractError extends Error {
+  constructor() {
+    super('Invalid authentication response')
+    this.name = 'AuthContractError'
+  }
 }
 
 export type PlaygroundMessageInput = {
@@ -379,6 +446,150 @@ const envelopeSchema = z.object({
   data: z.unknown().optional(),
 })
 
+const currentUserSchema = z.object({
+  id: z.number().int().positive(),
+  username: z.string().min(1),
+  display_name: z.string().optional(),
+  email: z.string().optional(),
+  role: z.number().int(),
+  group: z.string().optional(),
+  quota: z.number().optional(),
+  used_quota: z.number().optional(),
+  request_count: z.number().optional(),
+  aff_quota: z.number().optional(),
+  aff_history_quota: z.number().optional(),
+  aff_count: z.number().optional(),
+  aff_code: z.string().optional(),
+  setting: z.string().optional(),
+  settings: z.string().optional(),
+  github_id: z.string().optional(),
+  linux_do_id: z.string().optional(),
+  oidc_id: z.string().optional(),
+  status: z.number().int().optional(),
+}).strip()
+
+const loginSessionSchema = z.object({
+  sid: z.string().uuid(),
+  current: z.literal(true),
+  login_method: z.string().min(1),
+  ip: z.string(),
+  user_agent: z.string(),
+  created_at: z.number().int().positive(),
+  last_active_at: z.number().int().positive(),
+  expires_at: z.number().int().positive(),
+}).strip().superRefine((session, context) => {
+  if (session.created_at > session.last_active_at || session.last_active_at >= session.expires_at) {
+    context.addIssue({ code: 'custom', message: 'Invalid session timestamps' })
+  }
+  if (session.expires_at <= Math.floor(Date.now() / 1000)) {
+    context.addIssue({ code: 'custom', message: 'Expired session' })
+  }
+})
+
+const authBundleSchema = z.object({
+  access_token: z.string().min(1),
+  token_type: z.literal('Bearer'),
+  access_expires_at: z.number().int().positive(),
+  user: currentUserSchema,
+  session: loginSessionSchema,
+}).strip().superRefine((bundle, context) => {
+  if (bundle.access_expires_at <= Math.floor(Date.now() / 1000)) {
+    context.addIssue({ code: 'custom', message: 'Expired access token' })
+  }
+})
+
+const twoFactorChallengeSchema = z.object({
+  require_2fa: z.literal(true),
+  flow_token: z.string().min(1),
+  expires_at: z.number().int().positive(),
+}).strip().superRefine((challenge, context) => {
+  if (challenge.expires_at <= Math.floor(Date.now() / 1000)) {
+    context.addIssue({ code: 'custom', message: 'Expired login flow' })
+  }
+})
+
+const authApiEnvelopeSchema = z.object({
+  success: z.boolean(),
+  message: z.string().optional(),
+  code: z.string().optional(),
+  data: z.unknown().optional(),
+}).strip()
+
+const oauthBindResultSchema = z.object({ action: z.literal('bind') }).strip()
+
+let authRuntime: AuthRuntime | null = null
+let refreshPromise: Promise<RefreshOutcome> | null = null
+let proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearProactiveRefreshTimer() {
+  if (proactiveRefreshTimer) clearTimeout(proactiveRefreshTimer)
+  proactiveRefreshTimer = null
+}
+
+function scheduleProactiveRefresh(bundle: AuthBundle) {
+  clearProactiveRefreshTimer()
+  const delay = Math.max(0, bundle.access_expires_at * 1000 - Date.now() - 60_000)
+  const boundedDelay = Math.min(delay, 2_147_000_000)
+  proactiveRefreshTimer = setTimeout(() => {
+    void refreshAuthentication().then((outcome) => {
+      if (outcome.kind === 'anonymous') authRuntime?.onInvalidated?.()
+    })
+  }, boundedDelay)
+}
+
+export function configureAuthRuntime(runtime: AuthRuntime): () => void {
+  authRuntime = runtime
+  return () => {
+    if (authRuntime === runtime) {
+      authRuntime = null
+      clearProactiveRefreshTimer()
+    }
+  }
+}
+
+export function parseAuthBundle(input: unknown): AuthBundle {
+  const parsed = authBundleSchema.safeParse(input)
+  if (!parsed.success) throw new AuthContractError()
+  return parsed.data
+}
+
+export function installAuthentication(input: unknown): AuthBundle {
+  const bundle = parseAuthBundle(input)
+  if (!authRuntime) throw new Error('Authentication runtime is unavailable')
+  authRuntime.install(bundle)
+  scheduleProactiveRefresh(bundle)
+  return bundle
+}
+
+export function clearAuthentication(resolved = true): void {
+  clearProactiveRefreshTimer()
+  authRuntime?.clear(resolved)
+}
+
+function parseAuthEnvelope(input: unknown) {
+  const parsed = authApiEnvelopeSchema.safeParse(input)
+  if (!parsed.success) throw new AuthContractError()
+  return parsed.data
+}
+
+function authFailure<T>(envelope: z.infer<typeof authApiEnvelopeSchema>): AuthApiEnvelope<T> {
+  return {
+    success: false,
+    message: envelope.message,
+    code: envelope.code,
+  }
+}
+
+function trustedAuthRequest(config: InternalAxiosRequestConfig): boolean {
+  if (typeof window === 'undefined') return !/^https?:\/\//i.test(config.url || '')
+  try {
+    const base = config.baseURL ? new URL(config.baseURL, window.location.origin) : new URL(window.location.origin)
+    return new URL(config.url || '', base).origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
 export const api = axios.create({
   baseURL: '',
   withCredentials: true,
@@ -387,13 +598,110 @@ export const api = axios.create({
   },
 })
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const userId = window.localStorage.getItem('partokens-user-id')
-    if (userId) config.headers.set('New-Api-User', userId)
+api.interceptors.request.use(async (config) => {
+  if (config.skipAuth || !trustedAuthRequest(config)) return config
+  let snapshot = authRuntime?.getSnapshot()
+  const refreshBefore = Math.floor(Date.now() / 1000) + 60
+  if (!config.skipProactiveRefresh && snapshot?.accessToken && (snapshot.accessExpiresAt ?? 0) <= refreshBefore) {
+    const outcome = await refreshAuthentication()
+    if (outcome.kind === 'anonymous') {
+      authRuntime?.onInvalidated?.()
+      throw new Error('Authentication required')
+    }
+    snapshot = authRuntime?.getSnapshot()
   }
+  if (snapshot?.accessToken) config.headers.set('Authorization', `Bearer ${snapshot.accessToken}`)
   return config
 })
+
+api.interceptors.response.use(undefined, async (error: unknown) => {
+  if (!axios.isAxiosError(error)) throw error
+  const config = error.config as AxiosRequestConfig | undefined
+  if (error.response?.status !== 401 || !config || config.skipAuthRefresh) throw error
+  const snapshot = authRuntime?.getSnapshot()
+  if (!snapshot?.accessToken && !snapshot?.session) throw error
+  if (config.authRetry) {
+    clearAuthentication()
+    authRuntime?.onInvalidated?.()
+    throw error
+  }
+
+  const outcome = await refreshAuthentication()
+  if (outcome.kind === 'authenticated') {
+    config.authRetry = true
+    return api.request(config)
+  }
+  if (outcome.kind === 'superseded' && authRuntime?.getSnapshot().accessToken) {
+    config.authRetry = true
+    return api.request(config)
+  }
+  authRuntime?.onInvalidated?.()
+  throw error
+})
+
+async function performRefresh(startRevision: number): Promise<RefreshOutcome> {
+  for (const delay of [0, 80, 200, 500]) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
+    const before = authRuntime?.getSnapshot()
+    if (!before || before.revision !== startRevision) return { kind: 'superseded' }
+    try {
+      const response = await api.post('/api/user/auth/refresh', undefined, {
+        headers: before.session?.sid ? { 'X-Auth-Session': before.session.sid } : undefined,
+        skipAuth: true,
+        skipAuthRefresh: true,
+        skipProactiveRefresh: true,
+        validateStatus: () => true,
+      })
+      if (authRuntime?.getSnapshot().revision !== startRevision) return { kind: 'superseded' }
+      const envelope = authApiEnvelopeSchema.safeParse(response.data)
+      const code = envelope.success ? envelope.data.code : undefined
+      if (response.status === 409 && code === 'AUTH_REFRESH_RACE' && delay !== 500) continue
+      if (response.status !== 200 || !envelope.success || envelope.data.success !== true) {
+        clearAuthentication()
+        return { kind: 'anonymous', code }
+      }
+
+      let bundle: AuthBundle
+      try {
+        bundle = parseAuthBundle(envelope.data.data)
+      } catch {
+        clearAuthentication()
+        return { kind: 'anonymous', code: 'AUTH_INVALID_REFRESH_RESPONSE' }
+      }
+      if (
+        (before.session && bundle.session.sid !== before.session.sid) ||
+        (before.user && bundle.user.id !== before.user.id)
+      ) {
+        clearAuthentication()
+        return { kind: 'anonymous', code: 'AUTH_SESSION_MISMATCH' }
+      }
+      installAuthentication(bundle)
+      return { kind: 'authenticated', bundle }
+    } catch {
+      if (authRuntime?.getSnapshot().revision !== startRevision) return { kind: 'superseded' }
+      clearAuthentication()
+      return { kind: 'anonymous', code: 'AUTH_REFRESH_FAILED' }
+    }
+  }
+  clearAuthentication()
+  return { kind: 'anonymous', code: 'AUTH_REFRESH_RACE' }
+}
+
+async function performRefreshWithBrowserLock(startRevision: number): Promise<RefreshOutcome> {
+  if (typeof navigator === 'undefined' || !navigator.locks) return performRefresh(startRevision)
+  return navigator.locks.request('partokens:auth-refresh', { mode: 'exclusive' }, () => performRefresh(startRevision))
+}
+
+export function refreshAuthentication(): Promise<RefreshOutcome> {
+  if (!authRuntime) return Promise.resolve({ kind: 'anonymous' })
+  if (!refreshPromise) {
+    const startRevision = authRuntime.getSnapshot().revision
+    refreshPromise = performRefreshWithBrowserLock(startRevision).finally(() => {
+      refreshPromise = null
+    })
+  }
+  return refreshPromise
+}
 
 function parseEnvelope<T>(input: unknown): ApiEnvelope<T> {
   const parsed = envelopeSchema.parse(input)
@@ -408,7 +716,11 @@ function parseMutationEnvelope<T>(input: unknown): ApiEnvelope<T> {
 }
 
 export async function getStatus(): Promise<ApiEnvelope<PartokensStatus>> {
-  const response = await api.get('/api/status')
+  return getStatusWithSignal()
+}
+
+export async function getStatusWithSignal(signal?: AbortSignal): Promise<ApiEnvelope<PartokensStatus>> {
+  const response = await api.get('/api/status', { signal })
   return parseEnvelope<PartokensStatus>(response.data)
 }
 
@@ -421,32 +733,55 @@ export async function login(input: {
   username: string
   password: string
   turnstile?: string
-}): Promise<ApiEnvelope<CurrentUser & { require_2fa?: boolean }>> {
+}): Promise<AuthApiEnvelope<AuthBundle | TwoFactorChallenge>> {
   const query = input.turnstile
     ? `?turnstile=${encodeURIComponent(input.turnstile)}`
     : ''
   const response = await api.post(`/api/user/login${query}`, {
     username: input.username,
     password: input.password,
-  })
-  return parseEnvelope(response.data)
+  }, { skipAuth: true, skipAuthRefresh: true })
+  const envelope = parseAuthEnvelope(response.data)
+  if (!envelope.success) return authFailure(envelope)
+  const challenge = twoFactorChallengeSchema.safeParse(envelope.data)
+  if (challenge.success) return { success: true, message: envelope.message, data: challenge.data }
+  const bundle = installAuthentication(envelope.data)
+  return { success: true, message: envelope.message, data: bundle }
 }
 
 export async function logout(): Promise<void> {
-  await api.get('/api/user/logout')
-}
-
-export async function loginTwoFactor(code: string): Promise<ApiEnvelope<CurrentUser>> {
-  const response = await api.post('/api/user/login/2fa', { code })
-  return parseEnvelope(response.data)
-}
-
-export async function getOAuthState(): Promise<string> {
-  const response = await api.get('/api/oauth/state', {
-    params: { aff: window.localStorage.getItem('aff') || '' },
+  const sid = authRuntime?.getSnapshot().session?.sid
+  await api.post('/api/user/auth/logout', undefined, {
+    headers: sid ? { 'X-Auth-Session': sid } : undefined,
+    skipAuthRefresh: true,
+    skipProactiveRefresh: true,
   })
-  const envelope = parseEnvelope<string>(response.data)
-  return envelope.success ? envelope.data : ''
+}
+
+export async function loginTwoFactor(code: string, flowToken: string): Promise<AuthApiEnvelope<AuthBundle>> {
+  const response = await api.post('/api/user/login/2fa', { code, flow_token: flowToken }, {
+    skipAuth: true,
+    skipAuthRefresh: true,
+  })
+  const envelope = parseAuthEnvelope(response.data)
+  if (!envelope.success) return authFailure(envelope)
+  const bundle = installAuthentication(envelope.data)
+  return { success: true, message: envelope.message, data: bundle }
+}
+
+export async function getOAuthState(input: {
+  provider: string
+  intent: 'login' | 'bind'
+  aff?: string
+}): Promise<string> {
+  const response = await api.post('/api/oauth/state', input, {
+    skipAuth: input.intent === 'login',
+    skipAuthRefresh: input.intent === 'login',
+  })
+  const envelope = parseAuthEnvelope(response.data)
+  if (!envelope.success) return ''
+  const parsed = z.object({ flow_token: z.string().min(1), expires_at: z.number().int().positive() }).strip().safeParse(envelope.data)
+  return parsed.success ? parsed.data.flow_token : ''
 }
 
 export async function sendEmailVerification(input: {
@@ -478,20 +813,32 @@ export async function confirmPasswordReset(input: { email: string; token: string
 export async function exchangeOAuth(
   provider: string,
   params: { code: string; state?: string },
-): Promise<ApiEnvelope<CurrentUser | { action: 'bind' } | null>> {
+  intent: 'login' | 'bind' = 'login',
+): Promise<AuthApiEnvelope<AuthBundle | { action: 'bind' }>> {
   const response = await api.get(`/api/oauth/${encodeURIComponent(provider)}`, {
     params,
+    skipAuth: intent === 'login',
+    skipAuthRefresh: intent === 'login',
   })
-  return parseEnvelope(response.data)
+  const envelope = parseAuthEnvelope(response.data)
+  if (!envelope.success) return authFailure(envelope)
+  const bind = oauthBindResultSchema.safeParse(envelope.data)
+  if (bind.success) return { success: true, message: envelope.message, data: bind.data }
+  const bundle = installAuthentication(envelope.data)
+  return { success: true, message: envelope.message, data: bundle }
 }
 
 export async function getPricing(): Promise<ApiEnvelope<unknown>> {
-  const response = await api.get('/api/pricing')
+  return getPricingWithSignal()
+}
+
+export async function getPricingWithSignal(signal?: AbortSignal): Promise<ApiEnvelope<unknown>> {
+  const response = await api.get('/api/pricing', { signal })
   return parseEnvelope(response.data)
 }
 
-export async function getTokens(input: { p?: number; size?: number } = {}): Promise<ApiEnvelope<PaginatedData<TokenSummary>>> {
-  const response = await api.get('/api/token/', { params: { p: input.p ?? 1, size: input.size ?? 20 } })
+export async function getTokens(input: { p?: number; size?: number } = {}, signal?: AbortSignal): Promise<ApiEnvelope<PaginatedData<TokenSummary>>> {
+  const response = await api.get('/api/token/', { params: { p: input.p ?? 1, size: input.size ?? 20 }, signal })
   return parseEnvelope<PaginatedData<TokenSummary>>(response.data)
 }
 
@@ -500,25 +847,26 @@ export async function searchTokens(input: {
   token?: string
   p?: number
   size?: number
-}): Promise<ApiEnvelope<PaginatedData<TokenSummary>>> {
-  const response = await api.get('/api/token/search', { params: input })
+}, signal?: AbortSignal): Promise<ApiEnvelope<PaginatedData<TokenSummary>>> {
+  const response = await api.get('/api/token/search', { params: input, signal })
   return parseEnvelope<PaginatedData<TokenSummary>>(response.data)
 }
 
-export async function getToken(id: number): Promise<ApiEnvelope<TokenSummary>> {
-  const response = await api.get(`/api/token/${id}`)
+export async function getToken(id: number, signal?: AbortSignal): Promise<ApiEnvelope<TokenSummary>> {
+  const response = await api.get(`/api/token/${id}`, { signal })
   return parseEnvelope<TokenSummary>(response.data)
 }
 
-export async function getLogs(input: UsageLogQuery = {}): Promise<ApiEnvelope<PaginatedData<UsageLog>>> {
+export async function getLogs(input: UsageLogQuery = {}, signal?: AbortSignal): Promise<ApiEnvelope<PaginatedData<UsageLog>>> {
   const response = await api.get('/api/log/self', {
     params: { p: input.p ?? 1, page_size: input.page_size ?? 20, ...input },
+    signal,
   })
   return parseEnvelope<PaginatedData<UsageLog>>(response.data)
 }
 
-export async function getLogStats(input: Omit<UsageLogQuery, 'p' | 'page_size'> = {}): Promise<ApiEnvelope<UsageLogStats>> {
-  const response = await api.get('/api/log/self/stat', { params: input })
+export async function getLogStats(input: Omit<UsageLogQuery, 'p' | 'page_size'> = {}, signal?: AbortSignal): Promise<ApiEnvelope<UsageLogStats>> {
+  const response = await api.get('/api/log/self/stat', { params: input, signal })
   return parseEnvelope<UsageLogStats>(response.data)
 }
 
@@ -542,16 +890,16 @@ function splitSelfQuotaRange(input: QuotaDataRange): QuotaDataRange[] {
   return ranges
 }
 
-async function getChunkedQuotaData<T>(path: string, input: QuotaDataRange): Promise<ApiEnvelope<T[]>> {
+async function getChunkedQuotaData<T>(path: string, input: QuotaDataRange, signal?: AbortSignal): Promise<ApiEnvelope<T[]>> {
   const ranges = splitSelfQuotaRange(input)
   if (ranges.length === 1) {
-    const response = await api.get(path, { params: ranges[0] })
+    const response = await api.get(path, { params: ranges[0], signal })
     return parseEnvelope<T[]>(response.data)
   }
 
   const data: T[] = []
   for (const range of ranges) {
-    const response = await api.get(path, { params: range })
+    const response = await api.get(path, { params: range, signal })
     const envelope = parseEnvelope<T[]>(response.data)
     if (!envelope.success) throw new Error(envelope.message || 'Unable to load quota data')
     if (Array.isArray(envelope.data)) data.push(...envelope.data)
@@ -559,21 +907,25 @@ async function getChunkedQuotaData<T>(path: string, input: QuotaDataRange): Prom
   return { success: true, message: '', data }
 }
 
-export async function getQuotaData(input: QuotaDataRange): Promise<ApiEnvelope<QuotaDataPoint[]>> {
-  return getChunkedQuotaData<QuotaDataPoint>('/api/data/self', input)
+export async function getQuotaData(input: QuotaDataRange, signal?: AbortSignal): Promise<ApiEnvelope<QuotaDataPoint[]>> {
+  return getChunkedQuotaData<QuotaDataPoint>('/api/data/self', input, signal)
 }
 
-export async function getFlowQuotaData(input: QuotaDataRange): Promise<ApiEnvelope<FlowQuotaDataPoint[]>> {
-  return getChunkedQuotaData<FlowQuotaDataPoint>('/api/data/flow/self', input)
+export async function getFlowQuotaData(input: QuotaDataRange, signal?: AbortSignal): Promise<ApiEnvelope<FlowQuotaDataPoint[]>> {
+  return getChunkedQuotaData<FlowQuotaDataPoint>('/api/data/flow/self', input, signal)
 }
 
-export async function getUserModels(group = 'default'): Promise<ApiEnvelope<unknown>> {
-  const response = await api.get('/api/user/models', { params: { group } })
+export async function getUserModels(group = 'default', signal?: AbortSignal): Promise<ApiEnvelope<unknown>> {
+  const response = await api.get('/api/user/models', { params: { group }, signal })
   return parseEnvelope(response.data)
 }
 
 export async function getUserGroups(): Promise<ApiEnvelope<unknown>> {
-  const response = await api.get('/api/user/self/groups')
+  return getUserGroupsWithSignal()
+}
+
+export async function getUserGroupsWithSignal(signal?: AbortSignal): Promise<ApiEnvelope<unknown>> {
+  const response = await api.get('/api/user/self/groups', { signal })
   return parseEnvelope(response.data)
 }
 
@@ -658,6 +1010,55 @@ async function playgroundFetchError(response: Response): Promise<PlaygroundReque
   return new PlaygroundRequestError(message, { status: response.status, code })
 }
 
+function trustedFetchTarget(input: RequestInfo | URL): boolean {
+  if (typeof window === 'undefined') return typeof input === 'string' && !/^https?:\/\//i.test(input)
+  try {
+    const value = typeof input === 'string' || input instanceof URL ? input.toString() : input.url
+    return new URL(value, window.location.origin).origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
+export async function authenticatedFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  fetcher: typeof fetch = fetch,
+): Promise<Response> {
+  if (!trustedFetchTarget(input)) return fetcher(input, init)
+  let snapshot = authRuntime?.getSnapshot()
+  if (snapshot?.accessToken && (snapshot.accessExpiresAt ?? 0) <= Math.floor(Date.now() / 1000) + 60) {
+    const outcome = await refreshAuthentication()
+    if (outcome.kind === 'anonymous') {
+      authRuntime?.onInvalidated?.()
+      throw new Error('Authentication required')
+    }
+    snapshot = authRuntime?.getSnapshot()
+  }
+
+  const request = async () => {
+    const current = authRuntime?.getSnapshot()
+    const headers = new Headers(input instanceof Request ? input.headers : undefined)
+    new Headers(init.headers).forEach((value, key) => headers.set(key, value))
+    if (current?.accessToken) headers.set('Authorization', `Bearer ${current.accessToken}`)
+    return fetcher(input, { ...init, credentials: init.credentials ?? 'include', headers })
+  }
+
+  const response = await request()
+  if (response.status !== 401 || (!snapshot?.accessToken && !snapshot?.session)) return response
+  const outcome = await refreshAuthentication()
+  if (outcome.kind === 'authenticated' || (outcome.kind === 'superseded' && authRuntime?.getSnapshot().accessToken)) {
+    const retryResponse = await request()
+    if (retryResponse.status === 401) {
+      clearAuthentication()
+      authRuntime?.onInvalidated?.()
+    }
+    return retryResponse
+  }
+  authRuntime?.onInvalidated?.()
+  return response
+}
+
 export async function streamPlaygroundCompletion(
   input: PlaygroundCompletionInput,
   options: {
@@ -669,12 +1070,8 @@ export async function streamPlaygroundCompletion(
     'Cache-Control': 'no-store',
     'Content-Type': 'application/json',
   }
-  if (typeof window !== 'undefined') {
-    const userId = window.localStorage.getItem('partokens-user-id')
-    if (userId) headers['New-Api-User'] = userId
-  }
 
-  const response = await fetch('/pg/chat/completions', {
+  const response = await authenticatedFetch('/pg/chat/completions', {
     method: 'POST',
     credentials: 'include',
     headers,

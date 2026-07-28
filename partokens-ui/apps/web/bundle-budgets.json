@@ -1,0 +1,14 @@
+{
+  "entry": {
+    "maxBytes": 425000,
+    "maxGzipBytes": 125000,
+    "maxInitialBytes": 1160000,
+    "maxInitialGzipBytes": 350000
+  },
+  "routes": {
+    "console-overview": { "maxBytes": 40000, "maxGzipBytes": 11000 },
+    "console-analytics": { "maxBytes": 48000, "maxGzipBytes": 13000 },
+    "console-api-keys": { "maxBytes": 58000, "maxGzipBytes": 16000 },
+    "console-usage-logs": { "maxBytes": 36000, "maxGzipBytes": 11000 }
+  }
+}

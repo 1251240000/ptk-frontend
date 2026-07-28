@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from '@tanstack/react-router'
 
 import { PageHeader } from '@/components/ui'
-import { localizedUserPath } from '@/lib/routes'
+import { canonicalConsolePath } from '@/lib/routes'
 
 const requestExample = `curl https://partokens.com/v1/chat/completions \\
   -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
@@ -36,7 +36,7 @@ export function DocsPage() {
       <article className="docs-article">
         <PageHeader eyebrow={t('Partokens API')} title={t('Docs')} description={t('Start with an API key and one compatible request.')} />
         <section id="base-url" className="docs-section"><span className="docs-step">01</span><div><h2>{t('Base URL')}</h2><p>{t('Use the Partokens compatible endpoint in clients that support a custom OpenAI base URL.')}</p><code className="inline-code">https://partokens.com/v1</code></div></section>
-        <section id="authentication" className="docs-section"><span className="docs-step">02</span><div><h2>{t('Authentication')}</h2><p>{t('Create a scoped API key in the console and send it as a Bearer token.')}</p><a className="text-link" href={localizedUserPath(params.locale, '/console/keys')}><KeyRound size={15} />{t('Create a key')}<ExternalLink size={13} /></a></div></section>
+        <section id="authentication" className="docs-section"><span className="docs-step">02</span><div><h2>{t('Authentication')}</h2><p>{t('Create a scoped API key in the console and send it as a Bearer token.')}</p><a className="text-link" href={canonicalConsolePath(params.locale, 'keys')}><KeyRound size={15} />{t('Create a key')}<ExternalLink size={13} /></a></div></section>
         <section id="first-request" className="docs-section"><span className="docs-step">03</span><div className="docs-code-wrap"><h2>{t('First request')}</h2><p>{t('Replace the model name with one available to your account group.')}</p><button className="code-copy" type="button" onClick={() => void copy()} aria-label={t('Copy request')}>{copied ? <Check size={16} /> : <Clipboard size={16} />}</button><pre className="code-surface"><code>{requestExample}</code></pre></div></section>
         <section className="docs-section docs-reference"><TerminalSquare size={20} /><div><h2>{t('Full reference')}</h2><p>{t('API response fields follow the OpenAI-compatible schema for each endpoint.')}</p></div></section>
       </article>

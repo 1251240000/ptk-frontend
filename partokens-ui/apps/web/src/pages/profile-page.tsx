@@ -342,7 +342,11 @@ export function ProfilePage() {
   const startBinding = async (provider: string) => {
     if (!status.data?.data) return
     resetFeedback()
-    try { await startOAuthAuthorization({ provider, status: status.data.data, locale, intent: 'bind' }) }
+    try {
+      await startOAuthAuthorization({ provider, status: status.data.data, locale, intent: 'bind' })
+      await oauthBindings.refetch()
+      success(t('Account connected'))
+    }
     catch (cause) { failure(cause, t('Unable to connect account')) }
   }
 

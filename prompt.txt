@@ -1,47 +1,28 @@
- 当前进度
+• 当前已完成 R54-R59：
 
-  - R54：完成 Console Foundation 的 Overview、Analytics、API Keys、Usage Logs 重建。
-  - R55：已使用真实 production 普通用户完成认证验收。
-  - Keys CRUD、启停、批量删除、详情和 reveal 均通过，测试数据已清理。
-  - Logs 分页、统计、request/upstream request-id 筛选通过。
-  - Analytics 90 天分段请求符合 30 天后端限制。
-  - 完成失败 envelope 缺少 data 的最小修复。
-  - typecheck、test、build、E2E 93/93 通过。
-  - canonical 路由尚未切换。
-  - 剩余阻塞：无 staging tenant，且真实权限失败返回 HTTP 200 success=false，尚无真实 HTTP 403 证据。
+  - R54-R57：Console 四页重建，认证权限契约，canonical 路由切换与代码整合。
+  - R58：清理 Legacy 资产，完成异步分包、统一查询行为及移动端修复。
+  - R59：完成七语言 228 个文案键、bundle 预算、lazy route 恢复、请求竞态与离线处理。
+  - 最终验证：Typecheck、build 通过；Unit Web 100/100、Docs 3/3；Chromium E2E 105/105。
+  - 尚未执行 staging/production 部署或真实角色验收。
+  - 报告：partokens-ui/dogfood-output/r59-console-release-readiness/report.md
 
-  下一阶段提示词
+  下一阶段建议进入 staging 验收：
 
-  继续开发 `/Users/dj/Desktop/partokens/partokens-ui`，进入 R55.1：
-  Console Permission Gate Closeout。
+  继续开发 `/Users/dj/Desktop/partokens/partokens-ui`，进入 R60：
+  Canonical Console Staging Release Validation。
 
-  当前状态：
-  - R54 Console Foundation 重建完成。
-  - R55 已通过真实 production 普通用户验收。
-  - R55 报告：
-    `dogfood-output/r55-console-authenticated-validation/report.md`
-  - canonical `/$locale/console/*` 尚未切换。
+  本轮允许部署到 staging，禁止 production 部署。
 
-  本轮目标：
-  关闭 staging、权限和错误语义阻塞，给出是否可以进入 R56 canonical cutover 的最终结论。
-
-  执行要求：
-  1. 保留所有未提交改动，禁止 reset、checkout、clean。
-  2. 不重新设计页面，不切换 canonical 路由。
-  3. 使用真实 staging session 或受限测试账户验证：
-     - 普通用户、自有资源、非自有资源的权限边界
-     - Keys CRUD、batch、reveal 的 403 或实际业务失败语义
-     - Logs、Analytics、Overview 的权限失败和 session 失效
-  4. 不得用 mock 冒充真实验收；无法获得 staging/受限账户时明确记录阻塞。
-  5. 确认生产 HTTP 200 `success=false` 是否为正式权限契约；如不是，进行最小前端兼容修复。
-  6. 所有响应继续经过结构验证和安全投影，禁止保存凭据、完整 key、原始日志或 metadata。
-  7. 不新增 API、Store、依赖或持久化机制。
-  8. 重新运行 typecheck、test、build 和完整 E2E。
+  目标：
+  1. 固化 R59 契约，生成可追踪的 release candidate 构建与版本信息。
+  2. 完成 staging 配置、环境变量、API 地址、安全响应头及 source map 策略检查。
+  3. 部署 staging，并验证七种 locale、canonical deep link、刷新、back/forward 和 lazy chunk 加载。
+  4. 使用专用测试账户验证普通用户、第二账户和管理员的权限边界、owner/self scope、401/403 与敏感数据隔离。
+  5. 验证 API Key 生命周期和 Usage Logs 查询；仅操作测试资源，完成后清理。
+  6. 检查 staging 控制台错误、失败请求、性能指标、chunk 缓存和 bundle 预算。
+  7. 编写 smoke、角色矩阵、回滚步骤及已知风险记录。
+  8. 运行 typecheck、unit、build、完整 Chromium E2E 和 staging smoke。
   9. 输出报告：
-     `dogfood-output/r55-1-console-permission-gate-closeout/report.md`
+     `dogfood-output/r60-console-staging-validation/report.md`
 
-  报告需包含真实环境、账户权限矩阵、实际错误语义、安全检查、
-  修复文件、测试结果、剩余风险，以及是否批准进入 R56。
-
-  只有权限矩阵和真实环境验收全部关闭后，才批准 R56；
-  本轮不得修改 canonical 路由。

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useLocation, useParams } from '@tanstack/react-router'
+import { useLocation, useNavigate, useParams } from '@tanstack/react-router'
 import { ArrowLeft, Check, Github, KeyRound, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +8,6 @@ import {
   confirmPasswordReset,
   exchangeOAuth,
   getOAuthState,
-  getSelf,
   getStatus,
   login,
   loginTwoFactor,
@@ -21,6 +20,7 @@ import {
 import { isAppLocale, resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 
 import { Brand } from '@/components/brand'
+import { canonicalConsolePath } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
 
 function useLocale(): AppLocale {
@@ -29,8 +29,18 @@ function useLocale(): AppLocale {
 }
 
 function authDestination(locale: AppLocale, user: CurrentUser) {
-  useSessionStore.getState().setUser(user)
-  window.location.assign(user.role >= 10 ? '/channels' : `/${locale}/console/overview`)
+  if (user.role >= 10) {
+    window.location.assign('/channels')
+    return
+  }
+  const queryReturn = new URLSearchParams(window.location.search).get('redirect')
+  const oauthReturn = window.localStorage.getItem('partokens-oauth-return')
+  window.localStorage.removeItem('partokens-oauth-return')
+  const returnTo = queryReturn || oauthReturn
+  const safeReturn = returnTo?.startsWith(`/${locale}/`) && !returnTo.startsWith(`/${locale}/auth/`)
+    ? returnTo
+    : canonicalConsolePath(locale, 'overview')
+  window.location.assign(safeReturn)
 }
 
 function responseError(error: unknown, fallback: string) {
@@ -48,36 +58,102 @@ export async function startOAuthAuthorization(input: {
   intent?: 'login' | 'bind'
 }) {
   let { provider } = input
-  const google = input.status.custom_oauth_providers?.find((item) => item.name.toLowerCase().includes('google'))
-  window.localStorage.setItem('partokens-oauth-locale', input.locale)
-  window.localStorage.setItem('partokens-oauth-intent', input.intent || 'login')
-  const state = await getOAuthState()
-  if (!state) throw new Error('OAuth state unavailable')
+  const intent = input.intent || 'login'
+  const customProvider = input.status.custom_oauth_providers?.find((item) => item.slug === provider)
+  const popup = intent === 'bind' ? window.open('about:blank', 'partokens-oauth-bind', 'popup,width=560,height=720') : null
+  if (intent === 'bind' && !popup) throw new Error('OAuth popup unavailable')
   let target: URL
   if (provider === 'github' && input.status.github_client_id) {
     target = new URL('https://github.com/login/oauth/authorize')
     target.searchParams.set('client_id', input.status.github_client_id)
-    target.searchParams.set('state', state)
     target.searchParams.set('scope', 'user:email')
   } else if (provider === 'linuxdo' && input.status.linuxdo_client_id) {
     target = new URL('https://connect.linux.do/oauth2/authorize')
     target.searchParams.set('client_id', input.status.linuxdo_client_id)
-    target.searchParams.set('state', state)
     target.searchParams.set('response_type', 'code')
   } else {
-    const custom = google ?? (input.status.oidc_authorization_endpoint && input.status.oidc_client_id ? {
+    const custom = customProvider ?? (provider === 'oidc' && input.status.oidc_authorization_endpoint && input.status.oidc_client_id ? {
       slug: 'oidc', client_id: input.status.oidc_client_id, authorization_endpoint: input.status.oidc_authorization_endpoint, scopes: 'openid profile email',
     } : undefined)
-    if (!custom) throw new Error('Provider unavailable')
+    if (!custom) {
+      popup?.close()
+      throw new Error('Provider unavailable')
+    }
     provider = custom.slug
     target = new URL(custom.authorization_endpoint)
     target.searchParams.set('client_id', custom.client_id)
     target.searchParams.set('redirect_uri', `${window.location.origin}/oauth/${provider}`)
     target.searchParams.set('response_type', 'code')
     target.searchParams.set('scope', custom.scopes || 'openid profile email')
-    target.searchParams.set('state', state)
   }
-  window.location.assign(target.toString())
+  let state: string
+  try {
+    state = await getOAuthState({
+      provider,
+      intent,
+      aff: intent === 'login' ? window.localStorage.getItem('aff') || undefined : undefined,
+    })
+  } catch (error) {
+    popup?.close()
+    throw error
+  }
+  if (!state) {
+    popup?.close()
+    throw new Error('OAuth state unavailable')
+  }
+  target.searchParams.set('state', state)
+  window.localStorage.setItem('partokens-oauth-locale', input.locale)
+  window.localStorage.setItem('partokens-oauth-intent', intent)
+  if (intent === 'login') {
+    const returnTo = new URLSearchParams(window.location.search).get('redirect')
+    if (returnTo) window.localStorage.setItem('partokens-oauth-return', returnTo)
+    window.location.assign(target.toString())
+    return
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false
+    const cleanup = () => {
+      window.removeEventListener('message', receive)
+      window.clearInterval(closedCheck)
+      window.clearTimeout(timeout)
+    }
+    const finish = (error?: unknown) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      window.localStorage.removeItem('partokens-oauth-intent')
+      popup?.close()
+      if (error) reject(error)
+      else resolve()
+    }
+    const receive = (event: MessageEvent) => {
+      const data = event.data as Record<string, unknown> | null
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== popup ||
+        !data ||
+        data.source !== 'partokens-oauth-bind' ||
+        data.provider !== provider ||
+        data.state !== state ||
+        typeof data.code !== 'string'
+      ) return
+      void exchangeOAuth(provider, { code: data.code, state }, 'bind')
+        .then((result) => {
+          if (!result.success || !result.data || !('action' in result.data) || result.data.action !== 'bind') {
+            throw new Error(result.message || 'OAuth bind failed')
+          }
+          finish()
+        })
+        .catch(finish)
+    }
+    const closedCheck = window.setInterval(() => {
+      if (popup?.closed) finish(new Error('OAuth popup closed'))
+    }, 500)
+    const timeout = window.setTimeout(() => finish(new Error('OAuth bind timed out')), 300_000)
+    window.addEventListener('message', receive)
+    popup?.location.assign(target.toString())
+  })
 }
 
 export function TurnstileField({ siteKey, onToken }: { siteKey?: string; onToken: (token: string) => void }) {
@@ -196,6 +272,8 @@ function OAuthButtons({ status, allowed }: { status?: PartokensStatus; allowed: 
 export function SignInPage() {
   const { t } = useTranslation()
   const locale = useLocale()
+  const navigate = useNavigate()
+  const setPendingTwoFactor = useSessionStore((state) => state.setPendingTwoFactor)
   const status = useQuery({ queryKey: ['status'], queryFn: getStatus, staleTime: 60_000 })
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -212,17 +290,13 @@ export function SignInPage() {
     setError('')
     try {
       const result = await login({ username, password, turnstile: turnstile || undefined })
-      if (!result.success) throw new Error(result.message || t('Sign in failed'))
-      if (result.data.require_2fa) {
-        window.location.assign(`/${locale}/auth/otp`)
+      if (!result.success || !result.data) throw new Error(result.message || t('Sign in failed'))
+      if ('require_2fa' in result.data) {
+        setPendingTwoFactor(result.data)
+        await navigate({ to: '/$locale/auth/otp', params: { locale } })
         return
       }
-      if (result.data.id != null) {
-        window.localStorage.setItem('partokens-user-id', String(result.data.id))
-      }
-      const self = await getSelf()
-      if (!self.success || !self.data) throw new Error(self.message || t('Unable to load account'))
-      authDestination(locale, self.data)
+      authDestination(locale, result.data.user)
     } catch (cause) {
       setError(responseError(cause, t('Sign in failed')))
       setBusy(false)
@@ -353,15 +427,19 @@ export function ForgotPasswordPage() {
 export function OtpPage() {
   const { t } = useTranslation()
   const locale = useLocale()
+  const pendingTwoFactor = useSessionStore((state) => state.pendingTwoFactor)
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError('')
     try {
-      const result = await loginTwoFactor(code)
+      if (!pendingTwoFactor || pendingTwoFactor.expires_at <= Math.floor(Date.now() / 1000)) {
+        throw new Error(t('Verification failed'))
+      }
+      const result = await loginTwoFactor(code, pendingTwoFactor.flow_token)
       if (!result.success || !result.data) throw new Error(result.message || t('Verification failed'))
-      authDestination(locale, result.data)
+      authDestination(locale, result.data.user)
     } catch (cause) { setError(responseError(cause, t('Verification failed'))); setBusy(false) }
   }
   return <AuthFrame title={t('Two-factor verification')} description={t('Enter an authenticator or backup code to finish signing in.')}><form className="auth-form" onSubmit={(event) => void submit(event)}><label><span>{t('Verification code')}</span><input autoFocus autoComplete="one-time-code" inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value)} required /></label>{error ? <div className="form-error">{error}</div> : null}<button className="button primary-button auth-submit" disabled={busy} type="submit">{busy ? <LoaderCircle className="spin" size={17} /> : <ShieldCheck size={17} />}{t('Verify')}</button></form></AuthFrame>
@@ -401,21 +479,19 @@ export function OAuthCallbackPage() {
     exchangeStarted.current = true
     const code = search.get('code')
     if (!params.provider || !code) { setError(t('OAuth callback is incomplete.')); return }
-    void exchangeOAuth(params.provider, { code, state: search.get('state') || undefined })
+    const state = search.get('state') || undefined
+    const intent = window.localStorage.getItem('partokens-oauth-intent')
+    if (intent === 'bind') {
+      if (!window.opener || !state) { setError(t('OAuth callback is incomplete.')); return }
+      window.opener.postMessage({ source: 'partokens-oauth-bind', provider: params.provider, code, state }, window.location.origin)
+      return
+    }
+    void exchangeOAuth(params.provider, { code, state }, 'login')
       .then(async (result) => {
         if (!result.success) throw new Error(result.message || t('OAuth failed'))
-        if (result.data && 'action' in result.data && result.data.action === 'bind') {
-          window.localStorage.removeItem('partokens-oauth-intent')
-          window.location.assign(`/${locale}/console/profile?binding=success`)
-          return
-        }
-        const directUser = result.data && typeof (result.data as CurrentUser).id === 'number'
-          ? result.data as CurrentUser
-          : null
-        const self = directUser ? { success: true, data: directUser } : await getSelf()
-        if (!self.data) throw new Error(t('Unable to load account'))
+        if (!result.data || 'action' in result.data) throw new Error(t('Unable to load account'))
         window.localStorage.removeItem('partokens-oauth-intent')
-        authDestination(locale, self.data)
+        authDestination(locale, result.data.user)
       })
       .catch((cause) => setError(responseError(cause, t('OAuth failed'))))
   }, [locale, params.provider, t])

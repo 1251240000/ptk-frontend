@@ -64,7 +64,7 @@ import {
 import { IconButton } from '@/components/ui'
 import { database, ownerNamespace } from '@/db'
 import { extractItems, quotaDollarsToUnits } from '@/lib/format'
-import { localizedUserPath } from '@/lib/routes'
+import { canonicalConsolePath } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
 
 const MAX_UNDO = 50
@@ -887,7 +887,7 @@ export function StudioPage() {
             <textarea rows={selectedNode.type === 'prompt' ? 6 : 4} value={selectedNode.content} onFocus={startNodeEdit} onBlur={finishNodeEdit} onChange={(event) => setProject((current) => ({ ...current, nodes: current.nodes.map((node) => node.id === selectedNode.id ? { ...node, content: event.target.value } : node) }))} />
           </label> : null}
           {selectedNode.type === 'source' ? <div className="inspector-media"><img src={selectedNode.assetId ? assetUrls[selectedNode.assetId] : ''} alt={selectedNode.title} /><p>{t('Connect this source to a prompt node to use image editing.')}</p></div> : null}
-          {selectedNode.type === 'result' ? <div className="inspector-media"><img src={selectedNode.assetId ? assetUrls[selectedNode.assetId] : selectedNode.remoteUrl} alt={selectedNode.title} />{selectedNode.revisedPrompt ? <p>{selectedNode.revisedPrompt}</p> : null}<a className="text-link" href={localizedUserPath(locale, `/console/usage-logs?model=${encodeURIComponent(project.settings.model)}`)}>{t('Open usage logs')}</a></div> : null}
+          {selectedNode.type === 'result' ? <div className="inspector-media"><img src={selectedNode.assetId ? assetUrls[selectedNode.assetId] : selectedNode.remoteUrl} alt={selectedNode.title} />{selectedNode.revisedPrompt ? <p>{selectedNode.revisedPrompt}</p> : null}<a className="text-link" href={`${canonicalConsolePath(locale, 'usageLogs')}?model=${encodeURIComponent(project.settings.model)}`}>{t('Open usage logs')}</a></div> : null}
         </> : <div className="data-state">{t('Select a node to inspect it')}</div>}
 
         <section className="inspector-section generation-settings">

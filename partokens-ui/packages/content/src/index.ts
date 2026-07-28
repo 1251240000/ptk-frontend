@@ -29,7 +29,7 @@ const content: Record<AppLocale, LocaleContent> = {
     aboutLead: 'Partokens 为开发者提供统一的模型访问入口，并把价格、状态、额度与调用记录放在同一个操作界面中。',
     aboutBody: '我们关注请求是否能够成功、实际消耗了多少，以及账户是否可以继续稳定运行。新用户端与 New API 管理后台相互独立，服务端仍负责认证、计费、额度与模型路由。',
     noticeTitle: '新版用户端正在独立构建',
-    noticeBody: '第一阶段包含新的公开页面、认证流程和控制台基础体验。现有 API 服务不受影响。',
+    noticeBody: '第一阶段包含新的公开页面、认证流程和统一控制台体验。现有 API 服务不受影响。',
     legal: {
       'user-agreement': {
         title: '用户协议',
@@ -65,7 +65,7 @@ const content: Record<AppLocale, LocaleContent> = {
     aboutLead: 'Partokens 為開發者提供統一的模型存取入口，並將價格、狀態、額度與呼叫記錄放在同一個操作介面中。',
     aboutBody: '我們關注請求能否成功、實際消耗多少，以及帳戶能否持續穩定運作。新使用者端與 New API 管理後台彼此獨立，伺服器仍負責驗證、計費、額度與模型路由。',
     noticeTitle: '新版使用者端正在獨立建置',
-    noticeBody: '第一階段包含新的公開頁面、驗證流程與控制台基礎體驗。現有 API 服務不受影響。',
+    noticeBody: '第一階段包含新的公開頁面、驗證流程與統一控制台體驗。現有 API 服務不受影響。',
     legal: {
       'user-agreement': { title: '使用者協議', summary: '本協議說明帳戶註冊、安全責任與使用 Partokens 時應遵守的基本規則。', sections: [
         { title: '帳戶與安全', paragraphs: ['你應提供真實有效的註冊資訊，並妥善保管密碼、API 金鑰與其他存取憑證。'] },
@@ -89,7 +89,7 @@ const content: Record<AppLocale, LocaleContent> = {
     aboutLead: 'Partokens gives developers one model-access endpoint and puts price, status, quota, and request history in one operational surface.',
     aboutBody: 'The product centers on whether a request can succeed, what it actually consumed, and whether the account is ready to continue. The standalone user UI is independent from New API management; the server remains authoritative for authentication, billing, quota, and routing.',
     noticeTitle: 'The standalone user experience is in development',
-    noticeBody: 'Phase one introduces new public pages, authentication flows, and the console foundation. Existing API service is unaffected.',
+    noticeBody: 'Phase one introduces new public pages, authentication flows, and a unified Console experience. Existing API service is unaffected.',
     legal: {
       'user-agreement': { title: 'User Agreement', summary: 'This agreement covers registration, account security, and the baseline rules for using Partokens.', sections: [
         { title: 'Account and security', paragraphs: ['Provide accurate registration information and protect passwords, API keys, and other credentials. Activity under an account is treated as activity of its holder.'] },
@@ -113,7 +113,7 @@ const content: Record<AppLocale, LocaleContent> = {
     aboutLead: 'Partokens はモデルへの統一された入口を提供し、料金、状態、割り当て、リクエスト履歴を一つの操作画面にまとめます。',
     aboutBody: 'リクエストが成功できるか、何を消費したか、アカウントが継続利用できるかを重視します。認証、課金、割り当て、ルーティングは引き続きサーバーが管理します。',
     noticeTitle: '新しいユーザー画面を独立して構築中です',
-    noticeBody: '第1段階では公開ページ、認証フロー、コンソール基盤を導入します。既存の API サービスには影響しません。',
+    noticeBody: '第1段階では公開ページ、認証フロー、統合されたコンソール体験を導入します。既存の API サービスには影響しません。',
     legal: {
       'user-agreement': { title: 'ユーザー契約', summary: '登録、アカウントの安全、Partokens 利用時の基本ルールを定めます。', sections: [
         { title: 'アカウントと安全', paragraphs: ['正確な登録情報を提供し、パスワード、API キー、その他の認証情報を適切に管理してください。'] },
@@ -137,7 +137,7 @@ const content: Record<AppLocale, LocaleContent> = {
     aboutLead: 'Partokens объединяет доступ к моделям и показывает стоимость, состояние, квоту и историю запросов в одном рабочем интерфейсе.',
     aboutBody: 'В центре внимания успешность запроса, фактический расход и готовность аккаунта продолжать работу. Сервер остаётся источником истины для входа, оплаты, квот и маршрутизации.',
     noticeTitle: 'Новый пользовательский интерфейс разрабатывается отдельно',
-    noticeBody: 'Первый этап включает публичные страницы, вход и основу консоли. Работа существующего API не изменяется.',
+    noticeBody: 'Первый этап включает публичные страницы, вход и единую консоль. Работа существующего API не изменяется.',
     legal: {
       'user-agreement': { title: 'Пользовательское соглашение', summary: 'Правила регистрации, безопасности аккаунта и использования Partokens.', sections: [
         { title: 'Аккаунт и безопасность', paragraphs: ['Указывайте достоверные данные и защищайте пароль, ключи API и другие учётные данные.'] },
@@ -161,7 +161,7 @@ const content: Record<AppLocale, LocaleContent> = {
     aboutLead: 'Partokens réunit l’accès aux modèles et affiche prix, état, quota et historique dans une même interface opérationnelle.',
     aboutBody: 'Nous mettons en avant la réussite d’une requête, sa consommation réelle et la capacité du compte à continuer. Le serveur reste l’autorité pour l’authentification, la facturation, les quotas et le routage.',
     noticeTitle: 'La nouvelle expérience utilisateur est développée indépendamment',
-    noticeBody: 'La première phase apporte les pages publiques, l’authentification et la base de la console. Le service API existant reste inchangé.',
+    noticeBody: 'La première phase apporte les pages publiques, l’authentification et une expérience Console unifiée. Le service API existant reste inchangé.',
     legal: {
       'user-agreement': { title: 'Contrat utilisateur', summary: 'Règles d’inscription, de sécurité du compte et d’utilisation de Partokens.', sections: [
         { title: 'Compte et sécurité', paragraphs: ['Fournissez des informations exactes et protégez votre mot de passe, vos clés API et vos autres identifiants.'] },
@@ -185,7 +185,7 @@ const content: Record<AppLocale, LocaleContent> = {
     aboutLead: 'Partokens hợp nhất quyền truy cập mô hình và hiển thị giá, trạng thái, hạn mức cùng lịch sử yêu cầu trên một giao diện vận hành.',
     aboutBody: 'Sản phẩm tập trung vào khả năng thành công, mức tiêu thụ thực tế và khả năng tiếp tục của tài khoản. Máy chủ vẫn quyết định xác thực, tính phí, hạn mức và định tuyến.',
     noticeTitle: 'Trải nghiệm người dùng mới đang được xây dựng độc lập',
-    noticeBody: 'Giai đoạn một gồm các trang công khai, luồng xác thực và nền tảng bảng điều khiển. Dịch vụ API hiện tại không bị ảnh hưởng.',
+    noticeBody: 'Giai đoạn một gồm các trang công khai, luồng xác thực và trải nghiệm Console thống nhất. Dịch vụ API hiện tại không bị ảnh hưởng.',
     legal: {
       'user-agreement': { title: 'Thỏa thuận người dùng', summary: 'Quy tắc đăng ký, bảo mật tài khoản và sử dụng Partokens.', sections: [
         { title: 'Tài khoản và bảo mật', paragraphs: ['Cung cấp thông tin chính xác và bảo vệ mật khẩu, khóa API cùng các thông tin truy cập khác.'] },
@@ -228,4 +228,3 @@ export function getCurrentNotice(locale: AppLocale) {
     body: localeContent.noticeBody,
   }
 }
-

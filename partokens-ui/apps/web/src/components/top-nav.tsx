@@ -8,6 +8,7 @@ import { isAppLocale, localeLabels, locales, type AppLocale } from '@partokens/i
 
 import { usePreferenceStore, type ThemeMode } from '@/stores/preferences'
 import { publicSourceUrl } from '@/lib/release'
+import { canonicalConsolePath } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
 import { Brand } from './brand'
 import { IconButton } from './ui'
@@ -37,7 +38,7 @@ export function TopNav() {
 
   const links = useMemo(() => [
     { label: t('Home'), href: localizedPath(locale, '/') },
-    { label: t('Console'), href: localizedPath(locale, '/console/overview') },
+    { label: t('Console'), href: canonicalConsolePath(locale, 'overview') },
     { label: t('Models'), href: localizedPath(locale, '/models') },
     { label: t('Docs'), href: localizedPath(locale, '/docs') },
     { label: t('About'), href: localizedPath(locale, '/about') },
@@ -84,7 +85,7 @@ export function TopNav() {
             <span className="notification-dot" />
           </IconButton>
           {publicSourceUrl ? <a className="source-code-button" href={publicSourceUrl} target="_blank" rel="noopener noreferrer" aria-label={t('Source code')} title={t('Source code')}><Code2 size={18} /></a> : null}
-          <a className="account-button" href={user ? localizedPath(locale, '/console/profile') : localizedPath(locale, '/auth/sign-in')}>
+          <a className="account-button" href={user ? canonicalConsolePath(locale, 'profile') : localizedPath(locale, '/auth/sign-in')}>
             <UserCircle size={18} />
             <span>{user?.display_name || user?.username || t('Sign in')}</span>
           </a>
@@ -97,7 +98,7 @@ export function TopNav() {
         <nav id="mobile-navigation" className="mobile-nav-sheet" aria-label={t('Mobile navigation')}>
           {links.map((link) => <a key={link.href} href={link.href}>{link.label}</a>)}
           {publicSourceUrl ? <a href={publicSourceUrl} target="_blank" rel="noopener noreferrer"><Code2 size={16} />{t('Source code')}</a> : null}
-          <a href={user ? localizedPath(locale, '/console/profile') : localizedPath(locale, '/auth/sign-in')}>{user?.display_name || user?.username || t('Sign in')}</a>
+          <a href={user ? canonicalConsolePath(locale, 'profile') : localizedPath(locale, '/auth/sign-in')}>{user?.display_name || user?.username || t('Sign in')}</a>
         </nav>
       ) : null}
       {noticeOpen ? (
