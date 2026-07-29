@@ -56,13 +56,10 @@ import { AuthPrototype, type AuthPrototypeScreen } from './auth-prototype'
 import { PublicPrototype, type PublicPrototypeScreen } from './public-prototype'
 import { ShadcnAnalyticsScreen } from './shadcn-analytics-screen'
 import { ShadcnApiKeysScreen } from './shadcn-api-keys-screen'
-import { ShadcnConnectionsScreen } from './shadcn-connections-screen'
 import { ShadcnImageStudioScreen } from './shadcn-image-studio-screen'
-import { ShadcnNotificationsScreen } from './shadcn-notifications-screen'
 import { ShadcnOverviewScreen } from './shadcn-overview-screen'
 import { ShadcnPlaygroundScreen } from './shadcn-playground-screen'
 import { ShadcnProfileScreen } from './shadcn-profile-screen'
-import { ShadcnSecurityScreen } from './shadcn-security-screen'
 import { ShadcnSystemScreen } from './shadcn-system-screen'
 import { ShadcnUsageLogsScreen } from './shadcn-usage-logs-screen'
 import { ShadcnWalletScreen } from './shadcn-wallet-screen'
@@ -73,7 +70,8 @@ type Locale = 'zh-CN' | 'fr' | 'ru'
 type Theme = 'light' | 'dark'
 const publicScreens: PublicPrototypeScreen[] = ['home', 'models', 'docs', 'about', 'notices', 'legal-user', 'legal-service', 'legal-privacy']
 const authScreens: AuthPrototypeScreen[] = ['signin', 'signup', 'verify-email', 'forgot-password', 'reset-password', 'oauth-callback', 'auth-otp']
-const consoleScreens: ConsoleRoute[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile', 'console-security', 'console-connections', 'console-notifications']
+const consoleScreens: ConsoleRoute[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile']
+const legacyProfileScreens = ['console-security', 'console-connections', 'console-notifications']
 
 function initialTheme(): Theme {
   const saved = window.localStorage.getItem('partokens-theme')
@@ -138,6 +136,10 @@ const localeLabels: Record<Locale, string> = { 'zh-CN': '简体中文', fr: 'Fra
 
 function screenFromHash(): Screen {
   const value = window.location.hash.replace('#', '')
+  if (legacyProfileScreens.includes(value)) {
+    window.history.replaceState(null, '', '#console-profile')
+    return 'console-profile'
+  }
   const screens: Screen[] = ['home', 'system', 'models', 'docs', 'about', 'notices', 'legal-user', 'legal-service', 'legal-privacy', ...authScreens, ...consoleScreens]
   return screens.includes(value as Screen) ? value as Screen : 'home'
 }
@@ -344,12 +346,9 @@ export function App() {
   const isAuthPrototype = authScreens.includes(screen as AuthPrototypeScreen)
   const isShadcnAnalytics = screen === 'console-analytics'
   const isShadcnApiKeys = screen === 'console-keys'
-  const isShadcnConnections = screen === 'console-connections'
-  const isShadcnNotifications = screen === 'console-notifications'
   const isShadcnOverview = screen === 'console'
   const isShadcnPlayground = screen === 'console-playground'
   const isShadcnProfile = screen === 'console-profile'
-  const isShadcnSecurity = screen === 'console-security'
   const isShadcnStudio = screen === 'console-studio'
   const isShadcnUsageLogs = screen === 'console-logs'
   const isShadcnWallet = screen === 'console-wallet'
@@ -383,11 +382,8 @@ export function App() {
   return <>
     {isAuthPrototype ? <AuthPrototype screen={screen as AuthPrototypeScreen} locale={publicLocale} theme={theme} online={online} version={version} onLocale={setPublicLocale} onTheme={common.onTheme} go={go} /> : null}
     {isShadcnOverview ? <ShadcnOverviewScreen theme={theme} online={online} version={version} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
-    {isShadcnConnections ? <ShadcnConnectionsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
-    {isShadcnNotifications ? <ShadcnNotificationsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnPlayground ? <ShadcnPlaygroundScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnProfile ? <ShadcnProfileScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
-    {isShadcnSecurity ? <ShadcnSecurityScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnStudio ? <ShadcnImageStudioScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnAnalytics ? <ShadcnAnalyticsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnApiKeys ? <ShadcnApiKeysScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}

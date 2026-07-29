@@ -3,12 +3,12 @@ import {
   ArrowRight,
   Bot,
   Check,
+  ChevronDown,
   Copy,
   Database,
   Download,
   Ellipsis,
   History,
-  Info,
   LoaderCircle,
   MessageSquare,
   PanelLeft,
@@ -89,6 +89,7 @@ import {
 import { ConsoleShell, type ConsoleScreenProps } from './shadcn-console-shell'
 
 type OverlayState =
+  | { kind: 'selection' }
   | { kind: 'parameters' }
   | { kind: 'local-data' }
   | { kind: 'edit-message'; id: string }
@@ -164,28 +165,6 @@ function IconButton({ label, children, onClick, disabled, className = '' }: {
   )
 }
 
-function RouteStrip({ model }: { model: string }) {
-  const steps = [
-    { icon: Database, label: 'Local IndexedDB', detail: 'Stored on this device' },
-    { icon: ArrowRight, label: 'Partokens gateway', detail: 'Transported when sent' },
-    { icon: Bot, label: model, detail: 'Model response' },
-  ]
-
-  return (
-    <div className='grid grid-cols-3 border-b bg-muted/20' aria-label='Message route'>
-      {steps.map(({ icon: Icon, label, detail }, index) => (
-        <div className={`flex min-w-0 flex-col items-start gap-1 px-2 py-2.5 sm:flex-row sm:items-center sm:gap-2 sm:px-3 ${index ? 'border-s' : ''}`} key={label}>
-          <div className='flex size-7 shrink-0 items-center justify-center rounded-md border bg-background'><Icon className='size-3.5' /></div>
-          <div className='min-w-0'>
-            <p className='break-words text-[11px] font-medium leading-4 sm:text-xs'>{label}</p>
-            <p className='hidden truncate text-[11px] text-muted-foreground @xl/content:block'>{detail}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 type RailProps = {
   conversations: PrototypeConversation[]
   currentId: string | null
@@ -194,15 +173,40 @@ type RailProps = {
   onQuery: (query: string) => void
   onNew: () => void
   onSelect: (id: string) => void
+  onRename: (id: string, title: string) => void
   onDelete: (id: string, trigger: HTMLElement) => void
   onLocalData: (trigger: HTMLElement) => void
 }
 
-function ConversationRail({ conversations, currentId, query, busy, onQuery, onNew, onSelect, onDelete, onLocalData }: RailProps) {
+function ConversationRail({ conversations, currentId, query, busy, onQuery, onNew, onSelect, onRename, onDelete, onLocalData }: RailProps) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState('')
+  const renameInputRef = useRef<HTMLInputElement>(null)
+  const cancelRenameRef = useRef(false)
   const normalizedQuery = query.trim().toLocaleLowerCase('en-US')
   const matches = conversations.filter((conversation) => conversationTitle(conversation).toLocaleLowerCase('en-US').includes(normalizedQuery))
   const today = matches.filter((conversation) => Date.now() - conversation.updatedAt < 24 * 60 * 60_000)
   const previous = matches.filter((conversation) => Date.now() - conversation.updatedAt >= 24 * 60 * 60_000)
+
+  useEffect(() => {
+    if (editingId) renameInputRef.current?.select()
+  }, [editingId])
+
+  const startRename = (conversation: PrototypeConversation) => {
+    cancelRenameRef.current = false
+    setEditingId(conversation.id)
+    setRenameDraft(conversationTitle(conversation))
+  }
+
+  const finishRename = (conversation: PrototypeConversation, value: string) => {
+    setEditingId(null)
+    if (cancelRenameRef.current) {
+      cancelRenameRef.current = false
+      return
+    }
+    const title = value.trim() || 'New conversation'
+    if (title !== conversationTitle(conversation)) onRename(conversation.id, title)
+  }
 
   const group = (label: string, items: PrototypeConversation[]) => items.length ? (
     <section className='space-y-1' key={label}>
@@ -211,29 +215,75 @@ function ConversationRail({ conversations, currentId, query, busy, onQuery, onNe
       </div>
       {items.map((conversation) => (
         <div className={`group relative rounded-md ${conversation.id === currentId ? 'bg-accent' : 'hover:bg-muted/60'}`} key={conversation.id}>
-          <button
-            type='button'
-            className='grid w-full min-w-0 grid-cols-[auto_1fr] gap-x-2 px-2 py-2.5 pe-9 text-start'
-            disabled={busy}
-            onClick={() => onSelect(conversation.id)}
-          >
-            <MessageSquare className='mt-0.5 size-4 text-muted-foreground' />
-            <span className='min-w-0'>
-              <span className='block truncate text-sm font-medium'>{conversationTitle(conversation)}</span>
-              <span className='block truncate text-xs text-muted-foreground'>{formatConversationTime(conversation.updatedAt)}</span>
-            </span>
-          </button>
-          <Button
-            type='button'
-            variant='ghost'
-            size='icon'
-            className='absolute end-1 top-2 size-7 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100'
-            aria-label={`Delete ${conversationTitle(conversation)}`}
-            disabled={busy}
-            onClick={(event) => onDelete(conversation.id, event.currentTarget)}
-          >
-            <Trash2 className='size-3.5' />
-          </Button>
+          {editingId === conversation.id ? (
+            <div className='grid min-h-[58px] w-full min-w-0 grid-cols-[auto_1fr] items-center gap-x-2 px-2 py-2 pe-9'>
+              <Pencil className='size-4 text-muted-foreground' />
+              <Input
+                ref={renameInputRef}
+                className='h-8 min-w-0 px-2 text-sm'
+                value={renameDraft}
+                aria-label={`Rename ${conversationTitle(conversation)}`}
+                onChange={(event) => setRenameDraft(event.target.value)}
+                onBlur={(event) => finishRename(conversation, event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') event.currentTarget.blur()
+                  if (event.key === 'Escape') {
+                    cancelRenameRef.current = true
+                    event.currentTarget.blur()
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <button
+              type='button'
+              className='grid w-full min-w-0 grid-cols-[auto_1fr] gap-x-2 px-2 py-2.5 pe-16 text-start'
+              disabled={busy}
+              onClick={() => onSelect(conversation.id)}
+            >
+              <MessageSquare className='mt-0.5 size-4 text-muted-foreground' />
+              <span className='min-w-0'>
+                <span className='block truncate text-sm font-medium'>{conversationTitle(conversation)}</span>
+                <span className='block truncate text-xs text-muted-foreground'>{formatConversationTime(conversation.updatedAt)}</span>
+              </span>
+            </button>
+          )}
+          {editingId !== conversation.id ? (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='absolute end-8 top-2 size-7 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100'
+                    aria-label={`Rename ${conversationTitle(conversation)}`}
+                    disabled={busy}
+                    onClick={() => startRename(conversation)}
+                  >
+                    <Pencil className='size-3.5' />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Rename conversation</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='icon'
+                    className='absolute end-1 top-2 size-7 opacity-70 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100'
+                    aria-label={`Delete ${conversationTitle(conversation)}`}
+                    disabled={busy}
+                    onClick={(event) => onDelete(conversation.id, event.currentTarget)}
+                  >
+                    <Trash2 className='size-3.5' />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete conversation</TooltipContent>
+              </Tooltip>
+            </>
+          ) : null}
         </div>
       ))}
     </section>
@@ -366,8 +416,8 @@ function PlaygroundContent() {
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState('')
-  const [titleDraft, setTitleDraft] = useState('')
   const [editDraft, setEditDraft] = useState('')
+  const [selectionDraft, setSelectionDraft] = useState({ group: 'default', model: 'gpt-4.1-mini' })
   const [parameterDraft, setParameterDraft] = useState<PrototypeChatParameters>({ ...defaultPrototypeParameters })
   const [overlay, setOverlay] = useState<OverlayState>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -401,10 +451,6 @@ function PlaygroundContent() {
     void load()
     return () => streamTimers.current.forEach((timer) => window.clearTimeout(timer))
   }, [])
-
-  useEffect(() => {
-    setTitleDraft(current ? conversationTitle(current) : '')
-  }, [current?.id])
 
   useEffect(() => {
     streamRef.current?.scrollTo({ top: streamRef.current.scrollHeight, behavior: 'smooth' })
@@ -447,19 +493,16 @@ function PlaygroundContent() {
     return conversation
   }
 
-  const updateSelection = async (patch: Partial<Pick<PrototypeConversation, 'model' | 'group'>>) => {
+  const saveSelection = () => {
     if (!current) return
-    const updated = replaceConversation(current.id, (conversation) => ({ ...conversation, ...patch, updatedAt: Date.now() }))
-    if (updated) await savePrototypeConversation(updated)
+    replaceConversation(current.id, (conversation) => ({ ...conversation, ...selectionDraft, updatedAt: Date.now() }))
+    closeOverlay()
     toast.success('Conversation settings saved')
   }
 
-  const saveTitle = async () => {
-    if (!current || busy) return
-    const title = titleDraft.trim() || 'New conversation'
-    if (title === conversationTitle(current)) return
-    const updated = replaceConversation(current.id, (conversation) => ({ ...conversation, title, titleKey: undefined, updatedAt: Date.now() }))
-    if (updated) await savePrototypeConversation(updated)
+  const renameConversation = (id: string, title: string) => {
+    if (busy) return
+    replaceConversation(id, (conversation) => ({ ...conversation, title, titleKey: undefined, updatedAt: Date.now() }))
     toast.success('Conversation renamed')
   }
 
@@ -504,7 +547,6 @@ function PlaygroundContent() {
     const assistantMessage: PrototypeChatMessage = { id: crypto.randomUUID(), role: 'assistant', content: '', status: 'streaming', createdAt: now + 1 }
     const automaticTitle = conversation.messages.length ? conversation.title : prompt.slice(0, 52)
     setDraft('')
-    setTitleDraft(automaticTitle)
     replaceConversation(conversation.id, (item) => ({
       ...item,
       title: automaticTitle,
@@ -677,31 +719,53 @@ function PlaygroundContent() {
     onQuery: setQuery,
     onNew: createChat,
     onSelect: (id) => { setCurrentId(id); setHistoryOpen(false) },
+    onRename: renameConversation,
     onDelete: deleteConversationFromRail,
     onLocalData: localDataFromRail,
   }
 
-  const overlayTitle = overlay?.kind === 'parameters' ? 'Generation parameters'
-    : overlay?.kind === 'local-data' ? 'Local conversation data'
-      : overlay?.kind === 'edit-message' ? 'Edit and regenerate'
-        : overlay?.kind === 'delete-message' ? 'Delete message'
-          : overlay?.kind === 'delete-conversation' ? 'Delete conversation'
-            : 'Clear all conversations'
+  const overlayTitle = overlay?.kind === 'selection' ? 'Model and group'
+    : overlay?.kind === 'parameters' ? 'Generation parameters'
+      : overlay?.kind === 'local-data' ? 'Local conversation data'
+        : overlay?.kind === 'edit-message' ? 'Edit and regenerate'
+          : overlay?.kind === 'delete-message' ? 'Delete message'
+            : overlay?.kind === 'delete-conversation' ? 'Delete conversation'
+              : 'Clear all conversations'
 
-  const overlayDescription = overlay?.kind === 'parameters' ? 'Tune this conversation without changing other chats.'
-    : overlay?.kind === 'local-data' ? 'Manage the IndexedDB data stored by this browser.'
-      : overlay?.kind === 'edit-message' ? 'Messages after this point will be replaced by a new response.'
-        : overlay?.kind === 'delete-message' ? 'Delete this message from the local conversation?'
-          : overlay?.kind === 'delete-conversation' ? 'Delete this conversation from this browser?'
-            : 'Clear every local conversation for this account? This cannot be undone.'
+  const overlayDescription = overlay?.kind === 'selection' ? 'Choose the account group and model for this conversation.'
+    : overlay?.kind === 'parameters' ? 'Tune this conversation without changing other chats.'
+      : overlay?.kind === 'local-data' ? 'Manage the IndexedDB data stored by this browser.'
+        : overlay?.kind === 'edit-message' ? 'Messages after this point will be replaced by a new response.'
+          : overlay?.kind === 'delete-message' ? 'Delete this message from the local conversation?'
+            : overlay?.kind === 'delete-conversation' ? 'Delete this conversation from this browser?'
+              : 'Clear every local conversation for this account? This cannot be undone.'
 
-  const complexOverlay = overlay?.kind === 'parameters' || overlay?.kind === 'local-data' || overlay?.kind === 'edit-message'
-  const overlayBody = overlay?.kind === 'parameters' ? <ParametersForm value={parameterDraft} onChange={setParameterDraft} />
+  const complexOverlay = overlay?.kind === 'selection' || overlay?.kind === 'parameters' || overlay?.kind === 'local-data' || overlay?.kind === 'edit-message'
+  const overlayBody = overlay?.kind === 'selection' ? (
+    <div className='space-y-4'>
+      <div className='space-y-2'>
+        <Label htmlFor='conversation-group'>Group</Label>
+        <Select value={selectionDraft.group} onValueChange={(group) => setSelectionDraft((value) => ({ ...value, group }))}>
+          <SelectTrigger id='conversation-group' className='w-full'><SelectValue placeholder='Select group' /></SelectTrigger>
+          <SelectContent>{groups.map((group) => <SelectItem value={group} key={group}>{group}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+      <div className='space-y-2'>
+        <Label htmlFor='conversation-model'>Model</Label>
+        <Select value={selectionDraft.model} onValueChange={(model) => setSelectionDraft((value) => ({ ...value, model }))}>
+          <SelectTrigger id='conversation-model' className='w-full'><SelectValue placeholder='Select model' /></SelectTrigger>
+          <SelectContent>{models.map((model) => <SelectItem value={model} key={model}>{model}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+    </div>
+  ) : overlay?.kind === 'parameters' ? <ParametersForm value={parameterDraft} onChange={setParameterDraft} />
     : overlay?.kind === 'local-data' ? <LocalDataPanel conversations={conversations} busy={busy} importing={importing} onExport={exportConversations} onImport={() => fileRef.current?.click()} onClear={() => setOverlay({ kind: 'clear-all' })} />
       : overlay?.kind === 'edit-message' ? <div className='space-y-2'><Label htmlFor='edit-message'>Message</Label><Textarea id='edit-message' rows={8} value={editDraft} onChange={(event) => setEditDraft(event.target.value)} /></div>
         : null
 
-  const overlayFooter = overlay?.kind === 'parameters' ? (
+  const overlayFooter = overlay?.kind === 'selection' ? (
+    <><Button variant='outline' onClick={closeOverlay}>Cancel</Button><Button onClick={saveSelection}><Check />Save selection</Button></>
+  ) : overlay?.kind === 'parameters' ? (
     <><Button variant='outline' onClick={closeOverlay}>Cancel</Button><Button onClick={saveParameters}><Check />Save parameters</Button></>
   ) : overlay?.kind === 'edit-message' ? (
     <><Button variant='outline' onClick={closeOverlay}>Cancel</Button><Button disabled={!editDraft.trim()} onClick={saveEdit}><RotateCcw />Save and regenerate</Button></>
@@ -710,63 +774,32 @@ function PlaygroundContent() {
 
   return (
     <>
-      <div className='overflow-hidden rounded-md border bg-background shadow-xs md:grid md:h-[calc(100svh-7rem)] md:min-h-[620px] md:grid-cols-[248px_minmax(0,1fr)]'>
+      <div className='h-[calc(100svh-7rem)] min-h-[520px] overflow-hidden rounded-md border bg-background shadow-xs md:grid md:min-h-[620px] md:grid-cols-[248px_minmax(0,1fr)]'>
         <aside className='hidden min-h-0 border-e bg-muted/10 md:block' aria-label='Local conversations'><ConversationRail {...railProps} /></aside>
-        <section className='flex min-h-[calc(100svh-7rem)] min-w-0 flex-col md:min-h-0'>
-          <header className='grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 border-b px-2 py-2 sm:flex sm:flex-wrap sm:px-3'>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button ref={historyTriggerRef} type='button' variant='ghost' size='icon' className='md:hidden' aria-label='Open conversation history' onClick={() => setHistoryOpen(true)}><PanelLeft /></Button>
-              </TooltipTrigger>
-              <TooltipContent>Open conversation history</TooltipContent>
-            </Tooltip>
-            <Input
-              className='min-w-0 flex-1 border-0 bg-transparent px-2 font-medium shadow-none focus-visible:ring-0 sm:min-w-44'
-              value={titleDraft}
-              aria-label='Conversation name'
-              placeholder='New conversation'
-              disabled={!current || busy}
-              onChange={(event) => setTitleDraft(event.target.value)}
-              onBlur={() => void saveTitle()}
-              onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
-            />
-            <div className='col-span-2 flex min-w-0 items-center justify-end gap-1 sm:ms-auto'>
-              <Select value={current?.model || ''} disabled={!current || busy} onValueChange={(model) => void updateSelection({ model })}>
-                <SelectTrigger className='w-[132px] sm:w-[168px]' aria-label='Model'><Bot className='size-4' /><SelectValue placeholder='Model' /></SelectTrigger>
-                <SelectContent>{models.map((model) => <SelectItem value={model} key={model}>{model}</SelectItem>)}</SelectContent>
-              </Select>
-              <Select value={current?.group || ''} disabled={!current || busy} onValueChange={(group) => void updateSelection({ group })}>
-                <SelectTrigger className='hidden w-[104px] sm:flex' aria-label='Group'><SelectValue placeholder='Group' /></SelectTrigger>
-                <SelectContent>{groups.map((group) => <SelectItem value={group} key={group}>{group}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button
-                type='button'
-                variant='ghost'
-                size='icon'
-                aria-label='Generation parameters'
-                title='Generation parameters'
-                disabled={!current || busy}
-                onClick={() => { setParameterDraft({ ...(current?.parameters || defaultPrototypeParameters) }); openOverlay({ kind: 'parameters' }) }}
-              >
-                <Settings2 />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild><Button ref={moreTriggerRef} variant='ghost' size='icon' aria-label='More Playground actions'><Ellipsis /></Button></DropdownMenuTrigger>
-                <DropdownMenuContent align='end' className='w-52'>
-                  <DropdownMenuLabel>Playground</DropdownMenuLabel>
-                  <DropdownMenuItem className='sm:hidden' disabled={!current || busy} onSelect={() => { if (current) void updateSelection({ group: current.group === 'default' ? 'trial' : 'default' }) }}>Group: {current?.group || 'none'}</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => openOverlayAfterMenu({ kind: 'local-data' }, moreTriggerRef.current ?? undefined)}><Database />Local data</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Preview data state</DropdownMenuLabel>
-                  <DropdownMenuItem onSelect={() => setDataState('live')}><Check className={dataState === 'live' ? '' : 'invisible'} />Live data</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setDataState('loading')}><LoaderCircle />Loading</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setDataState('error')}><AlertTriangle />Storage error</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+        <section className='flex h-full min-h-0 min-w-0 flex-col'>
+          <header className='flex min-h-12 items-center justify-between border-b px-2 py-1 sm:px-3'>
+            <div className='flex min-w-0 flex-1 items-center gap-2'>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button ref={historyTriggerRef} type='button' variant='ghost' size='icon' className='shrink-0 md:hidden' aria-label='Open conversation history' onClick={() => setHistoryOpen(true)}><PanelLeft /></Button>
+                </TooltipTrigger>
+                <TooltipContent>Open conversation history</TooltipContent>
+              </Tooltip>
+              <h1 className='truncate px-1 text-sm font-medium'>{current ? conversationTitle(current) : 'New conversation'}</h1>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button ref={moreTriggerRef} className='ms-auto' variant='ghost' size='icon' aria-label='More Playground actions'><Ellipsis /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align='end' className='w-52'>
+                <DropdownMenuLabel>Playground</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => openOverlayAfterMenu({ kind: 'local-data' }, moreTriggerRef.current ?? undefined)}><Database />Local data</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Preview data state</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => setDataState('live')}><Check className={dataState === 'live' ? '' : 'invisible'} />Live data</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDataState('loading')}><LoaderCircle />Loading</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDataState('error')}><AlertTriangle />Storage error</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </header>
-
-          <RouteStrip model={current?.model || 'gpt-4.1-mini'} />
 
           {dataState === 'loading' ? <LoadingWorkspace /> : dataState === 'error' ? <ErrorWorkspace onRetry={() => void load()} /> : (
             <>
@@ -832,9 +865,43 @@ function PlaygroundContent() {
                     aria-label='Message'
                     disabled={dataState !== 'live'}
                   />
-                  <div className='flex items-center gap-2 border-t px-2 py-2'>
-                    <span className='min-w-0 flex-1 text-xs text-muted-foreground'><Info className='me-1 inline size-3' />{current?.parameters.stream === false ? 'Streaming off' : 'Streaming on'}<span className='hidden sm:inline'> · Sent through Partokens</span></span>
-                    {busy ? <Button type='button' variant='outline' size='sm' onClick={stopGeneration}><Square />Stop</Button> : <Button type='submit' size='sm' disabled={!draft.trim()}><Send />Send</Button>}
+                  <div className='flex min-w-0 items-center justify-end gap-1.5 border-t px-2 py-2'>
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      className='w-fit min-w-0 max-w-[calc(100%-5.25rem)] flex-none justify-start px-2 text-xs transition-colors hover:bg-muted focus-visible:bg-muted sm:max-w-[210px] sm:text-sm'
+                      aria-label={`Select model and group. Current model: ${current?.model || 'none'}`}
+                      disabled={!current || busy}
+                      onClick={(event) => {
+                        setSelectionDraft({ group: current?.group || 'default', model: current?.model || 'gpt-4.1-mini' })
+                        openOverlay({ kind: 'selection' }, event.currentTarget)
+                      }}
+                    >
+                      <span className='min-w-0 flex-1 truncate text-start'>{current?.model || 'Select model'}</span>
+                      <ChevronDown className='size-3.5 shrink-0 text-muted-foreground' />
+                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='icon'
+                          className='shrink-0'
+                          aria-label='Generation parameters'
+                          disabled={!current || busy}
+                          onClick={() => { setParameterDraft({ ...(current?.parameters || defaultPrototypeParameters) }); openOverlay({ kind: 'parameters' }) }}
+                        >
+                          <Settings2 />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Generation parameters</TooltipContent>
+                    </Tooltip>
+                    {busy ? (
+                      <Button type='button' variant='outline' size='sm' className='shrink-0 px-2 sm:px-3' aria-label='Stop generation' onClick={stopGeneration}><Square /><span className='hidden sm:inline'>Stop</span></Button>
+                    ) : (
+                      <Button type='submit' size='sm' className='shrink-0 px-2 sm:px-3' aria-label='Send' disabled={!draft.trim()}><Send /><span className='hidden sm:inline'>Send</span></Button>
+                    )}
                   </div>
                 </div>
               </form>

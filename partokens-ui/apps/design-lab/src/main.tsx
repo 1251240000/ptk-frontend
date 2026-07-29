@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { App } from './App'
+import { ConsoleLanguageProvider } from './shadcn-console-shell'
 import '@partokens/design-system/tokens.css'
 import '@partokens/design-system/primitives.css'
 import './styles.css'
@@ -18,6 +19,8 @@ if (!root) throw new Error('Design lab root is missing')
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <ConsoleLanguageProvider>
+      <App />
+    </ConsoleLanguageProvider>
   </StrictMode>,
 )
