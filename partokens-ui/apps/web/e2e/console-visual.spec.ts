@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { installMockApi, primeUserSession } from './mock-api'
 
-const output = '../../dogfood-output/r59-console-release-readiness/screenshots'
+const output = process.env.PARTOKENS_E2E_EVIDENCE_DIR || '../../dogfood-output/r60-console-staging-validation/screenshots'
 const viewports = [
   { name: '1440', width: 1440, height: 1000 },
   { name: '390', width: 390, height: 844 },

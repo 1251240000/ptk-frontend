@@ -3,6 +3,7 @@ import { expect, test, type Request } from '@playwright/test'
 import { installMockApi, primeUserSession } from './mock-api'
 
 const appLocales = ['zh-CN', 'zh-TW', 'en', 'ja', 'ru', 'fr', 'vi'] as const
+const evidenceScreenshots = process.env.PARTOKENS_E2E_EVIDENCE_DIR || '../../dogfood-output/r60-console-staging-validation/screenshots'
 
 function requestBody(request: Request) {
   try {
@@ -259,7 +260,7 @@ test('wallet exposes only current presets and revalidates the selected amount at
   await expect(paymentError).toContainText('Payment fixture stopped before checkout.')
   expect(payment).toMatchObject({ amount: 50, payment_method: 'fixture-pay' })
   await paymentError.scrollIntoViewIfNeeded()
-  await page.screenshot({ path: '../../dogfood-output/screenshots/phase6-issue-001-fixed.png' })
+  await page.screenshot({ path: `${evidenceScreenshots}/wallet-presets-fixed.png` })
 })
 
 test('Playground streams a reply and restores the browser-local conversation after reload', async ({ page }) => {
@@ -340,5 +341,5 @@ test('Image Studio uses a confirmed in-memory key and persists only the generate
   await expect(page.locator('.project-row')).toHaveCount(1)
   await expect(page.getByText('Locked', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Unlock for session' })).toBeVisible()
-  await page.screenshot({ path: '../../dogfood-output/screenshots/phase6-issue-002-fixed.png' })
+  await page.screenshot({ path: `${evidenceScreenshots}/studio-local-asset-fixed.png` })
 })

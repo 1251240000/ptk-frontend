@@ -1,0 +1,24 @@
+PARTOKENS_RELEASE_CHANNEL=staging
+PARTOKENS_RELEASE_CANDIDATE=r60-<git-short-sha>.1
+PUBLIC_PARTOKENS_SOURCE_URL=https://code.example/your-org/partokens-ui/tree/<full-git-sha>
+
+PARTOKENS_STAGING_ORIGIN=https://staging.example.com
+PARTOKENS_PRODUCTION_ORIGIN=https://partokens.com
+PARTOKENS_SITE_ADDRESS=staging.example.com
+PARTOKENS_DEPLOY_HOST=partokens-staging
+PARTOKENS_DEPLOY_ENVIRONMENT=staging
+PARTOKENS_PRODUCTION_DEPLOY_HOST=partokens-production
+PARTOKENS_RELEASE_ROOT=/srv/partokens-ui/releases/r60-<git-short-sha>.1
+PARTOKENS_UI_ROOT=/srv/partokens-ui/current/web
+PARTOKENS_DOCS_ORIGIN=http://127.0.0.1:3001
+PARTOKENS_API_ORIGIN=http://127.0.0.1:3000
+PARTOKENS_API_ENVIRONMENT=staging
+PARTOKENS_ROBOTS_HEADER=noindex, nofollow, noarchive
+
+NODE_ENV=production
+HOSTNAME=127.0.0.1
+PORT=3001
+
+PARTOKENS_SMOKE_ENVIRONMENT=staging
+PARTOKENS_SMOKE_ORIGIN=https://staging.example.com
+PARTOKENS_SMOKE_RELEASE_CANDIDATE=r60-<git-short-sha>.1

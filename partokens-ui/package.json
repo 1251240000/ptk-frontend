@@ -13,7 +13,7 @@
     "dev:docs": "bun --filter @partokens/docs dev",
     "build": "bun --filter @partokens/web build && bun --filter @partokens/docs build",
     "typecheck": "bun --filter @partokens/web typecheck && bun --filter @partokens/docs typecheck",
-    "test": "bun --filter @partokens/web test && bun --filter @partokens/docs test",
+    "test": "bun test scripts/release-contract.test.ts && bun --filter @partokens/web test && bun --filter @partokens/docs test",
     "test:e2e": "bun --filter @partokens/web test:e2e",
     "docs:generate": "bun --filter @partokens/docs generate",
     "docs:upstream": "bun packages/docs-sync/src/index.ts",
@@ -22,9 +22,13 @@
     "compatibility:upstream:candidate": "bun scripts/check-new-api.ts --candidate",
     "check": "bun run typecheck && bun run test && bun run test:e2e && bun run build && bun run docs:upstream && bun run compatibility:upstream",
     "release:preflight": "bun scripts/release-check.ts environment",
+    "release:staging:preflight": "bun scripts/staging-preflight.ts",
     "release:package": "bun scripts/package-release.ts",
     "release:verify": "bun scripts/release-check.ts package",
     "release:smoke": "bun scripts/smoke-release.ts",
+    "release:staging:package": "PARTOKENS_RELEASE_CHANNEL=staging bun run release:package && PARTOKENS_RELEASE_CHANNEL=staging PARTOKENS_REQUIRE_CLEAN_SOURCE=true bun run release:verify",
+    "release:staging:smoke": "PARTOKENS_SMOKE_ENVIRONMENT=staging bun run release:smoke",
+    "release:staging": "bun run release:staging:preflight && bun run check && bun run release:staging:package",
     "release": "bun run release:preflight && bun run check && bun run release:package && bun run release:verify"
   }
 }

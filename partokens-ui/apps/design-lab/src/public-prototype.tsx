@@ -38,7 +38,6 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import {
-  brandLogoUrl,
   getCurrentNotice,
   getLegalDocument,
   getLocaleContent,
@@ -156,7 +155,7 @@ function translate(locale: AppLocale, key: string) {
 }
 
 function Brand() {
-  return <span className="r3-brand"><span><img src={brandLogoUrl} alt="" /></span><strong>Partokens</strong></span>
+  return <span className="r3-brand"><span><KeyRound size={17} /></span><strong>Partokens</strong></span>
 }
 
 function RouteButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
@@ -208,7 +207,7 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
     }
   }, [mobileOpen])
 
-  return <div className="r3-public-screen">
+  return <div className={`r3-public-screen shadcn-admin public-shadcn ${theme}`}>
     <header className="r3-public-header">
       <button type="button" className="r3-brand-button" onClick={() => navigate('home')} aria-label="Partokens"><Brand /></button>
       <nav className="r3-public-nav" aria-label={t('Primary navigation')}>
@@ -261,22 +260,62 @@ function PageIntro({ eyebrow, title, description, children }: { eyebrow: string;
   return <header className="r3-page-intro"><div><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{children}</header>
 }
 
-function HomeSectionHeading({ eyebrow, title, body, centered = false }: { eyebrow: string; title: string; body?: string; centered?: boolean }) {
-  return <div className={`r3-home-section-heading ${centered ? 'is-centered' : ''}`}><span>{eyebrow}</span><h2>{title}</h2>{body ? <p>{body}</p> : null}</div>
+function HomeSectionHeading({ eyebrow, title, body }: { eyebrow: string; title: string; body?: string }) {
+  return <div className="r3-home-section-heading"><span>{eyebrow}</span><h2>{title}</h2>{body ? <p>{body}</p> : null}</div>
 }
 
 function HomeProductPreview({ locale, online, version }: Pick<PublicPrototypeProps, 'locale' | 'online' | 'version'>) {
   const t = (key: string) => translate(locale, key)
   const copy = homePageCopy[locale]
-  return <div className="r3-product-preview" aria-label={t('Playground')}>
-    <header><div className="r3-window-dots" aria-hidden="true"><i /><i /><i /></div><strong>{t('Playground')}</strong><span className={online ? 'r3-service-state is-online' : 'r3-service-state'}><i />{online ? t('Available') : t('Awaiting status')}{version ? <code>{version}</code> : null}</span></header>
+  const [mode, setMode] = useState<'chat' | 'image' | 'api'>('chat')
+  const modes = [
+    { id: 'chat' as const, label: t('Playground'), icon: MessageSquare },
+    { id: 'image' as const, label: t('Image studio'), icon: ImageIcon },
+    { id: 'api' as const, label: t('API keys'), icon: KeyRound },
+  ]
+
+  return <div className="r3-product-preview" aria-label={t('Console')}>
+    <div className="r3-preview-mobile-tabs" role="tablist" aria-label={t('Workspace')}>
+      {modes.map(({ id, label, icon: Icon }) => <button type="button" key={id} role="tab" aria-label={label} title={label} aria-selected={mode === id} onClick={() => setMode(id)}><Icon size={16} /></button>)}
+    </div>
     <div className="r3-preview-shell">
-      <aside aria-hidden="true"><span><img src={brandLogoUrl} alt="" /></span><MessageSquare className="is-active" size={18} /><ImageIcon size={18} /><KeyRound size={18} /><Activity size={18} /></aside>
-      <section>
-        <header><div><span>{t('Playground')}</span><strong>{t('New chat')}</strong></div><span><Sparkles size={14} />{t('Models')} / {t('Sign in')}<ChevronDown size={14} /></span></header>
-        <div className="r3-preview-messages"><div className="r3-preview-user"><p>{copy.samples.question}</p><CircleUserRound size={22} /></div><div className="r3-preview-assistant"><span><Bot size={16} /></span><p>{copy.samples.answer}</p></div></div>
-        <div className="r3-preview-composer"><span>{copy.samples.composer}</span><button type="button" aria-label={t('Send')} title={t('Send')}><Send size={15} /></button></div>
-        <small><ShieldCheck size={14} />{t('Local history')}</small>
+      <aside>
+        <div className="r3-preview-brand"><span><KeyRound size={15} /></span><p><strong>Partokens</strong><small>Developer console</small></p></div>
+        <nav aria-label={t('Workspace')}>
+          <small>{t('Workspace')}</small>
+          {modes.map(({ id, label, icon: Icon }) => <button type="button" key={id} aria-current={mode === id ? 'page' : undefined} onClick={() => setMode(id)}><Icon size={16} /><span>{label}</span></button>)}
+        </nav>
+        <div className={online ? 'r3-preview-service is-online' : 'r3-preview-service'}><span><i />{online ? t('Available') : t('Awaiting status')}</span>{version ? <code>{version}</code> : null}</div>
+        <div className="r3-preview-account"><span>MC</span><p><strong>Mika Chen</strong><small>mika@partokens.com</small></p></div>
+      </aside>
+
+      <section className="r3-preview-panel" role="tabpanel" data-preview={mode}>
+        {mode === 'chat' ? <>
+          <header><div><span>{t('Playground')}</span><strong>{t('New chat')}</strong></div><span><Sparkles size={14} />{t('Models')} / {t('Sign in')}<ChevronDown size={14} /></span></header>
+          <div className="r3-preview-messages"><div className="r3-preview-user"><p>{copy.samples.question}</p><CircleUserRound size={22} /></div><div className="r3-preview-assistant"><span><Bot size={16} /></span><p>{copy.samples.answer}</p></div></div>
+          <div className="r3-preview-composer"><span>{copy.samples.composer}</span><button type="button" aria-label={t('Send')} title={t('Send')}><Send size={15} /></button></div>
+          <small><ShieldCheck size={14} />{t('Local history')}</small>
+        </> : null}
+
+        {mode === 'image' ? <>
+          <header><div><span>{t('Workspace')}</span><strong>{t('Image studio')}</strong></div><button type="button" className="r3-preview-generate"><Sparkles size={14} />{t('Generate')}</button></header>
+          <div className="r3-preview-canvas">
+            <article className="r3-preview-prompt"><span><MessageSquare size={13} />{t('Prompt')}</span><p>{copy.samples.imagePrompt}</p></article>
+            <article className="r3-preview-image"><span><ImageIcon size={13} />{t('Result')}</span><img src="/image-studio/architecture-02.webp" alt="" /></article>
+            <article className="r3-preview-image is-secondary" aria-hidden="true"><img src="/image-studio/architecture-04.webp" alt="" /></article>
+            <span className="r3-preview-connector" aria-hidden="true"><i /><ArrowRight size={16} /></span>
+            <small aria-hidden="true">− &nbsp; 76% &nbsp; +</small>
+          </div>
+        </> : null}
+
+        {mode === 'api' ? <>
+          <header><div><span>{t('Overview')}</span><strong>{t('API keys')}</strong></div><span><LockKeyhole size={14} />{t('Sign in')}</span></header>
+          <div className="r3-preview-api">
+            <div className="r3-preview-api-metrics"><article><span>{t('Account balance')}</span><strong>—</strong><small>{t('Account data')}</small></article><article><span>{t('30-day use')}</span><strong>—</strong><small>{t('Account data')}</small></article></div>
+            <div className="r3-preview-endpoint"><span><Globe2 size={14} />Base URL</span><code>https://partokens.com/v1</code><CheckCircle2 size={16} /></div>
+            <div className="r3-preview-requests"><header><strong>{t('Usage logs')}</strong><small>{t('Today')}</small></header><div><code>chat.completions</code><span>200</span><small>824 ms</small></div><div><code>images.generations</code><span>200</span><small>2.4 s</small></div></div>
+          </div>
+        </> : null}
       </section>
     </div>
   </div>
@@ -300,7 +339,7 @@ function HomeImageVisual({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
   const copy = homePageCopy[locale]
   return <div className="r3-home-product-frame r3-home-image-visual">
     <header><strong><ImageIcon size={17} />{t('Image studio')}</strong><div><button type="button" aria-label={t('Preferences')} title={t('Preferences')}><SlidersHorizontal size={15} /></button><span><Sparkles size={15} />{t('Generate')}</span></div></header>
-    <div><article className="r3-home-prompt-node"><span><MessageSquare size={14} />{t('Prompt')}</span><p>{copy.samples.imagePrompt}</p></article><span className="r3-home-canvas-link" aria-hidden="true"><i /><ArrowRight size={18} /></span><article className="r3-home-result-node"><span><ImageIcon size={14} />{t('Result')}</span><div aria-hidden="true"><i /><i /><i /></div></article><small aria-hidden="true">− &nbsp; 78% &nbsp; +</small></div>
+    <div><article className="r3-home-prompt-node"><span><MessageSquare size={14} />{t('Prompt')}</span><p>{copy.samples.imagePrompt}</p></article><span className="r3-home-canvas-link" aria-hidden="true"><i /><ArrowRight size={18} /></span><article className="r3-home-result-node"><span><ImageIcon size={14} />{t('Result')}</span><img src="/image-studio/architecture-02.webp" alt="" /></article><small aria-hidden="true">− &nbsp; 78% &nbsp; +</small></div>
   </div>
 }
 
@@ -322,7 +361,7 @@ function HomePage({ locale, online, version, go }: Pick<PublicPrototypeProps, 'l
     { icon: KeyRound, title: t('Create a key'), body: copy.started.actionBodies[2], target: 'console' as const, tone: 'coral' },
   ]
   const valueIcons = [Code2, Route, Activity, ShieldCheck, SlidersHorizontal, Languages]
-  return <main className="r3-home-page">
+  return <main className="console-home-page">
     <section className="r3-home-hero">
       <div className="r3-home-hero-copy"><span>{copy.hero.eyebrow}</span><h1>Partokens</h1><h2>{copy.hero.title}</h2><p>{copy.hero.body}</p><div><RouteButton onClick={() => go('console')}>{t('Enter console')}</RouteButton><button type="button" className="pt-button" data-variant="secondary" onClick={() => go('docs')}><BookOpen size={16} />{t('Docs')}</button></div><small><LockKeyhole size={14} />{copy.hero.note}</small></div>
       <HomeProductPreview locale={locale} online={online} version={version} />
@@ -334,7 +373,7 @@ function HomePage({ locale, online, version, go }: Pick<PublicPrototypeProps, 'l
     </section>
 
     <section className="r3-home-features">
-      <HomeSectionHeading eyebrow="PRODUCT" title={copy.features.title} body={copy.features.body} centered />
+      <HomeSectionHeading eyebrow="PRODUCT" title={copy.features.title} body={copy.features.body} />
       <article><HomeFeatureCopy kicker={copy.features.chat.kicker} title={copy.features.chat.title} body={copy.features.chat.body} icon={ShieldCheck} note={t('Local history')} /><HomeChatVisual locale={locale} /></article>
       <article className="is-reversed"><HomeFeatureCopy kicker={copy.features.image.kicker} title={copy.features.image.title} body={copy.features.image.body} icon={ImageIcon} note={t('Image studio')} /><HomeImageVisual locale={locale} /></article>
       <article><HomeFeatureCopy kicker={copy.features.control.kicker} title={copy.features.control.title} body={copy.features.control.body} icon={KeyRound} note={t('Account data')} /><HomeControlVisual locale={locale} /></article>
@@ -342,7 +381,7 @@ function HomePage({ locale, online, version, go }: Pick<PublicPrototypeProps, 'l
 
     <section className="r3-home-values">
       <HomeSectionHeading eyebrow={copy.values.eyebrow} title={copy.values.title} />
-      <div>{copy.values.items.map((item, index) => { const Icon = valueIcons[index] ?? Route; return <article key={item.title}><code>0{index + 1}</code><Icon size={20} /><h3>{item.title}</h3><p>{item.body}</p></article> })}</div>
+      <div>{copy.values.items.map((item, index) => { const Icon = valueIcons[index] ?? Route; return <article key={item.title}><span><Icon size={19} /></span><h3>{item.title}</h3><p>{item.body}</p></article> })}</div>
     </section>
 
     <section className="r3-home-faq">

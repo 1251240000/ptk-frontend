@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test'
 
 import { installMockApi, primeUserSession } from './mock-api'
 
+const evidenceScreenshots = process.env.PARTOKENS_E2E_EVIDENCE_DIR || '../../dogfood-output/r60-console-staging-validation/screenshots'
+
 test('the canonical console keeps the existing authentication boundary and return path', async ({ page }) => {
   await installMockApi(page)
   await page.route('**/api/user/auth/refresh', async (route) => {
@@ -102,7 +104,7 @@ test('the desktop shell uses the real session, theme store, and keyboard sidebar
   await expect(desktopSidebar).toHaveAttribute('data-state', 'expanded')
   expect(await page.evaluate(() => document.cookie)).not.toContain('sidebar_state=')
 
-  await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/canonical-console-1440.png' })
+  await page.screenshot({ path: `${evidenceScreenshots}/canonical-console-1440.png` })
 
   await page.getByRole('button', { name: 'Change theme' }).click()
   await page.getByRole('menuitemradio', { name: 'Dark' }).click()
@@ -134,7 +136,7 @@ test('the mobile sidebar closes by Escape and navigation, then restores trigger 
 
   await page.keyboard.press('Control+b')
   await expect(mobileSidebar).toBeVisible()
-  await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/canonical-console-navigation-390.png' })
+  await page.screenshot({ path: `${evidenceScreenshots}/canonical-console-navigation-390.png` })
   await page.getByRole('link', { name: 'Overview' }).click()
   await expect(mobileSidebar).toHaveCount(0)
   await expect(trigger).toBeFocused({ timeout: 1_000 })
@@ -347,7 +349,7 @@ test('canonical console analytics uses real-shaped aggregates and preserves keyb
   await expect(page.getByRole('link', { name: 'Analytics' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByLabel('Usage summary')).toContainText('19')
   await expect(page.getByRole('tabpanel', { name: 'Trend' }).getByRole('img').first()).toBeVisible()
-  await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/analytics-1440.png', fullPage: true })
+  await page.screenshot({ path: `${evidenceScreenshots}/analytics-1440.png`, fullPage: true })
 
   const details = page.getByRole('button', { name: 'View data' })
   await details.focus()
@@ -452,7 +454,7 @@ for (const width of [390, 320]) {
     await page.goto('/zh-CN/console/analytics')
 
     await expect(page.getByRole('heading', { name: '数据看板' })).toBeVisible()
-    if (width === 390) await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/analytics-390.png', fullPage: true })
+    if (width === 390) await page.screenshot({ path: `${evidenceScreenshots}/analytics-390.png`, fullPage: true })
     await page.getByRole('button', { name: '切换主题' }).click()
     await page.getByRole('menuitemradio', { name: 'Dark' }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
@@ -481,7 +483,7 @@ test('canonical console usage logs uses self-scoped list and statistics queries 
   await expect(page.getByLabel('Usage statistics')).toContainText('$0.02')
   await expect(page.getByText('Fixture completion request')).toHaveCount(0)
   await expect(page.getByText(/billing_mode/)).toHaveCount(0)
-  await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/logs-1440.png', fullPage: true })
+  await page.screenshot({ path: `${evidenceScreenshots}/logs-1440.png`, fullPage: true })
 
   const details = page.getByRole('button', { name: /View details req_fixture/ }).first()
   await details.focus()
@@ -644,7 +646,7 @@ for (const width of [390, 320]) {
     await page.keyboard.press('Escape')
     await expect(details).toBeFocused()
     await page.evaluate(() => window.scrollTo(0, 0))
-    if (width === 390) await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/logs-390.png', fullPage: true })
+    if (width === 390) await page.screenshot({ path: `${evidenceScreenshots}/logs-390.png`, fullPage: true })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     expect(consoleErrors).toEqual([])
     expect(pageErrors).toEqual([])
@@ -667,7 +669,7 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
   await expect(page.getByRole('link', { name: 'API keys' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByText('ABCD**********WXYZ').first()).toBeVisible()
   await expect(page.getByText('fixture-session-token')).toHaveCount(0)
-  await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/keys-1440.png', fullPage: true })
+  await page.screenshot({ path: `${evidenceScreenshots}/keys-1440.png`, fullPage: true })
 
   const studioActions = page.getByRole('button', { name: 'Actions Studio fixture' })
   await studioActions.focus()
@@ -948,7 +950,7 @@ for (const width of [390, 320]) {
     await expect(page.getByRole('dialog')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(actions).toBeFocused()
-    if (width === 390) await page.screenshot({ path: '../../dogfood-output/r59-console-release-readiness/screenshots/keys-390.png', fullPage: true })
+    if (width === 390) await page.screenshot({ path: `${evidenceScreenshots}/keys-390.png`, fullPage: true })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     expect(consoleErrors).toEqual([])
     expect(pageErrors).toEqual([])
