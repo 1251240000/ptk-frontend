@@ -10,14 +10,11 @@ import {
   EyeOff,
   Github,
   KeyRound,
-  Languages,
   LoaderCircle,
   LockKeyhole,
   Mail,
-  Moon,
   Route,
   ShieldCheck,
-  Sun,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -31,8 +28,9 @@ import {
 } from 'react'
 
 import { brandLogoUrl } from '@partokens/content'
-import { localeLabels, locales, resources, type AppLocale } from '@partokens/i18n'
+import { resources, type AppLocale } from '@partokens/i18n'
 import { authPrototypeCopy } from './auth-prototype-copy'
+import { InterfaceLanguageMenu, InterfaceThemeMenu } from './interface-tool-menus'
 
 export type AuthPrototypeScreen =
   | 'signin'
@@ -145,23 +143,31 @@ function AccountSwitch({ children }: { children: ReactNode }) {
   return <div className="r32-auth-switch">{children}</div>
 }
 
+function OAuthButtons({ locale, disabled, go }: Pick<AuthPrototypeProps, 'locale' | 'go'> & { disabled: boolean }) {
+  const t = (key: string) => translate(locale, key)
+  const oauth = (provider: string) => {
+    window.sessionStorage.setItem('partokens-prototype-oauth-provider', provider)
+    go('oauth-callback')
+  }
+  return <div className="r32-oauth-grid">
+    <button type="button" className="pt-button" data-variant="secondary" disabled={disabled} aria-label={t('Continue with GitHub')} onClick={() => oauth('GitHub')}><Github size={17} />GitHub</button>
+    <button type="button" className="pt-button" data-variant="secondary" disabled={disabled} aria-label={t('Continue with LinuxDO')} onClick={() => oauth('LinuxDO')}><span className="r32-provider-glyph">L</span>LinuxDO</button>
+    <button type="button" className="pt-button" data-variant="secondary" disabled={disabled} aria-label={t('Continue with Google')} onClick={() => oauth('Google')}><span className="r32-provider-glyph">G</span>Google</button>
+  </div>
+}
+
 function SignInForm({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
   const t = (key: string) => translate(locale, key)
   const copy = authPrototypeCopy[locale]
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [consent, setConsent] = useState(false)
+  const [consent, setConsent] = useState(true)
   const [busy, setBusy] = useState(false)
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!consent || !username || !password) return
     setBusy(true)
     window.setTimeout(() => go('console'), 420)
-  }
-  const oauth = (provider: string) => {
-    if (!consent) return
-    window.sessionStorage.setItem('partokens-prototype-oauth-provider', provider)
-    go('oauth-callback')
   }
   return <>
     <PageHeading eyebrow="PARTOKENS ID" title={t('Sign in')} body={copy.signinBody} />
@@ -173,11 +179,7 @@ function SignInForm({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
       <RouteButton type="submit" disabled={!consent || !username || !password || busy}>{busy ? <LoaderCircle className="r32-spin" size={16} /> : <LockKeyhole size={16} />}{t('Sign in')}</RouteButton>
     </form>
     <div className="r32-auth-divider"><span>{t('or')}</span></div>
-    <div className="r32-oauth-grid">
-      <button type="button" className="pt-button" data-variant="secondary" disabled={!consent} aria-label={t('Continue with GitHub')} onClick={() => oauth('GitHub')}><Github size={17} />GitHub</button>
-      <button type="button" className="pt-button" data-variant="secondary" disabled={!consent} aria-label={t('Continue with LinuxDO')} onClick={() => oauth('LinuxDO')}><span className="r32-provider-glyph">L</span>LinuxDO</button>
-      <button type="button" className="pt-button" data-variant="secondary" disabled={!consent} aria-label={t('Continue with Google')} onClick={() => oauth('Google')}><span className="r32-provider-glyph">G</span>Google</button>
-    </div>
+    <OAuthButtons locale={locale} go={go} disabled={!consent} />
     <AccountSwitch><span>{t('Create account')}</span><button type="button" onClick={() => go('signup')}>{t('Sign up')}<ArrowRight size={14} /></button></AccountSwitch>
   </>
 }
@@ -186,7 +188,7 @@ function SignUpForm({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
   const t = (key: string) => translate(locale, key)
   const copy = authPrototypeCopy[locale]
   const [fields, setFields] = useState({ username: '', email: '', code: '', password: '', confirm: '' })
-  const [consent, setConsent] = useState(false)
+  const [consent, setConsent] = useState(true)
   const [sent, setSent] = useState(false)
   const update = (key: keyof typeof fields) => (value: string) => setFields((current) => ({ ...current, [key]: value }))
   const sendCode = () => {
@@ -197,20 +199,23 @@ function SignUpForm({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
   const valid = consent && fields.username && fields.email && fields.code && fields.password.length >= 8 && fields.password === fields.confirm
   const submit = (event: FormEvent) => { event.preventDefault(); if (valid) go('signin') }
   return <>
-    <PageHeading eyebrow="PARTOKENS ID" title={t('Create account')} body={copy.signupBody} backLabel={t('Return to sign in')} onBack={() => go('signin')} />
+    <PageHeading eyebrow="PARTOKENS ID" title={t('Create account')} body={copy.signupBody} />
     <form className="r32-auth-form" onSubmit={submit}>
       <AuthField label={t('Username')} value={fields.username} onChange={update('username')} icon={CircleUserRound} autoComplete="username" required />
       <AuthField label={t('Email')} value={fields.email} onChange={update('email')} icon={AtSign} type="email" autoComplete="email" required />
       <AuthField label={t('Verification code')} value={fields.code} onChange={update('code')} icon={ShieldCheck} inputMode="numeric" autoComplete="one-time-code" required action={<button type="button" className="pt-button r32-send-code" data-variant="quiet" data-size="small" disabled={!fields.email || sent} onClick={sendCode}>{sent ? '60s' : t('Send code')}</button>} />
       {sent ? <div className="r32-form-success" role="status"><Check size={15} />{copy.verifySent}<button type="button" onClick={() => go('verify-email')}>{t('Verify')}<ArrowRight size={13} /></button></div> : null}
       <div className="r32-auth-field-grid">
-        <PasswordField locale={locale} label={t('Password')} value={fields.password} onChange={update('password')} autoComplete="new-password" hint={copy.passwordHint} />
+        <PasswordField locale={locale} label={t('Password')} value={fields.password} onChange={update('password')} autoComplete="new-password" />
         <PasswordField locale={locale} label={t('Confirm password')} value={fields.confirm} onChange={update('confirm')} autoComplete="new-password" />
       </div>
+      <p className="r32-auth-password-hint">{copy.passwordHint}</p>
       {fields.confirm && fields.password !== fields.confirm ? <div className="r32-form-error" role="alert">{t('Passwords do not match')}</div> : null}
       <LegalConsent locale={locale} checked={consent} onChange={setConsent} go={go} />
       <RouteButton type="submit" disabled={!valid}><ShieldCheck size={16} />{t('Create account')}</RouteButton>
     </form>
+    <div className="r32-auth-divider"><span>{t('or')}</span></div>
+    <OAuthButtons locale={locale} go={go} disabled={!consent} />
     <AccountSwitch><span>{t('Already registered?')}</span><button type="button" onClick={() => go('signin')}>{t('Sign in')}<ArrowRight size={14} /></button></AccountSwitch>
   </>
 }
@@ -322,25 +327,23 @@ function OtpForm({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
   </>
 }
 
-function AuthRail({ locale, screen, online, version }: Pick<AuthPrototypeProps, 'locale' | 'screen' | 'online' | 'version'>) {
-  const t = (key: string) => translate(locale, key)
+function AuthRail({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
   const copy = authPrototypeCopy[locale]
-  const activeStep = screen === 'oauth-callback' || screen === 'auth-otp' ? 1 : 0
   return <aside className="r32-auth-rail">
-    <div className="r32-auth-rail-intro"><span>{t('Secure account access')}</span><h2>Partokens ID</h2><p>{copy.rail.body}</p></div>
-    <div className="r32-auth-path" aria-label={t('Secure account access')}>
-      {copy.rail.path.map((label, index) => <div key={label} data-current={activeStep === index || undefined} data-complete={activeStep > index || undefined}><span>{index === 0 ? <CircleUserRound size={17} /> : index === 1 ? <ShieldCheck size={17} /> : <Route size={17} />}</span><small>0{index + 1}</small><strong>{label}</strong>{index < 2 ? <i /> : null}</div>)}
-    </div>
-    <div className="r32-auth-facts">
-      <div><KeyRound size={18} /><p><strong>{copy.rail.accountTitle}</strong><small>{copy.rail.pricingBody}</small></p></div>
-      <div><ShieldCheck size={18} /><p><strong>{t('Local history')}</strong><small>{copy.rail.privacyBody}</small></p></div>
-    </div>
-    <footer><div><span className={online ? 'r32-auth-service is-online' : 'r32-auth-service'}><i />{online ? t('Available') : t('Awaiting status')}</span>{version ? <code>{version}</code> : null}</div><p>{copy.rail.support}</p><a href="mailto:admin@partokens.com"><Mail size={14} />admin@partokens.com</a></footer>
+    <button type="button" className="r32-auth-brand-button" aria-label="Partokens" onClick={() => go('home')}><AuthBrand /></button>
+    <div className="r32-auth-rail-art" aria-hidden="true" />
+    <footer>
+      <div className="r32-auth-rail-story">
+        <span>MODEL GATEWAY</span>
+        <h2>{copy.rail.title}</h2>
+        <p>{copy.rail.body}</p>
+      </div>
+    </footer>
   </aside>
 }
 
 export function AuthPrototype(props: AuthPrototypeProps) {
-  const { screen, locale, theme, online, version, onLocale, onTheme, go } = props
+  const { screen, locale, theme, onLocale, onTheme, go } = props
   const t = (key: string) => translate(locale, key)
   let form: ReactNode
   if (screen === 'signin') form = <SignInForm locale={locale} go={go} />
@@ -350,17 +353,16 @@ export function AuthPrototype(props: AuthPrototypeProps) {
   else if (screen === 'reset-password') form = <ResetPasswordForm locale={locale} go={go} />
   else if (screen === 'oauth-callback') form = <OAuthCallbackForm locale={locale} go={go} />
   else form = <OtpForm locale={locale} go={go} />
-  return <div className="r32-auth-screen">
-    <header className="r32-auth-header">
-      <button type="button" className="r32-auth-brand-button" aria-label="Partokens" onClick={() => go('home')}><AuthBrand /></button>
-      <div>
-        <label className="r32-auth-locale"><Languages size={17} /><span className="sr-only">{t('Language')}</span><select value={locale} aria-label={t('Language')} onChange={(event) => onLocale(event.target.value as AppLocale)}>{locales.map((item) => <option value={item} key={item}>{localeLabels[item]}</option>)}</select></label>
-        <button type="button" className="pt-icon-button" aria-label={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} title={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} onClick={onTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-      </div>
-    </header>
+  return <div className={`r32-auth-screen shadcn-admin ${theme}`}>
     <main className="r32-auth-layout">
-      <AuthRail locale={locale} screen={screen} online={online} version={version} />
-      <section className="r32-auth-task"><div className="r32-auth-form-shell">{form}</div></section>
+      <AuthRail locale={locale} go={go} />
+      <section className="r32-auth-task">
+        <div className="r32-auth-tools">
+          <InterfaceLanguageMenu locale={locale} onLocale={onLocale} t={t} buttonClassName="r32-auth-tool-button" contentClassName="r32-auth-tool-menu" />
+          <InterfaceThemeMenu theme={theme} onTheme={onTheme} t={t} buttonClassName="r32-auth-tool-button" contentClassName="r32-auth-tool-menu" />
+        </div>
+        <div className="r32-auth-form-shell">{form}</div>
+      </section>
     </main>
   </div>
 }

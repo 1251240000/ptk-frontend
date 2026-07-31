@@ -38,12 +38,16 @@ import {
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import {
+  Button,
+} from '@partokens/design-system/components'
+import {
   getCurrentNotice,
   getLegalDocument,
   getLocaleContent,
   type LegalKind,
 } from '@partokens/content'
 import { localeLabels, locales, resources, type AppLocale } from '@partokens/i18n'
+import { InterfaceLanguageMenu, InterfaceThemeMenu } from './interface-tool-menus'
 import { homePageCopy } from './public-home-copy'
 
 export type PublicPrototypeScreen =
@@ -94,6 +98,7 @@ client = OpenAI(
 const r3Translations: Record<AppLocale, Record<string, string>> = {
   'zh-CN': {
     Product: '产品', Resources: '资源', Legal: '条款', Contact: '联系', 'Account data': '账户数据', Embeddings: '向量嵌入', Copied: '已复制', Today: '今天', Generate: '生成',
+    'Go to console': '前往控制台',
     'Available models depend on live configuration.': '可用模型以服务端实时配置为准。',
     'The server remains authoritative for billing and routing.': '计费与路由结果始终以服务端为准。',
     'Existing API service is unaffected.': '现有 API 服务不受影响。',
@@ -102,6 +107,7 @@ const r3Translations: Record<AppLocale, Record<string, string>> = {
   },
   'zh-TW': {
     Product: '產品', Resources: '資源', Legal: '條款', Contact: '聯絡', 'Account data': '帳戶資料', Embeddings: '向量嵌入', Copied: '已複製', Today: '今天', Generate: '生成',
+    'Go to console': '前往控制台',
     'Available models depend on live configuration.': '可用模型以伺服器即時設定為準。',
     'The server remains authoritative for billing and routing.': '計費與路由結果始終以伺服器為準。',
     'Existing API service is unaffected.': '現有 API 服務不受影響。',
@@ -110,6 +116,7 @@ const r3Translations: Record<AppLocale, Record<string, string>> = {
   },
   en: {
     Product: 'Product', Resources: 'Resources', Legal: 'Legal', Contact: 'Contact', 'Account data': 'Account data', Embeddings: 'Embeddings', Copied: 'Copied', Today: 'Today', Generate: 'Generate',
+    'Go to console': 'Go to console',
     'Available models depend on live configuration.': 'Available models depend on live configuration.',
     'The server remains authoritative for billing and routing.': 'The server remains authoritative for billing and routing.',
     'Existing API service is unaffected.': 'Existing API service is unaffected.',
@@ -118,6 +125,7 @@ const r3Translations: Record<AppLocale, Record<string, string>> = {
   },
   ja: {
     Product: '製品', Resources: 'リソース', Legal: '法的情報', Contact: 'お問い合わせ', 'Account data': 'アカウントデータ', Embeddings: '埋め込み', Copied: 'コピーしました', Today: '今日', Generate: '生成',
+    'Go to console': 'コンソールへ',
     'Available models depend on live configuration.': '利用可能なモデルはサーバーの現在の設定に基づきます。',
     'The server remains authoritative for billing and routing.': '課金とルーティングは常にサーバーの結果が優先されます。',
     'Existing API service is unaffected.': '既存の API サービスには影響しません。',
@@ -126,6 +134,7 @@ const r3Translations: Record<AppLocale, Record<string, string>> = {
   },
   ru: {
     Product: 'Продукт', Resources: 'Ресурсы', Legal: 'Документы', Contact: 'Контакты', 'Account data': 'Данные аккаунта', Embeddings: 'Эмбеддинги', Copied: 'Скопировано', Today: 'Сегодня', Generate: 'Создать',
+    'Go to console': 'Перейти в консоль',
     'Available models depend on live configuration.': 'Доступные модели определяются текущей конфигурацией сервера.',
     'The server remains authoritative for billing and routing.': 'Итоговые данные оплаты и маршрутизации определяет сервер.',
     'Existing API service is unaffected.': 'Существующий API продолжает работать без изменений.',
@@ -134,6 +143,7 @@ const r3Translations: Record<AppLocale, Record<string, string>> = {
   },
   fr: {
     Product: 'Produit', Resources: 'Ressources', Legal: 'Mentions légales', Contact: 'Contact', 'Account data': 'Données du compte', Embeddings: 'Embeddings', Copied: 'Copié', Today: 'Aujourd’hui', Generate: 'Générer',
+    'Go to console': 'Accéder à la console',
     'Available models depend on live configuration.': 'Les modèles disponibles dépendent de la configuration actuelle du serveur.',
     'The server remains authoritative for billing and routing.': 'Le serveur reste la référence pour la facturation et le routage.',
     'Existing API service is unaffected.': 'Le service API existant reste inchangé.',
@@ -142,6 +152,7 @@ const r3Translations: Record<AppLocale, Record<string, string>> = {
   },
   vi: {
     Product: 'Sản phẩm', Resources: 'Tài nguyên', Legal: 'Pháp lý', Contact: 'Liên hệ', 'Account data': 'Dữ liệu tài khoản', Embeddings: 'Vector nhúng', Copied: 'Đã sao chép', Today: 'Hôm nay', Generate: 'Tạo',
+    'Go to console': 'Mở bảng điều khiển',
     'Available models depend on live configuration.': 'Mô hình khả dụng phụ thuộc vào cấu hình hiện tại của máy chủ.',
     'The server remains authoritative for billing and routing.': 'Máy chủ luôn là nguồn quyết định cho việc tính phí và định tuyến.',
     'Existing API service is unaffected.': 'Dịch vụ API hiện tại không bị ảnh hưởng.',
@@ -163,7 +174,7 @@ function RouteButton({ children, onClick }: { children: ReactNode; onClick: () =
 }
 
 function PublicShell({ children, ...props }: PublicPrototypeProps & { children: ReactNode }) {
-  const { locale, theme, screen, online, version, onLocale, onTheme, go } = props
+  const { locale, theme, screen, onLocale, onTheme, go } = props
   const [mobileOpen, setMobileOpen] = useState(false)
   const mobileNavRef = useRef<HTMLDivElement>(null)
   const mobileCloseRef = useRef<HTMLButtonElement>(null)
@@ -172,12 +183,11 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
     setMobileOpen(false)
     go(target)
   }
-  const navItems: Array<{ target: PublicPrototypeScreen; label: string }> = [
-    { target: 'home', label: t('Home') },
-    { target: 'models', label: t('Models') },
-    { target: 'docs', label: t('Docs') },
-    { target: 'about', label: t('About') },
-  ]
+  useEffect(() => {
+    const body = document.body
+    body.classList.add('shadcn-admin-portal', theme)
+    return () => body.classList.remove('shadcn-admin-portal', 'light', 'dark')
+  }, [theme])
 
   useEffect(() => {
     if (!mobileOpen) return
@@ -210,32 +220,22 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
   return <div className={`r3-public-screen shadcn-admin public-shadcn ${theme}`}>
     <header className="r3-public-header">
       <button type="button" className="r3-brand-button" onClick={() => navigate('home')} aria-label="Partokens"><Brand /></button>
-      <nav className="r3-public-nav" aria-label={t('Primary navigation')}>
-        {navItems.map((item) => <button type="button" key={item.target} aria-current={screen === item.target ? 'page' : undefined} onClick={() => navigate(item.target)}>{item.label}</button>)}
-      </nav>
       <div className="r3-header-tools">
-        <button type="button" className="pt-icon-button" aria-label={t('Notices')} title={t('Notices')} data-active={screen === 'notices' || undefined} onClick={() => navigate('notices')}><Bell size={18} /></button>
-        <label className="r3-locale-control">
-          <Languages size={17} />
-          <span className="sr-only">{t('Language')}</span>
-          <select value={locale} aria-label={t('Language')} onChange={(event) => onLocale(event.target.value as AppLocale)}>
-            {locales.map((item) => <option value={item} key={item}>{localeLabels[item]}</option>)}
-          </select>
-        </label>
-        <button type="button" className="pt-icon-button" aria-label={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} title={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} onClick={onTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-        <button type="button" className="pt-button r3-signin-button" data-variant="quiet" onClick={() => navigate('signin')}>{t('Sign in')}</button>
-        <RouteButton onClick={() => navigate('console')}>{t('Console')}</RouteButton>
+        <Button type="button" variant="ghost" size="icon" className={`r3-public-tool-button rounded-full${screen === 'notices' ? ' bg-accent text-accent-foreground' : ''}`} aria-label={t('Notices')} title={t('Notices')} onClick={() => navigate('notices')}><Bell /></Button>
+        <InterfaceLanguageMenu locale={locale} onLocale={onLocale} t={t} buttonClassName="r3-public-tool-button" />
+        <InterfaceThemeMenu theme={theme} onTheme={onTheme} t={t} buttonClassName="r3-public-tool-button" />
+        <button type="button" className="r3-console-link" onClick={() => navigate('console')}><span>{t('Go to console')}</span><ArrowRight size={16} /></button>
         <button type="button" className="pt-icon-button r3-mobile-menu-button" aria-label={t('Menu')} title={t('Menu')} onClick={() => setMobileOpen(true)}><Menu size={19} /></button>
       </div>
     </header>
 
     {mobileOpen ? <div ref={mobileNavRef} className="r3-mobile-nav" role="dialog" aria-modal="true" aria-label={t('Menu')}>
       <header><Brand /><button ref={mobileCloseRef} type="button" className="pt-icon-button" aria-label={t('Close')} title={t('Close')} onClick={() => setMobileOpen(false)}><X size={18} /></button></header>
-      <nav>{navItems.map((item) => <button type="button" key={item.target} aria-current={screen === item.target ? 'page' : undefined} onClick={() => navigate(item.target)}>{item.label}<ChevronRight size={18} /></button>)}<button type="button" aria-current={screen === 'notices' ? 'page' : undefined} onClick={() => navigate('notices')}>{t('Notices')}<ChevronRight size={18} /></button></nav>
+      <nav><button type="button" aria-current={screen === 'notices' ? 'page' : undefined} onClick={() => navigate('notices')}>{t('Notices')}<ChevronRight size={18} /></button></nav>
       <div className="r3-mobile-nav-footer">
         <label className="r3-locale-control"><Globe2 size={17} /><select value={locale} aria-label={t('Language')} onChange={(event) => onLocale(event.target.value as AppLocale)}>{locales.map((item) => <option value={item} key={item}>{localeLabels[item]}</option>)}</select></label>
         <button type="button" className="pt-icon-button" aria-label={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} title={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} onClick={onTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
-        <RouteButton onClick={() => navigate('console')}>{t('Console')}</RouteButton>
+        <button type="button" className="r3-console-link" onClick={() => navigate('console')}><span>{t('Go to console')}</span><ArrowRight size={16} /></button>
       </div>
     </div> : null}
 
@@ -243,15 +243,15 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
 
     <footer className="r3-public-footer">
       <div className="r3-footer-main">
-        <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale).aboutLead}</p><span className={online ? 'r3-service-state is-online' : 'r3-service-state'}><i />{online ? t('Available') : t('Awaiting status')}{version ? <code>{version}</code> : null}</span></div>
+        <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale).aboutLead}</p></div>
         <div className="r3-footer-links">
-          <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('models')}>{t('Models')}</button><button type="button" onClick={() => navigate('console')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console')}>{t('Image studio')}</button></div>
-          <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('docs')}>{t('Docs')}</button><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><a href="https://partokens.com/api/status" target="_blank" rel="noreferrer">{t('Status')}<ExternalLink size={13} /></a></div>
+          <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('console')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console')}>{t('Image studio')}</button></div>
+          <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><a href="https://partokens.com/api/status" target="_blank" rel="noreferrer">{t('Status')}<ExternalLink size={13} /></a></div>
           <div><strong>{t('Legal')}</strong><button type="button" onClick={() => navigate('legal-user')}>{t('User Agreement')}</button><button type="button" onClick={() => navigate('legal-service')}>{t('Terms of Service')}</button><button type="button" onClick={() => navigate('legal-privacy')}>{t('Privacy Policy')}</button></div>
           <div><strong>{t('Contact')}</strong><a href="mailto:admin@partokens.com">admin@partokens.com</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer">Telegram<ExternalLink size={13} /></a></div>
         </div>
       </div>
-      <div className="r3-footer-bottom"><span>© {new Date().getFullYear()} Partokens</span><span>R3.1 · {t('Draft content')}</span></div>
+      <div className="r3-footer-bottom"><span>© {new Date().getFullYear()} Partokens</span><span>admin@partokens.com</span></div>
     </footer>
   </div>
 }
@@ -264,7 +264,7 @@ function HomeSectionHeading({ eyebrow, title, body }: { eyebrow: string; title: 
   return <div className="r3-home-section-heading"><span>{eyebrow}</span><h2>{title}</h2>{body ? <p>{body}</p> : null}</div>
 }
 
-function HomeProductPreview({ locale, online, version }: Pick<PublicPrototypeProps, 'locale' | 'online' | 'version'>) {
+function HomeProductPreview({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
   const t = (key: string) => translate(locale, key)
   const copy = homePageCopy[locale]
   const [mode, setMode] = useState<'chat' | 'image' | 'api'>('chat')
@@ -285,13 +285,12 @@ function HomeProductPreview({ locale, online, version }: Pick<PublicPrototypePro
           <small>{t('Workspace')}</small>
           {modes.map(({ id, label, icon: Icon }) => <button type="button" key={id} aria-current={mode === id ? 'page' : undefined} onClick={() => setMode(id)}><Icon size={16} /><span>{label}</span></button>)}
         </nav>
-        <div className={online ? 'r3-preview-service is-online' : 'r3-preview-service'}><span><i />{online ? t('Available') : t('Awaiting status')}</span>{version ? <code>{version}</code> : null}</div>
         <div className="r3-preview-account"><span>MC</span><p><strong>Mika Chen</strong><small>mika@partokens.com</small></p></div>
       </aside>
 
       <section className="r3-preview-panel" role="tabpanel" data-preview={mode}>
         {mode === 'chat' ? <>
-          <header><div><span>{t('Playground')}</span><strong>{t('New chat')}</strong></div><span><Sparkles size={14} />{t('Models')} / {t('Sign in')}<ChevronDown size={14} /></span></header>
+          <header><div><span>{t('Playground')}</span><strong>{t('New chat')}</strong></div><span><ShieldCheck size={14} />{t('Local history')}</span></header>
           <div className="r3-preview-messages"><div className="r3-preview-user"><p>{copy.samples.question}</p><CircleUserRound size={22} /></div><div className="r3-preview-assistant"><span><Bot size={16} /></span><p>{copy.samples.answer}</p></div></div>
           <div className="r3-preview-composer"><span>{copy.samples.composer}</span><button type="button" aria-label={t('Send')} title={t('Send')}><Send size={15} /></button></div>
           <small><ShieldCheck size={14} />{t('Local history')}</small>
@@ -330,7 +329,7 @@ function HomeChatVisual({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
   const copy = homePageCopy[locale]
   return <div className="r3-home-product-frame r3-home-chat-visual">
     <aside><header><strong>{t('Recent chats')}</strong><Plus size={16} /></header><small>{t('Today')}</small><span className="is-active"><MessageSquare size={15} />{copy.samples.chatTitle}</span><span><MessageSquare size={15} />{copy.samples.chatSecond}</span><footer><ShieldCheck size={14} />{t('Local history')}</footer></aside>
-    <section><header><strong>{copy.samples.chatTitle}</strong><span><Sparkles size={14} />{t('Models')}</span></header><div><p>{copy.samples.question}</p><span><Bot size={15} /></span><p>{copy.samples.answer}</p></div><footer><span>{copy.samples.composer}</span><Send size={15} /></footer></section>
+    <section><header><strong>{copy.samples.chatTitle}</strong><span><ShieldCheck size={14} />{t('Local history')}</span></header><div><p>{copy.samples.question}</p><span><Bot size={15} /></span><p>{copy.samples.answer}</p></div><footer><span>{copy.samples.composer}</span><Send size={15} /></footer></section>
   </div>
 }
 
@@ -352,7 +351,7 @@ function HomeControlVisual({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
   </div>
 }
 
-function HomePage({ locale, online, version, go }: Pick<PublicPrototypeProps, 'locale' | 'online' | 'version' | 'go'>) {
+function HomePage({ locale, go }: Pick<PublicPrototypeProps, 'locale' | 'go'>) {
   const t = (key: string) => translate(locale, key)
   const copy = homePageCopy[locale]
   const actions = [
@@ -363,8 +362,8 @@ function HomePage({ locale, online, version, go }: Pick<PublicPrototypeProps, 'l
   const valueIcons = [Code2, Route, Activity, ShieldCheck, SlidersHorizontal, Languages]
   return <main className="console-home-page">
     <section className="r3-home-hero">
-      <div className="r3-home-hero-copy"><span>{copy.hero.eyebrow}</span><h1>Partokens</h1><h2>{copy.hero.title}</h2><p>{copy.hero.body}</p><div><RouteButton onClick={() => go('console')}>{t('Enter console')}</RouteButton><button type="button" className="pt-button" data-variant="secondary" onClick={() => go('docs')}><BookOpen size={16} />{t('Docs')}</button></div><small><LockKeyhole size={14} />{copy.hero.note}</small></div>
-      <HomeProductPreview locale={locale} online={online} version={version} />
+      <div className="r3-home-hero-copy"><span>{copy.hero.eyebrow}</span><h1>Partokens</h1><h2>{copy.hero.title}</h2><p>{copy.hero.body}</p><div><RouteButton onClick={() => go('console')}>{t('Go to console')}</RouteButton></div></div>
+      <HomeProductPreview locale={locale} />
     </section>
 
     <section className="r3-home-started">
@@ -509,7 +508,7 @@ function NoticesPage({ locale, version }: Pick<PublicPrototypeProps, 'locale' | 
 
 export function PublicPrototype(props: PublicPrototypeProps) {
   let page: ReactNode
-  if (props.screen === 'home') page = <HomePage locale={props.locale} online={props.online} version={props.version} go={props.go} />
+  if (props.screen === 'home') page = <HomePage locale={props.locale} go={props.go} />
   else if (props.screen === 'models') page = <ModelsPage locale={props.locale} go={props.go} />
   else if (props.screen === 'docs') page = <DocsPage locale={props.locale} go={props.go} />
   else if (props.screen === 'about') page = <AboutPage locale={props.locale} />

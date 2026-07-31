@@ -3,7 +3,7 @@ import type { AppLocale } from '@partokens/i18n'
 export type AuthPrototypeCopy = {
   rail: {
     body: string
-    path: [string, string, string]
+    title: string
     accountTitle: string
     pricingBody: string
     privacyBody: string
@@ -39,8 +39,8 @@ export type AuthPrototypeCopy = {
 export const authPrototypeCopy: Record<AppLocale, AuthPrototypeCopy> = {
   'zh-CN': {
     rail: {
-      body: '身份验证只负责建立账户会话。进入后再加载你的模型、价格与用量。',
-      path: ['身份', '会话', '工作区'],
+      body: 'Partokens 为开发者提供统一的模型访问入口，并把价格、状态、额\u2060度与调\u2060用记录放在同一个操作界面中。',
+      title: '模型接入，从此只需一个入口。',
       accountTitle: '账户数据',
       pricingBody: '模型、价格和账户额度仅在登录后读取。',
       privacyBody: '本地对话记录不会作为登录数据上传。',
@@ -74,8 +74,8 @@ export const authPrototypeCopy: Record<AppLocale, AuthPrototypeCopy> = {
   },
   'zh-TW': {
     rail: {
-      body: '身分驗證只負責建立帳戶工作階段。進入後才載入你的模型、價格與用量。',
-      path: ['身分', '工作階段', '工作區'],
+      body: 'Partokens 為開發者提供統一的模型存取入口，並將價格、狀態、額度與呼叫記錄集中在同一個操作介面中。',
+      title: '模型存取，從此只需一個入口。',
       accountTitle: '帳戶資料',
       pricingBody: '模型、價格與帳戶額度只會在登入後讀取。',
       privacyBody: '本機對話記錄不會作為登入資料上傳。',
@@ -109,8 +109,8 @@ export const authPrototypeCopy: Record<AppLocale, AuthPrototypeCopy> = {
   },
   en: {
     rail: {
-      body: 'Authentication establishes the account session. Your models, pricing, and usage load only after access is confirmed.',
-      path: ['Identity', 'Session', 'Workspace'],
+      body: 'Partokens gives developers one entry point for model access, with pricing, status, quota, and request history in the same operational interface.',
+      title: 'One entry point for every model request.',
       accountTitle: 'Account data',
       pricingBody: 'Models, pricing, and account quota are read only after sign-in.',
       privacyBody: 'Local conversation history is not uploaded as sign-in data.',
@@ -144,8 +144,8 @@ export const authPrototypeCopy: Record<AppLocale, AuthPrototypeCopy> = {
   },
   ja: {
     rail: {
-      body: '認証はアカウントセッションの確立だけを行います。モデル、料金、使用量はログイン後に読み込みます。',
-      path: ['本人確認', 'セッション', 'ワークスペース'],
+      body: 'Partokens は開発者に統一されたモデルアクセスの入口を提供し、料金、ステータス、クォータ、呼び出し履歴を一つの操作画面に集約します。',
+      title: 'すべてのモデル呼び出しを、一つの入口から。',
       accountTitle: 'アカウントデータ',
       pricingBody: 'モデル、料金、アカウントのクォータはログイン後にのみ取得します。',
       privacyBody: 'ローカルの会話履歴がログイン情報として送信されることはありません。',
@@ -179,8 +179,8 @@ export const authPrototypeCopy: Record<AppLocale, AuthPrototypeCopy> = {
   },
   ru: {
     rail: {
-      body: 'Проверка личности создаёт только сеанс аккаунта. Модели, цены и расход загружаются после входа.',
-      path: ['Личность', 'Сеанс', 'Рабочая область'],
+      body: 'Partokens предоставляет разработчикам единую точку доступа к моделям и объединяет цены, статусы, квоты и историю вызовов в одном рабочем интерфейсе.',
+      title: 'Единая точка для каждого вызова модели.',
       accountTitle: 'Данные аккаунта',
       pricingBody: 'Модели, цены и квота аккаунта загружаются только после входа.',
       privacyBody: 'Локальная история чатов не отправляется как часть данных для входа.',
@@ -214,8 +214,8 @@ export const authPrototypeCopy: Record<AppLocale, AuthPrototypeCopy> = {
   },
   fr: {
     rail: {
-      body: 'L’authentification établit uniquement la session du compte. Les modèles, tarifs et usages sont chargés après validation.',
-      path: ['Identité', 'Session', 'Espace de travail'],
+      body: 'Partokens offre aux développeurs un point d’accès unifié aux modèles et réunit tarifs, état, quotas et historique des appels dans une même interface opérationnelle.',
+      title: 'Un seul point d’entrée pour chaque appel de modèle.',
       accountTitle: 'Données du compte',
       pricingBody: 'Les modèles, tarifs et quotas du compte sont lus uniquement après connexion.',
       privacyBody: 'L’historique local des conversations n’est pas transmis comme donnée de connexion.',
@@ -249,8 +249,8 @@ export const authPrototypeCopy: Record<AppLocale, AuthPrototypeCopy> = {
   },
   vi: {
     rail: {
-      body: 'Xác thực chỉ thiết lập phiên tài khoản. Mô hình, giá và mức sử dụng được tải sau khi quyền truy cập được xác nhận.',
-      path: ['Danh tính', 'Phiên', 'Không gian làm việc'],
+      body: 'Partokens cung cấp cho nhà phát triển một điểm truy cập mô hình thống nhất, đồng thời tập trung giá, trạng thái, hạn mức và lịch sử gọi trong cùng một giao diện vận hành.',
+      title: 'Một điểm vào cho mọi lượt gọi mô hình.',
       accountTitle: 'Dữ liệu tài khoản',
       pricingBody: 'Mô hình, giá và hạn mức tài khoản chỉ được đọc sau khi đăng nhập.',
       privacyBody: 'Lịch sử trò chuyện cục bộ không được tải lên như dữ liệu đăng nhập.',
