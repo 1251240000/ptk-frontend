@@ -16,7 +16,6 @@ import {
   Component,
   Copy,
   CreditCard,
-  ExternalLink,
   Image as ImageIcon,
   Info,
   KeyRound,
@@ -68,7 +67,7 @@ import type { ConsoleRoute } from './shadcn-console-shell'
 type Screen = 'system' | PublicPrototypeScreen | AuthPrototypeScreen | ConsoleRoute
 type Locale = 'zh-CN' | 'fr' | 'ru'
 type Theme = 'light' | 'dark'
-const publicScreens: PublicPrototypeScreen[] = ['home', 'models', 'docs', 'about', 'notices', 'legal-user', 'legal-service', 'legal-privacy']
+const publicScreens: PublicPrototypeScreen[] = ['home', 'models', 'docs', 'about', 'notices', 'status', 'legal-user', 'legal-service', 'legal-privacy']
 const authScreens: AuthPrototypeScreen[] = ['signin', 'signup', 'verify-email', 'forgot-password', 'reset-password', 'oauth-callback', 'auth-otp']
 const consoleScreens: ConsoleRoute[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile']
 const legacyProfileScreens = ['console-security', 'console-connections', 'console-notifications']
@@ -136,11 +135,12 @@ const localeLabels: Record<Locale, string> = { 'zh-CN': '简体中文', fr: 'Fra
 
 function screenFromHash(): Screen {
   const value = window.location.hash.replace('#', '')
+  if (value === 'docs' || value.startsWith('docs/')) return 'docs'
   if (legacyProfileScreens.includes(value)) {
     window.history.replaceState(null, '', '#console-profile')
     return 'console-profile'
   }
-  const screens: Screen[] = ['home', 'system', 'models', 'docs', 'about', 'notices', 'legal-user', 'legal-service', 'legal-privacy', ...authScreens, ...consoleScreens]
+  const screens: Screen[] = ['home', 'system', 'models', 'docs', 'about', 'notices', 'status', 'legal-user', 'legal-service', 'legal-privacy', ...authScreens, ...consoleScreens]
   return screens.includes(value as Screen) ? value as Screen : 'home'
 }
 
@@ -286,8 +286,8 @@ function HomeScreen({ t, locale, theme, onLocale, onTheme, go, online, version, 
     </main>
 
     <footer className="home-footer">
-      <div className="footer-main"><div className="footer-brand"><Brand /><p>{t.footerBody}</p><span className={online ? 'live-status online' : 'live-status'}><i />{online ? t.serviceOnline : t.serviceWaiting}</span></div><div className="footer-links"><div><strong>{t.product}</strong><button onClick={() => go('console')}>{t.playgroundLink}</button><button onClick={() => go('console')}>{t.studioLink}</button></div><div><strong>{t.resources}</strong><button onClick={() => go('docs')}>{t.docs}</button><a href="https://partokens.com/api/status" target="_blank" rel="noreferrer">{t.statusLink}<ExternalLink size={13} /></a><button onClick={() => go('about')}>{t.about}</button></div><div><strong>{t.legal}</strong><button onClick={() => go('legal-user')}>{t.userAgreement}</button><button onClick={() => go('legal-service')}>{t.serviceAgreement}</button><button onClick={() => go('legal-privacy')}>{t.privacyPolicy}</button></div><div><strong>{t.contact}</strong><a href="mailto:admin@partokens.com"><Mail size={14} />{t.emailSupport}</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer"><MessageSquare size={14} />{t.telegramSupport}</a></div></div></div>
-      <div className="footer-bottom"><span>© {new Date().getFullYear()} {t.copyright}</span><span>admin@partokens.com</span></div>
+      <div className="footer-main"><div className="footer-brand"><Brand /><p>{t.footerBody}</p><span className={online ? 'live-status online' : 'live-status'}><i />{online ? t.serviceOnline : t.serviceWaiting}</span></div><div className="footer-links"><div><strong>{t.product}</strong><button onClick={() => go('console')}>{t.playgroundLink}</button><button onClick={() => go('console')}>{t.studioLink}</button></div><div><strong>{t.resources}</strong><button onClick={() => go('docs')}>{t.docs}</button><button onClick={() => go('status')}>{t.statusLink}</button><button onClick={() => go('about')}>{t.about}</button></div><div><strong>{t.legal}</strong><button onClick={() => go('legal-user')}>{t.userAgreement}</button><button onClick={() => go('legal-service')}>{t.serviceAgreement}</button><button onClick={() => go('legal-privacy')}>{t.privacyPolicy}</button></div><div><strong>{t.contact}</strong><a href="mailto:support@partokens.com"><Mail size={14} />{t.emailSupport}</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer"><MessageSquare size={14} />{t.telegramSupport}</a></div></div></div>
+      <div className="footer-bottom"><span>© {new Date().getFullYear()} {t.copyright}</span><span>support@partokens.com</span></div>
     </footer>
   </div>
 }

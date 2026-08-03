@@ -1,10 +1,10 @@
 import {
   Activity,
+  AlertTriangle,
   ArrowRight,
   Bell,
   BookOpen,
   Bot,
-  Box,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -17,7 +17,9 @@ import {
   FileCheck2,
   FileText,
   Globe2,
+  House,
   Image as ImageIcon,
+  Info,
   KeyRound,
   Languages,
   LockKeyhole,
@@ -25,17 +27,22 @@ import {
   MessageSquare,
   Moon,
   Network,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
+  RefreshCw,
   Route,
+  Search,
   Send,
+  Server,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
   Sun,
-  TerminalSquare,
   X,
+  type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 
 import {
   Button,
@@ -48,6 +55,9 @@ import {
 } from '@partokens/content'
 import { localeLabels, locales, resources, type AppLocale } from '@partokens/i18n'
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from './interface-tool-menus'
+import { PartokensMark } from './partokens-mark'
+import { completedDocsOrder, getDocsDocument, getDocsSearchText, type DocsCodeSample, type DocsContentBlock, type DocsDocument } from './public-docs-content'
+import { docsCatalog, publicDocsCopy, type DocsItemId, type DocsItemTarget } from './public-docs-copy'
 import { homePageCopy, type HomePageCopy, type HomePageTarget } from './public-home-copy'
 
 export type PublicPrototypeScreen =
@@ -56,6 +66,7 @@ export type PublicPrototypeScreen =
   | 'docs'
   | 'about'
   | 'notices'
+  | 'status'
   | 'legal-user'
   | 'legal-service'
   | 'legal-privacy'
@@ -72,27 +83,6 @@ type PublicPrototypeProps = {
   onLocale: (locale: AppLocale) => void
   onTheme: () => void
   go: (target: PublicTarget) => void
-}
-
-const requestExample = `curl https://partokens.com/v1/chat/completions \\
-  -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{"model":"your-model","messages":[{"role":"user","content":"Hello"}]}'`
-
-const sdkExamples = {
-  shell: requestExample,
-  javascript: `import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.PARTOKENS_API_KEY,
-  baseURL: "https://partokens.com/v1",
-});`,
-  python: `from openai import OpenAI
-
-client = OpenAI(
-    api_key=os.environ["PARTOKENS_API_KEY"],
-    base_url="https://partokens.com/v1",
-)`,
 }
 
 const r3Translations: Record<AppLocale, Record<string, string>> = {
@@ -161,12 +151,83 @@ const r3Translations: Record<AppLocale, Record<string, string>> = {
   },
 }
 
+type StatusPageCopy = {
+  eyebrow: string
+  title: string
+  description: string
+  currentStatus: string
+  operational: string
+  operationalBody: string
+  unavailable: string
+  unavailableBody: string
+  checking: string
+  checkingBody: string
+  apiService: string
+  available: string
+  unreachable: string
+  checkPending: string
+  deployedVersion: string
+  startedAt: string
+  checkedAt: string
+  notAvailable: string
+  waiting: string
+  refresh: string
+  refreshing: string
+  scopeTitle: string
+  scopeBody: string
+}
+
+const statusPageCopy: Record<AppLocale, StatusPageCopy> = {
+  'zh-CN': {
+    eyebrow: '服务运行状况', title: '服务状态', description: '查看 Partokens API 当前可用性与部署信息。', currentStatus: '当前状态',
+    operational: 'API 服务运行正常', operationalBody: '状态接口响应正常，Partokens API 当前可连接。', unavailable: '暂时无法确认服务状态', unavailableBody: '状态检查未成功。请稍后重试；这不代表所有 API 请求都不可用。', checking: '正在检查服务状态', checkingBody: '正在连接 Partokens 状态接口。',
+    apiService: 'API 服务', available: '可用', unreachable: '无法确认', checkPending: '检查中', deployedVersion: '部署版本', startedAt: '本次服务启动时间', checkedAt: '最近检查', notAvailable: '暂未返回', waiting: '等待首次检查', refresh: '重新检查', refreshing: '检查中',
+    scopeTitle: '状态范围', scopeBody: '此页面只展示状态接口可确认的当前可用性、部署版本和启动时间；接口未提供历史可用率、事故记录或单个模型状态。',
+  },
+  'zh-TW': {
+    eyebrow: '服務運行狀況', title: '服務狀態', description: '查看 Partokens API 目前的可用性與部署資訊。', currentStatus: '目前狀態',
+    operational: 'API 服務運行正常', operationalBody: '狀態介面回應正常，Partokens API 目前可連線。', unavailable: '暫時無法確認服務狀態', unavailableBody: '狀態檢查未成功。請稍後重試；這不代表所有 API 請求都無法使用。', checking: '正在檢查服務狀態', checkingBody: '正在連線 Partokens 狀態介面。',
+    apiService: 'API 服務', available: '可用', unreachable: '無法確認', checkPending: '檢查中', deployedVersion: '部署版本', startedAt: '本次服務啟動時間', checkedAt: '最近檢查', notAvailable: '暫未回傳', waiting: '等待首次檢查', refresh: '重新檢查', refreshing: '檢查中',
+    scopeTitle: '狀態範圍', scopeBody: '此頁面只顯示狀態介面可確認的目前可用性、部署版本與啟動時間；介面未提供歷史可用率、事故記錄或單一模型狀態。',
+  },
+  en: {
+    eyebrow: 'SERVICE HEALTH', title: 'Service status', description: 'Check the current availability and deployment details of the Partokens API.', currentStatus: 'Current status',
+    operational: 'API service is operational', operationalBody: 'The status endpoint is responding and the Partokens API is currently reachable.', unavailable: 'Service status cannot be confirmed', unavailableBody: 'The status check did not succeed. Try again later; this does not prove that every API request is unavailable.', checking: 'Checking service status', checkingBody: 'Connecting to the Partokens status endpoint.',
+    apiService: 'API service', available: 'Available', unreachable: 'Unconfirmed', checkPending: 'Checking', deployedVersion: 'Deployed version', startedAt: 'Current service start', checkedAt: 'Last checked', notAvailable: 'Not returned', waiting: 'Waiting for first check', refresh: 'Check again', refreshing: 'Checking',
+    scopeTitle: 'Status scope', scopeBody: 'This page only reports current availability, deployment version, and start time confirmed by the status endpoint. It does not provide availability history, incident records, or individual model status.',
+  },
+  ja: {
+    eyebrow: 'サービス稼働状況', title: 'サービス状態', description: 'Partokens API の現在の可用性とデプロイ情報を確認します。', currentStatus: '現在の状態',
+    operational: 'API サービスは正常に稼働中', operationalBody: 'ステータスエンドポイントが応答しており、Partokens API に接続できます。', unavailable: 'サービス状態を確認できません', unavailableBody: '状態確認に成功しませんでした。時間をおいて再試行してください。すべての API リクエストが利用できないことを示すものではありません。', checking: 'サービス状態を確認中', checkingBody: 'Partokens のステータスエンドポイントに接続しています。',
+    apiService: 'API サービス', available: '利用可能', unreachable: '未確認', checkPending: '確認中', deployedVersion: 'デプロイ版', startedAt: '現在のサービス起動時刻', checkedAt: '最終確認', notAvailable: '未取得', waiting: '初回確認待ち', refresh: '再確認', refreshing: '確認中',
+    scopeTitle: '状態の範囲', scopeBody: 'このページには、ステータスエンドポイントで確認できる現在の可用性、デプロイ版、起動時刻のみを表示します。可用性履歴、障害記録、個別モデルの状態は提供されません。',
+  },
+  ru: {
+    eyebrow: 'СОСТОЯНИЕ СЕРВИСА', title: 'Статус сервиса', description: 'Проверьте текущую доступность и данные развертывания API Partokens.', currentStatus: 'Текущее состояние',
+    operational: 'API работает нормально', operationalBody: 'Эндпоинт статуса отвечает, API Partokens сейчас доступен.', unavailable: 'Не удалось подтвердить состояние', unavailableBody: 'Проверка статуса не выполнена. Повторите попытку позже; это не означает, что недоступны все API-запросы.', checking: 'Проверяем состояние сервиса', checkingBody: 'Подключаемся к эндпоинту статуса Partokens.',
+    apiService: 'API-сервис', available: 'Доступен', unreachable: 'Не подтверждено', checkPending: 'Проверка', deployedVersion: 'Версия развертывания', startedAt: 'Текущий запуск сервиса', checkedAt: 'Последняя проверка', notAvailable: 'Нет данных', waiting: 'Ожидание первой проверки', refresh: 'Проверить снова', refreshing: 'Проверка',
+    scopeTitle: 'Границы статуса', scopeBody: 'Страница показывает только текущую доступность, версию развертывания и время запуска, подтвержденные эндпоинтом статуса. История доступности, инциденты и состояние отдельных моделей не предоставляются.',
+  },
+  fr: {
+    eyebrow: 'ÉTAT DU SERVICE', title: 'État du service', description: 'Consultez la disponibilité actuelle et les informations de déploiement de l’API Partokens.', currentStatus: 'État actuel',
+    operational: 'Le service API fonctionne normalement', operationalBody: 'Le point d’état répond et l’API Partokens est actuellement accessible.', unavailable: 'Impossible de confirmer l’état du service', unavailableBody: 'La vérification n’a pas abouti. Réessayez plus tard ; cela ne signifie pas que toutes les requêtes API sont indisponibles.', checking: 'Vérification de l’état du service', checkingBody: 'Connexion au point d’état Partokens.',
+    apiService: 'Service API', available: 'Disponible', unreachable: 'Non confirmé', checkPending: 'Vérification', deployedVersion: 'Version déployée', startedAt: 'Démarrage actuel du service', checkedAt: 'Dernière vérification', notAvailable: 'Non communiqué', waiting: 'En attente de la première vérification', refresh: 'Vérifier à nouveau', refreshing: 'Vérification',
+    scopeTitle: 'Périmètre de l’état', scopeBody: 'Cette page affiche uniquement la disponibilité actuelle, la version déployée et l’heure de démarrage confirmées par le point d’état. Elle ne fournit ni historique de disponibilité, ni incidents, ni état de chaque modèle.',
+  },
+  vi: {
+    eyebrow: 'TÌNH TRẠNG DỊCH VỤ', title: 'Trạng thái dịch vụ', description: 'Kiểm tra khả năng truy cập hiện tại và thông tin triển khai của API Partokens.', currentStatus: 'Trạng thái hiện tại',
+    operational: 'Dịch vụ API đang hoạt động', operationalBody: 'Endpoint trạng thái đang phản hồi và API Partokens hiện có thể truy cập.', unavailable: 'Chưa thể xác nhận trạng thái dịch vụ', unavailableBody: 'Lần kiểm tra trạng thái không thành công. Hãy thử lại sau; điều này không có nghĩa là mọi yêu cầu API đều không khả dụng.', checking: 'Đang kiểm tra trạng thái dịch vụ', checkingBody: 'Đang kết nối đến endpoint trạng thái Partokens.',
+    apiService: 'Dịch vụ API', available: 'Khả dụng', unreachable: 'Chưa xác nhận', checkPending: 'Đang kiểm tra', deployedVersion: 'Phiên bản triển khai', startedAt: 'Lần khởi động dịch vụ hiện tại', checkedAt: 'Kiểm tra gần nhất', notAvailable: 'Chưa có dữ liệu', waiting: 'Đang chờ lần kiểm tra đầu tiên', refresh: 'Kiểm tra lại', refreshing: 'Đang kiểm tra',
+    scopeTitle: 'Phạm vi trạng thái', scopeBody: 'Trang này chỉ hiển thị khả năng truy cập hiện tại, phiên bản triển khai và thời gian khởi động được endpoint trạng thái xác nhận. Trang không cung cấp lịch sử khả dụng, sự cố hoặc trạng thái từng mô hình.',
+  },
+}
+
 function translate(locale: AppLocale, key: string) {
   return r3Translations[locale][key] ?? (resources[locale].translation as Record<string, string>)[key] ?? key
 }
 
 function Brand() {
-  return <span className="r3-brand"><span><KeyRound size={17} /></span><strong>Partokens</strong></span>
+  return <span className="r3-brand"><span><PartokensMark size={17} /></span><strong>Partokens</strong></span>
 }
 
 function RouteButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
@@ -246,12 +307,12 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
         <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale).aboutLead}</p></div>
         <div className="r3-footer-links">
           <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('console')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console')}>{t('Image studio')}</button></div>
-          <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><a href="https://partokens.com/api/status" target="_blank" rel="noreferrer">{t('Status')}<ExternalLink size={13} /></a></div>
+          <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><button type="button" onClick={() => navigate('status')}>{t('Status')}</button></div>
           <div><strong>{t('Legal')}</strong><button type="button" onClick={() => navigate('legal-user')}>{t('User Agreement')}</button><button type="button" onClick={() => navigate('legal-service')}>{t('Terms of Service')}</button><button type="button" onClick={() => navigate('legal-privacy')}>{t('Privacy Policy')}</button></div>
-          <div><strong>{t('Contact')}</strong><a href="mailto:admin@partokens.com">admin@partokens.com</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer">Telegram<ExternalLink size={13} /></a></div>
+          <div><strong>{t('Contact')}</strong><a href="mailto:support@partokens.com">Email</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer">Telegram<ExternalLink size={13} /></a></div>
         </div>
       </div>
-      <div className="r3-footer-bottom"><span>© {new Date().getFullYear()} Partokens</span><span>admin@partokens.com</span></div>
+      <div className="r3-footer-bottom"><span>© {new Date().getFullYear()} Partokens</span></div>
     </footer>
   </div>
 }
@@ -315,7 +376,7 @@ function HomeProductPreview({ locale, theme }: Pick<PublicPrototypeProps, 'local
     </div>
     <div className="r3-preview-shell">
       <aside>
-        <div className="r3-preview-brand"><span><KeyRound size={15} /></span><p><strong>Partokens</strong><small>{copy.preview.developerConsole}</small></p></div>
+        <div className="r3-preview-brand"><span><PartokensMark size={15} /></span><p><strong>Partokens</strong><small>{copy.preview.developerConsole}</small></p></div>
         <nav role="tablist" aria-label={copy.preview.workspace}>
           <small>{copy.preview.workspace}</small>
           {modes.map(({ id, label, icon: Icon }, index) => <button type="button" key={id} role="tab" aria-selected={mode === id} aria-controls="r37-preview-panel" tabIndex={mode === id ? 0 : -1} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => setMode(id)}><Icon size={16} /><span>{label}</span></button>)}
@@ -379,7 +440,6 @@ function HomeImageVisual({ copy, theme }: { copy: HomePageCopy; theme: Theme }) 
 function HomeControlVisual({ copy }: { copy: HomePageCopy }) {
   return <div className="r3-home-product-frame r3-home-control-visual">
     <header><strong><Activity size={17} />{copy.preview.overview}</strong><span><LockKeyhole size={14} />{copy.preview.signIn}</span></header>
-    <div className="r37-control-endpoint"><span><Globe2 size={15} />{copy.preview.baseUrl}</span><code>https://partokens.com/v1</code></div>
     <div><article><span><KeyRound size={16} /></span><p><strong>{copy.preview.restrictedKey}</strong><small>{copy.preview.restrictedKeyBody}</small></p><ChevronRight size={16} /></article><article><span><Activity size={16} /></span><p><strong>{copy.preview.traceableUsage}</strong><small>{copy.preview.traceableUsageBody}</small></p><ChevronRight size={16} /></article></div>
   </div>
 }
@@ -486,33 +546,215 @@ function ModelsPage({ locale, go }: Pick<PublicPrototypeProps, 'locale' | 'go'>)
 function CodeBlock({ code, label, copyLabel, copiedLabel }: { code: string; label: string; copyLabel: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false)
   const copy = async () => {
-    await navigator.clipboard?.writeText(code)
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(code)
+    else {
+      const textarea = document.createElement('textarea')
+      textarea.value = code
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      textarea.remove()
+    }
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1400)
   }
   return <div className="r3-code-block"><header><span>{label}</span><button type="button" className="pt-icon-button" data-size="small" aria-label={copyLabel} title={copyLabel} onClick={() => void copy()}>{copied ? <Check size={15} /> : <Clipboard size={15} />}</button></header><pre><code>{code}</code></pre><span className="sr-only" role="status">{copied ? copiedLabel : ''}</span></div>
 }
 
+type DocsDetailLabels = {
+  prerequisites: string
+  onThisPage: string
+  previous: string
+  next: string
+  copyCode: string
+  copied: string
+  directory: string
+  fallback: string
+  pendingTitle: string
+  pendingSummary: string
+  pendingBody: string
+}
+
+const docsDetailLabels: Record<AppLocale, DocsDetailLabels> = {
+  'zh-CN': { prerequisites: '前置条件', onThisPage: '本页内容', previous: '上一篇', next: '下一篇', copyCode: '复制代码', copied: '已复制', directory: '文档目录', fallback: '本页正文暂未翻译，当前显示简体中文版本。', pendingTitle: '内容待补充', pendingSummary: '该主题已经进入文档目录，详细内容将在后续批次补充。', pendingBody: '本页尚未发布可执行说明。具体能力、配置和限制仍需产品或后端确认，请勿将此占位页视为功能承诺。' },
+  'zh-TW': { prerequisites: '前置條件', onThisPage: '本頁內容', previous: '上一篇', next: '下一篇', copyCode: '複製程式碼', copied: '已複製', directory: '文件目錄', fallback: '本頁正文暫未翻譯，目前顯示簡體中文版本。', pendingTitle: '內容待補充', pendingSummary: '此主題已加入文件目錄，詳細內容會在後續批次補充。', pendingBody: '本頁尚未發布可執行說明。具體能力、設定與限制仍需產品或後端確認。' },
+  en: { prerequisites: 'Prerequisites', onThisPage: 'On this page', previous: 'Previous', next: 'Next', copyCode: 'Copy code', copied: 'Copied', directory: 'Documentation index', fallback: 'This article is not translated yet. The Simplified Chinese source is shown below.', pendingTitle: 'Content pending', pendingSummary: 'This topic is in the documentation index and will be completed in a later batch.', pendingBody: 'No implementation guidance is published here yet. Product or backend confirmation is still required.' },
+  ja: { prerequisites: '前提条件', onThisPage: 'このページ', previous: '前へ', next: '次へ', copyCode: 'コードをコピー', copied: 'コピーしました', directory: 'ドキュメント一覧', fallback: 'この記事は未翻訳のため、簡体字中国語の原文を表示しています。', pendingTitle: '内容は準備中です', pendingSummary: 'このトピックはドキュメント一覧に追加済みで、今後の更新で完成します。', pendingBody: '実装ガイドはまだ公開されていません。製品またはバックエンドの確認が必要です。' },
+  ru: { prerequisites: 'Предварительные условия', onThisPage: 'На этой странице', previous: 'Назад', next: 'Далее', copyCode: 'Копировать код', copied: 'Скопировано', directory: 'Содержание документации', fallback: 'Перевод пока недоступен. Ниже показана версия на упрощенном китайском.', pendingTitle: 'Материал готовится', pendingSummary: 'Тема добавлена в документацию и будет дополнена в следующей редакции.', pendingBody: 'Инструкции еще не опубликованы. Требуется подтверждение продукта или бэкенда.' },
+  fr: { prerequisites: 'Prérequis', onThisPage: 'Sur cette page', previous: 'Précédent', next: 'Suivant', copyCode: 'Copier le code', copied: 'Copié', directory: 'Sommaire', fallback: 'Cet article n’est pas encore traduit. La version source en chinois simplifié est affichée.', pendingTitle: 'Contenu à venir', pendingSummary: 'Ce sujet figure dans la documentation et sera complété lors d’une prochaine édition.', pendingBody: 'Aucune procédure n’est encore publiée. Une confirmation produit ou backend reste nécessaire.' },
+  vi: { prerequisites: 'Điều kiện tiên quyết', onThisPage: 'Trong trang này', previous: 'Trước', next: 'Tiếp', copyCode: 'Sao chép mã', copied: 'Đã sao chép', directory: 'Mục lục tài liệu', fallback: 'Bài viết chưa được dịch. Phiên bản tiếng Trung giản thể được hiển thị bên dưới.', pendingTitle: 'Nội dung đang hoàn thiện', pendingSummary: 'Chủ đề đã có trong mục lục và sẽ được hoàn thiện ở đợt sau.', pendingBody: 'Hướng dẫn triển khai chưa được xuất bản. Vẫn cần xác nhận từ sản phẩm hoặc backend.' },
+}
+
+const docsItems = docsCatalog.flatMap((group) => group.items)
+const docsItemIds = docsItems.map((item) => item.id)
+
+function docsItemFromHash(): DocsItemId {
+  const [root, item] = window.location.hash.replace(/^#/, '').split('/')
+  if (root === 'docs' && docsItemIds.includes(item as DocsItemId)) return item as DocsItemId
+  return 'welcome'
+}
+
+function DocsInlineText({ text }: { text: string }) {
+  return <>{text.split(/(`[^`]+`)/g).map((part, index) => part.startsWith('`') && part.endsWith('`') ? <code key={`${part}-${index}`}>{part.slice(1, -1)}</code> : part)}</>
+}
+
+function DocsCodeSamples({ samples, labels }: { samples: DocsCodeSample[]; labels: DocsDetailLabels }) {
+  const [language, setLanguage] = useState(samples[0]?.language ?? 'shell')
+  const selected = samples.find((sample) => sample.language === language) ?? samples[0]
+  if (!selected) return null
+  return <div className="r3-docs-code-samples">
+    {samples.length > 1 ? <div className="pt-segmented r3-sdk-tabs" aria-label="Code language">{samples.map((sample) => <button type="button" key={sample.language} aria-pressed={selected.language === sample.language} onClick={() => setLanguage(sample.language)}>{sample.language === 'shell' ? 'Shell' : sample.language === 'javascript' ? 'JavaScript' : 'Python'}</button>)}</div> : null}
+    <CodeBlock code={selected.code} label={selected.label} copyLabel={`${labels.copyCode}: ${selected.label}`} copiedLabel={labels.copied} />
+  </div>
+}
+
+function DocsContent({ block, labels }: { block: DocsContentBlock; labels: DocsDetailLabels }) {
+  if (block.type === 'paragraph') return <p className="r3-docs-paragraph"><DocsInlineText text={block.text} /></p>
+  if (block.type === 'list') {
+    const List = block.ordered ? 'ol' : 'ul'
+    return <List className="r3-docs-list">{block.items.map((item) => <li key={item}><DocsInlineText text={item} /></li>)}</List>
+  }
+  if (block.type === 'steps') return <ol className="r3-docs-steps">{block.items.map((item, index) => <li key={item.title}><code>{String(index + 1).padStart(2, '0')}</code><div><strong>{item.title}</strong><p><DocsInlineText text={item.body} /></p></div></li>)}</ol>
+  if (block.type === 'callout') {
+    const Icon = block.tone === 'warning' ? AlertTriangle : block.tone === 'success' ? CheckCircle2 : Info
+    return <aside className="r3-docs-callout" data-tone={block.tone}><Icon size={19} /><div><strong>{block.title}</strong><p><DocsInlineText text={block.body} /></p></div></aside>
+  }
+  if (block.type === 'endpoint') return <div className="r3-docs-detail-endpoint"><span>{block.method ? <code>{block.method}</code> : <Globe2 size={16} />}{block.label}</span><code>{block.path}</code><CheckCircle2 size={16} /></div>
+  if (block.type === 'code-samples') return <DocsCodeSamples samples={block.samples} labels={labels} />
+  if (block.type === 'table') return <div className="r3-docs-table-wrap"><table><thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={`${row[0]}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${cell}-${cellIndex}`}><DocsInlineText text={cell} /></td>)}</tr>)}</tbody></table></div>
+  return <div className="r3-docs-faq-list">{block.items.map((item, index) => <details key={item.question} open={index === 0}><summary><span>{item.question}</span><ChevronDown size={18} /></summary><p><DocsInlineText text={item.answer} /></p></details>)}</div>
+}
+
 function DocsPage({ locale, go }: Pick<PublicPrototypeProps, 'locale' | 'go'>) {
   const t = (key: string) => translate(locale, key)
-  const [sdk, setSdk] = useState<keyof typeof sdkExamples>('shell')
-  const steps = [
-    { href: '#base-url', label: t('Base URL') },
-    { href: '#authentication', label: t('Authentication') },
-    { href: '#first-request', label: t('First request') },
-    { href: '#sdk', label: 'SDK' },
-    { href: '#reference', label: t('API reference') },
-  ]
+  const copy = publicDocsCopy[locale]
+  const labels = docsDetailLabels[locale]
+  const [query, setQuery] = useState('')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [activeItem, setActiveItem] = useState<DocsItemId>(docsItemFromHash)
+  const [activeSection, setActiveSection] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+  const sourceDocument = getDocsDocument(activeItem)
+  const documentContent = useMemo<DocsDocument>(() => sourceDocument ?? {
+    id: activeItem,
+    summary: labels.pendingSummary,
+    sections: [{ id: 'pending', title: labels.pendingTitle, blocks: [{ type: 'callout', tone: 'warning', title: labels.pendingTitle, body: labels.pendingBody }] }],
+  }, [activeItem, labels, sourceDocument])
+  const activeGroup = docsCatalog.find((group) => group.items.some((item) => item.id === activeItem))
+  const navigationOrder = completedDocsOrder.includes(activeItem) ? completedDocsOrder : docsItemIds
+  const navigationIndex = navigationOrder.indexOf(activeItem)
+  const previousItem = navigationIndex > 0 ? navigationOrder[navigationIndex - 1] : undefined
+  const nextItem = navigationIndex >= 0 ? navigationOrder[navigationIndex + 1] : undefined
+
+  const filteredCatalog = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase(locale)
+    if (!normalized) return docsCatalog
+    return docsCatalog.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => `${copy.items[item.id]} ${getDocsSearchText(item.id)}`.toLocaleLowerCase(locale).includes(normalized)),
+    })).filter((group) => group.items.length > 0 || copy.groups[group.id].title.toLocaleLowerCase(locale).includes(normalized))
+  }, [copy, locale, query])
+
+  const scrollToSection = (section: string) => {
+    document.getElementById(`docs-section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActiveSection(section)
+  }
+
+  const openDocument = (id: DocsItemId) => {
+    setActiveItem(id)
+    setActiveSection('')
+    setQuery('')
+    setMobileNavOpen(false)
+    window.location.hash = `docs/${id}`
+    window.scrollTo({ top: 0 })
+  }
+
+  const openItem = (target: DocsItemTarget) => openDocument(target.document)
+
+  useEffect(() => {
+    const onHashChange = () => {
+      setActiveItem(docsItemFromHash())
+      setActiveSection('')
+      setMobileNavOpen(false)
+      window.scrollTo({ top: 0 })
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  useEffect(() => {
+    const firstSection = documentContent.sections[0]?.id ?? ''
+    setActiveSection(firstSection)
+    const sections = documentContent.sections
+      .map((section) => document.getElementById(`docs-section-${section.id}`))
+      .filter((element): element is HTMLElement => element !== null)
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+      if (visible) setActiveSection(visible.target.id.replace('docs-section-', ''))
+    }, { rootMargin: '-18% 0px -68% 0px', threshold: 0 })
+    sections.forEach((section) => observer.observe(section))
+    return () => observer.disconnect()
+  }, [documentContent])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setMobileNavOpen(true)
+        window.requestAnimationFrame(() => searchRef.current?.focus())
+      } else if (event.key === 'Escape') {
+        setMobileNavOpen(false)
+        searchRef.current?.blur()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   return <main className="r3-page r3-docs-page">
-    <aside className="r3-docs-index"><span>{t('Quick start')}</span><nav>{steps.map((step, index) => <a key={step.href} href={step.href}><code>0{index + 1}</code>{step.label}</a>)}</nav><button type="button" onClick={() => go('console')}><KeyRound size={16} />{t('Create a key')}<ChevronRight size={15} /></button></aside>
-    <article className="r3-docs-article">
-      <PageIntro eyebrow="PARTOKENS API" title={t('Docs')} description={t('Start with an API key and one compatible request.')} />
-      <section id="base-url" className="r3-docs-section"><span>01</span><div><h2>{t('Base URL')}</h2><p>{t('Use the Partokens compatible endpoint in clients that support a custom OpenAI base URL.')}</p><div className="r3-inline-endpoint"><Globe2 size={16} /><code>https://partokens.com/v1</code></div></div></section>
-      <section id="authentication" className="r3-docs-section"><span>02</span><div><h2>{t('Authentication')}</h2><p>{t('Create a scoped API key in the console and send it as a Bearer token.')}</p><button type="button" className="r3-text-link" onClick={() => go('console')}><KeyRound size={15} />{t('Create a key')}<ArrowRight size={14} /></button></div></section>
-      <section id="first-request" className="r3-docs-section"><span>03</span><div><h2>{t('First request')}</h2><p>{t('Replace the model name with one available to your account group.')}</p><CodeBlock code={requestExample} label="cURL" copyLabel={t('Copy request')} copiedLabel={t('Copied')} /></div></section>
-      <section id="sdk" className="r3-docs-section"><span>04</span><div><h2>SDK</h2><p>{t('Use the OpenAI-compatible endpoint in your CLI or SDK. The full key is never stored in this browser.')}</p><div className="pt-segmented r3-sdk-tabs" aria-label="SDK"><button type="button" aria-pressed={sdk === 'shell'} onClick={() => setSdk('shell')}>Shell</button><button type="button" aria-pressed={sdk === 'javascript'} onClick={() => setSdk('javascript')}>JavaScript</button><button type="button" aria-pressed={sdk === 'python'} onClick={() => setSdk('python')}>Python</button></div><CodeBlock code={sdkExamples[sdk]} label={sdk === 'shell' ? 'cURL' : sdk === 'javascript' ? 'JavaScript' : 'Python'} copyLabel={t('Copy request')} copiedLabel={t('Copied')} /></div></section>
-      <section id="reference" className="r3-docs-reference"><TerminalSquare size={22} /><div><h2>{t('Full reference')}</h2><p>{t('API response fields follow the OpenAI-compatible schema for each endpoint.')}</p></div><button type="button" className="pt-button" data-variant="secondary"><BookOpen size={16} />{t('API reference')}</button></section>
+    <button type="button" className="r3-docs-mobile-trigger" aria-label={mobileNavOpen ? copy.closeNavigation : copy.mobileNavigation} title={mobileNavOpen ? copy.closeNavigation : copy.mobileNavigation} aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}<span>{labels.directory}</span></button>
+
+    <aside className="r3-docs-index" data-open={mobileNavOpen} aria-label={copy.mobileNavigation}>
+      <div className="r3-docs-index-head"><span>{copy.eyebrow}</span><button type="button" aria-label={copy.closeNavigation} title={copy.closeNavigation} onClick={() => setMobileNavOpen(false)}><PanelLeftClose size={17} /></button></div>
+      <label className="r3-docs-search"><Search size={16} /><span className="sr-only">{copy.searchLabel}</span><input ref={searchRef} type="search" value={query} placeholder={copy.searchPlaceholder} aria-label={copy.searchLabel} onChange={(event) => setQuery(event.target.value)} />{query ? <button type="button" aria-label={copy.clearSearch} title={copy.clearSearch} onClick={() => { setQuery(''); searchRef.current?.focus() }}><X size={14} /></button> : null}</label>
+      <nav className="r3-docs-utility" aria-label={copy.eyebrow}>
+        <button type="button" onClick={() => go('home')}><House size={15} />{copy.home}</button>
+        <button type="button" onClick={() => go('console')}><Route size={15} />{copy.console}</button>
+        <a href="mailto:support@partokens.com"><MessageSquare size={15} />{copy.contactSupport}</a>
+      </nav>
+      <nav className="r3-docs-tree" aria-label={t('Docs')}>
+        {filteredCatalog.map((group) => <section key={group.id}>
+          <h2>{copy.groups[group.id].title}</h2>
+          {group.items.map((item) => <button type="button" key={item.id} aria-current={activeItem === item.id ? 'page' : undefined} onClick={() => openItem(item.target)}>{copy.items[item.id]}</button>)}
+        </section>)}
+        {filteredCatalog.length === 0 ? <p className="r3-docs-empty"><Search size={16} />{copy.noResults}</p> : null}
+      </nav>
+    </aside>
+
+    <article className="r3-docs-article" key={activeItem}>
+      <header className="r3-docs-hero">
+        <span>{activeGroup ? copy.groups[activeGroup.id].title : copy.eyebrow}</span>
+        <h1>{copy.items[activeItem]}</h1>
+        <p>{documentContent.summary}</p>
+        {documentContent.prerequisites?.length ? <div className="r3-docs-prerequisites"><strong><FileCheck2 size={16} />{labels.prerequisites}</strong><ul>{documentContent.prerequisites.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
+      </header>
+
+      {locale !== 'zh-CN' && sourceDocument ? <aside className="r3-docs-language-fallback"><Languages size={17} /><p>{labels.fallback}</p></aside> : null}
+
+      <div className="r3-docs-detail-body">{documentContent.sections.map((section) => <section id={`docs-section-${section.id}`} key={section.id} data-doc-section><h2>{section.title}</h2><div>{section.blocks.map((block, index) => <DocsContent key={`${section.id}-${block.type}-${index}`} block={block} labels={labels} />)}</div></section>)}</div>
+
+      <nav className="r3-docs-pagination" aria-label={`${labels.previous} / ${labels.next}`}>
+        {previousItem ? <button type="button" data-direction="previous" onClick={() => openDocument(previousItem)}><ChevronRight size={17} /><span><small>{labels.previous}</small><strong>{copy.items[previousItem]}</strong></span></button> : <span />}
+        {nextItem ? <button type="button" data-direction="next" onClick={() => openDocument(nextItem)}><span><small>{labels.next}</small><strong>{copy.items[nextItem]}</strong></span><ChevronRight size={17} /></button> : <span />}
+      </nav>
     </article>
+
+    <aside className="r3-docs-toc" aria-label={labels.onThisPage}>
+      <span>{labels.onThisPage}</span>
+      {documentContent.sections.map((section) => <button type="button" key={section.id} aria-current={activeSection === section.id ? 'location' : undefined} onClick={() => scrollToSection(section.id)}>{section.title}</button>)}
+    </aside>
   </main>
 }
 
@@ -547,11 +789,10 @@ function LegalPage({ locale, screen, go }: Pick<PublicPrototypeProps, 'locale' |
     { target: 'legal-privacy', kind: 'privacy-policy' },
   ]
   return <main className="r3-page r3-legal-layout">
-    <aside className="r3-legal-index"><span>{t('Legal')}</span><nav>{legalLinks.map((link) => { const item = getLegalDocument(locale, link.kind); return <button type="button" key={link.kind} aria-current={kind === link.kind ? 'page' : undefined} onClick={() => go(link.target)}><FileText size={16} />{item.title}</button> })}</nav><div><FileCheck2 size={16} /><span>{t('Draft content')}<small>{t('Owner review required')}</small></span></div></aside>
+    <aside className="r3-legal-index"><span>{t('Legal')}</span><nav>{legalLinks.map((link) => { const item = getLegalDocument(locale, link.kind); return <button type="button" key={link.kind} aria-current={kind === link.kind ? 'page' : undefined} onClick={() => go(link.target)}><FileText size={16} />{item.title}</button> })}</nav></aside>
     <article className="r3-legal-document">
-      <PageIntro eyebrow={t('Legal draft')} title={document.title} description={document.summary} />
-      <div className="r3-legal-meta"><span><FileCheck2 size={15} />{t('Draft content')}</span><span>{t('Effective date')}: <code>{document.effectiveDate}</code></span><span>{t('Owner review required')}</span></div>
-      <div className="r3-legal-body">{document.sections.map((section, index) => <section key={section.title}><span>0{index + 1}</span><div><h2>{section.title}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div></section>)}</div>
+      <PageIntro eyebrow={t('Legal')} title={document.title} description={document.summary} />
+      <div className="r3-legal-body">{document.sections.map((section, index) => <section key={section.title}><span>{String(index + 1).padStart(2, '0')}</span><div><h2>{section.title}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div></section>)}</div>
     </article>
   </main>
 }
@@ -569,6 +810,67 @@ function NoticesPage({ locale, version }: Pick<PublicPrototypeProps, 'locale' | 
   </main>
 }
 
+type ServiceState = 'checking' | 'available' | 'unavailable'
+
+function StatusPage({ locale, online, version }: Pick<PublicPrototypeProps, 'locale' | 'online' | 'version'>) {
+  const copy = statusPageCopy[locale]
+  const [state, setState] = useState<ServiceState>(online === null ? 'checking' : online ? 'available' : 'unavailable')
+  const [serviceVersion, setServiceVersion] = useState(version)
+  const [startedAt, setStartedAt] = useState<Date | null>(null)
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null)
+  const [checking, setChecking] = useState(false)
+
+  const formatDate = (value: Date | null, fallback: string) => value
+    ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(value)
+    : fallback
+
+  const checkStatus = async () => {
+    setChecking(true)
+    try {
+      const response = await fetch('/api/status', { cache: 'no-store', headers: { Accept: 'application/json' } })
+      const body = await response.json() as { success?: boolean; data?: { version?: string; start_time?: number } }
+      if (!response.ok || !body.success) throw new Error('Status endpoint did not confirm availability')
+      setState('available')
+      setServiceVersion(body.data?.version)
+      setStartedAt(typeof body.data?.start_time === 'number' ? new Date(body.data.start_time * 1000) : null)
+    } catch {
+      setState('unavailable')
+    } finally {
+      setCheckedAt(new Date())
+      setChecking(false)
+    }
+  }
+
+  useEffect(() => { void checkStatus() }, [])
+
+  const stateCopy = state === 'available'
+    ? { label: copy.operational, body: copy.operationalBody, value: copy.available }
+    : state === 'unavailable'
+      ? { label: copy.unavailable, body: copy.unavailableBody, value: copy.unreachable }
+      : { label: copy.checking, body: copy.checkingBody, value: copy.checkPending }
+  const StateIcon = state === 'available' ? CheckCircle2 : state === 'unavailable' ? AlertTriangle : Activity
+
+  return <main className="r3-page r3-status-page">
+    <PageIntro eyebrow={copy.eyebrow} title={copy.title} description={copy.description}>
+      <span className="r3-status-pill" data-state={state} role="status"><i />{stateCopy.value}</span>
+    </PageIntro>
+    <section className="r3-status-overview" aria-labelledby="service-status-title">
+      <article className="r3-status-current" aria-live="polite">
+        <span data-state={state}><StateIcon size={22} /></span>
+        <div><small>{copy.currentStatus}</small><h2 id="service-status-title">{stateCopy.label}</h2><p>{stateCopy.body}</p></div>
+        <button type="button" className="pt-button r3-status-refresh" data-variant="secondary" disabled={checking} onClick={() => void checkStatus()}><RefreshCw className={checking ? 'is-spinning' : ''} size={16} />{checking ? copy.refreshing : copy.refresh}</button>
+      </article>
+      <dl className="r3-status-facts">
+        <div><dt><Server size={15} />{copy.apiService}</dt><dd><strong data-state={state}>{stateCopy.value}</strong><small>GET /api/status</small></dd></div>
+        <div><dt>{copy.deployedVersion}</dt><dd><code>{serviceVersion ?? copy.notAvailable}</code></dd></div>
+        <div><dt>{copy.startedAt}</dt><dd><time dateTime={startedAt?.toISOString()}>{formatDate(startedAt, copy.notAvailable)}</time></dd></div>
+        <div><dt>{copy.checkedAt}</dt><dd><time dateTime={checkedAt?.toISOString()}>{formatDate(checkedAt, copy.waiting)}</time></dd></div>
+      </dl>
+    </section>
+    <section className="r3-status-scope"><ShieldCheck size={21} /><div><h2>{copy.scopeTitle}</h2><p>{copy.scopeBody}</p></div></section>
+  </main>
+}
+
 export function PublicPrototype(props: PublicPrototypeProps) {
   let page: ReactNode
   if (props.screen === 'home') page = <HomePage locale={props.locale} theme={props.theme} go={props.go} />
@@ -576,6 +878,7 @@ export function PublicPrototype(props: PublicPrototypeProps) {
   else if (props.screen === 'docs') page = <DocsPage locale={props.locale} go={props.go} />
   else if (props.screen === 'about') page = <AboutPage locale={props.locale} />
   else if (props.screen === 'notices') page = <NoticesPage locale={props.locale} version={props.version} />
+  else if (props.screen === 'status') page = <StatusPage locale={props.locale} online={props.online} version={props.version} />
   else page = <LegalPage locale={props.locale} screen={props.screen} go={props.go} />
 
   return <PublicShell {...props}>{page}</PublicShell>
