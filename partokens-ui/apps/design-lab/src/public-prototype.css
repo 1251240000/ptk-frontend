@@ -419,6 +419,14 @@
 .r3-docs-detail-endpoint > code { min-width: 0; color: var(--pt-color-text-primary); font-family: var(--pt-font-mono); font-size: var(--pt-font-size-12); overflow-wrap: anywhere; }
 .r3-docs-detail-endpoint > svg { color: var(--pt-color-success); }
 
+.r3-docs-links { max-width: 720px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--pt-color-border-strong); border-bottom: 1px solid var(--pt-color-border-strong); }
+.r3-docs-links a { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--pt-space-1) var(--pt-space-3); align-items: center; padding: var(--pt-space-4); color: var(--pt-color-text-primary); text-decoration: none; }
+.r3-docs-links a + a { border-left: 1px solid var(--pt-color-border-default); }
+.r3-docs-links a:hover { background: var(--pt-color-bg-subtle); color: var(--pt-color-action-primary); }
+.r3-docs-links a span { min-width: 0; font-size: var(--pt-font-size-13); font-weight: var(--pt-font-weight-semibold); overflow-wrap: anywhere; }
+.r3-docs-links a code { min-width: 0; grid-column: 1; color: var(--pt-color-text-secondary); font-family: var(--pt-font-mono); font-size: var(--pt-font-size-11); overflow-wrap: anywhere; }
+.r3-docs-links a svg { grid-column: 2; grid-row: 1 / span 2; color: var(--pt-color-action-primary); }
+
 .r3-docs-code-samples { min-width: 0; max-width: 720px; }
 .r3-docs-code-samples .r3-code-block { max-width: 100%; }
 .r3-docs-code-samples .r3-code-block pre { max-width: 100%; overscroll-behavior-inline: contain; }
@@ -665,6 +673,8 @@
   .r3-docs-detail-body > section > h2 { font-size: var(--pt-font-size-21); }
   .r3-docs-detail-endpoint { grid-template-columns: minmax(0, 1fr) auto; gap: var(--pt-space-2); }
   .r3-docs-detail-endpoint > span { grid-column: 1 / -1; }
+  .r3-docs-links { grid-template-columns: 1fr; }
+  .r3-docs-links a + a { border-top: 1px solid var(--pt-color-border-default); border-left: 0; }
   .r3-docs-table-wrap { width: calc(100vw - (var(--pt-space-4) * 2)); max-width: 100%; }
   .r3-docs-pagination { grid-template-columns: 1fr; }
   .r3-docs-pagination > button[data-direction='next'] { border-top: 1px solid var(--pt-color-border-default); border-left: 0; }

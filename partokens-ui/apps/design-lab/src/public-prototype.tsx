@@ -622,6 +622,10 @@ function DocsContent({ block, labels }: { block: DocsContentBlock; labels: DocsD
     return <aside className="r3-docs-callout" data-tone={block.tone}><Icon size={19} /><div><strong>{block.title}</strong><p><DocsInlineText text={block.body} /></p></div></aside>
   }
   if (block.type === 'endpoint') return <div className="r3-docs-detail-endpoint"><span>{block.method ? <code>{block.method}</code> : <Globe2 size={16} />}{block.label}</span><code>{block.path}</code><CheckCircle2 size={16} /></div>
+  if (block.type === 'links') return <div className="r3-docs-links">{block.items.map((item) => {
+    const external = item.href.startsWith('https://')
+    return <a key={item.href} href={item.href} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}><span>{item.label}</span><code>{item.href.replace(/^mailto:/, '')}</code>{external ? <ExternalLink size={15} /> : <MessageSquare size={15} />}</a>
+  })}</div>
   if (block.type === 'code-samples') return <DocsCodeSamples samples={block.samples} labels={labels} />
   if (block.type === 'table') return <div className="r3-docs-table-wrap"><table><thead><tr>{block.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{block.rows.map((row, rowIndex) => <tr key={`${row[0]}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${cell}-${cellIndex}`}><DocsInlineText text={cell} /></td>)}</tr>)}</tbody></table></div>
   return <div className="r3-docs-faq-list">{block.items.map((item, index) => <details key={item.question} open={index === 0}><summary><span>{item.question}</span><ChevronDown size={18} /></summary><p><DocsInlineText text={item.answer} /></p></details>)}</div>
