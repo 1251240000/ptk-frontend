@@ -34,6 +34,8 @@ class BrevoClient:
         recipient: str,
         subject: str,
         content: RenderedEmail,
+        *,
+        tags: tuple[str, ...] = ("email-verification",),
     ) -> str | None:
         payload: dict[str, Any] = {
             "sender": {
@@ -44,7 +46,7 @@ class BrevoClient:
             "subject": subject,
             "htmlContent": content.html,
             "textContent": content.text,
-            "tags": ["email-verification"],
+            "tags": list(tags),
         }
         headers = {
             "accept": "application/json",

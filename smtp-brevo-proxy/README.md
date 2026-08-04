@@ -103,3 +103,13 @@ python3 scripts/send_sample.py --to you@example.com
 ```
 
 该命令会触发真实 Brevo 发送，请使用可接收测试邮件的地址。
+
+## 客服通知邮件
+
+`templates/customer-service-notice.html` 和对应的纯文本模板用于服务恢复及账户补偿通知。推送脚本默认从项目根目录的 `.env` 读取 Brevo 配置，并使用 `$100`、`8 hours`、`August 4, 2026` 作为模板参数：
+
+```bash
+.venv/bin/python scripts/send_customer_notice.py --to user@example.com
+```
+
+该脚本直接调用 Brevo Transactional Email API，不经过只接受验证码邮件的本地 SMTP 入口。可通过 `--subject`、`--credit`、`--duration` 和 `--date` 覆盖默认通知内容；执行命令会真实发送邮件。

@@ -44,10 +44,35 @@ class BrevoClientTests(unittest.TestCase):
         self.assertEqual(
             payload["subject"], "ffa926 is your Partokens verification code"
         )
+        self.assertEqual(payload["tags"], ["email-verification"])
         headers = captured["headers"]
         self.assertIsInstance(headers, httpx.Headers)
         assert isinstance(headers, httpx.Headers)
         self.assertEqual(headers["api-key"], "test-key")
+
+    def test_accepts_custom_transactional_tags(self) -> None:
+        captured: dict[str, object] = {}
+
+        async def respond(request: httpx.Request) -> httpx.Response:
+            captured["payload"] = json.loads(request.content)
+            return httpx.Response(201, json={"messageId": "notice-message-id"})
+
+        client = BrevoClient(self.settings, httpx.MockTransport(respond))
+        asyncio.run(
+            client.send(
+                "user@example.com",
+                "Service restored",
+                self.content,
+                tags=("customer-service", "service-restored"),
+            )
+        )
+
+        payload = captured["payload"]
+        self.assertIsInstance(payload, dict)
+        assert isinstance(payload, dict)
+        self.assertEqual(
+            payload["tags"], ["customer-service", "service-restored"]
+        )
 
     def test_maps_rate_limit_to_transient_error(self) -> None:
         async def respond(request: httpx.Request) -> httpx.Response:
