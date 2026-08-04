@@ -2,7 +2,7 @@
   min-height: 100svh;
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', 'Noto Sans SC', sans-serif;
+  font-family: var(--pt-lab-font-interface);
 }
 
 .r32-auth-layout {
@@ -12,8 +12,8 @@
 }
 
 .r32-auth-rail {
-  --auth-rail-bg: #687f9d;
-  --auth-rail-fg: #ffffff;
+  --auth-rail-bg: var(--pt-lab-color-auth-rail);
+  --auth-rail-fg: var(--pt-lab-color-auth-rail-foreground);
   min-width: 0;
   min-height: 100svh;
   position: sticky;
@@ -23,7 +23,7 @@
   grid-template-rows: auto 1fr auto;
   padding: 2rem 2.5rem 2.5rem;
   overflow: hidden;
-  border-right: 1px solid rgb(255 255 255 / 10%);
+  border-right: 1px solid color-mix(in srgb, var(--auth-rail-fg) 10%, transparent);
   background-color: var(--auth-rail-bg);
   background-image: url('/auth/partokens-routing-atlas.jpg');
   background-position: center;
@@ -31,17 +31,14 @@
   color: var(--auth-rail-fg);
 }
 
-.dark .r32-auth-rail { --auth-rail-bg: #182438; }
-
 .r32-auth-rail::before {
   position: absolute;
   z-index: 0;
   inset: 0;
-  background: rgb(10 24 43 / 18%);
+  background: var(--pt-lab-color-auth-rail-overlay);
   content: '';
 }
 
-.dark .r32-auth-rail::before { background: rgb(3 10 22 / 42%); }
 .r32-auth-rail > * { position: relative; z-index: 1; }
 
 .r32-auth-brand-button {
@@ -62,7 +59,7 @@
   display: inline-flex;
   align-items: center;
   gap: .625rem;
-  font-size: 1rem;
+  font-size: var(--pt-lab-font-size-16);
   font-weight: 650;
 }
 
@@ -72,9 +69,9 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 46%);
+  border: 1px solid color-mix(in srgb, var(--auth-rail-fg) 46%, transparent);
   border-radius: .5rem;
-  background: #ffffff;
+  background: var(--pt-lab-color-auth-rail-foreground);
 }
 
 .r32-auth-brand img {
@@ -94,27 +91,27 @@
   display: grid;
   gap: .625rem;
   padding-left: 1rem;
-  border-left: 2px solid rgb(255 255 255 / 68%);
+  border-left: 2px solid color-mix(in srgb, var(--auth-rail-fg) 68%, transparent);
 }
 
 .r32-auth-rail-story > span {
-  color: rgb(255 255 255 / 68%);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: .6875rem;
+  color: color-mix(in srgb, var(--auth-rail-fg) 68%, transparent);
+  font-family: var(--pt-lab-font-mono);
+  font-size: var(--pt-lab-font-size-11);
   font-weight: 600;
 }
 
 .r32-auth-rail-story h2 {
   max-width: 31rem;
-  font-size: 1.5rem;
+  font-size: var(--pt-lab-font-size-24);
   font-weight: 650;
   line-height: 1.3;
 }
 
 .r32-auth-rail-story p {
   max-width: 34rem;
-  color: rgb(255 255 255 / 80%);
-  font-size: .875rem;
+  color: color-mix(in srgb, var(--auth-rail-fg) 80%, transparent);
+  font-size: var(--pt-lab-font-size-14);
   font-weight: 450;
   line-height: 1.6;
 }
@@ -163,7 +160,7 @@
   border-color: var(--border);
   background: var(--popover);
   color: var(--popover-foreground);
-  font-family: 'Inter', 'Noto Sans SC', sans-serif;
+  font-family: var(--pt-lab-font-interface);
   letter-spacing: 0;
 }
 
@@ -191,7 +188,7 @@
 .r32-auth-page-heading > span { display: none; }
 
 .r32-auth-page-heading h1 {
-  font-size: 1.25rem;
+  font-size: var(--pt-lab-font-size-20);
   font-weight: 650;
   line-height: 1.35;
 }
@@ -199,7 +196,7 @@
 .r32-auth-page-heading p {
   margin-top: .375rem;
   color: var(--muted-foreground);
-  font-size: .8125rem;
+  font-size: var(--pt-lab-font-size-13);
   line-height: 1.5;
 }
 
@@ -213,7 +210,7 @@
   border: 0;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
 }
 
 .r32-auth-back:hover { color: var(--foreground); }
@@ -235,7 +232,7 @@
 .r32-auth-field > span:first-child {
   color: var(--foreground);
   font-family: inherit;
-  font-size: .8125rem;
+  font-size: var(--pt-lab-font-size-13);
   font-weight: 550;
 }
 
@@ -259,16 +256,16 @@
   padding: 0 .75rem;
   color: var(--foreground);
   font-family: inherit;
-  font-size: .8125rem;
+  font-size: var(--pt-lab-font-size-13);
 }
 
 .r32-auth-field .pt-field-control:has(.r32-field-action) input { padding-right: 2.75rem; }
 .r32-auth-field .pt-field-control:has(.r32-send-code) input { padding-right: 6.75rem; }
-.r32-auth-field small { color: var(--muted-foreground); font-size: .6875rem; line-height: 1.45; }
+.r32-auth-field small { color: var(--muted-foreground); font-size: var(--pt-lab-font-size-11); line-height: 1.45; }
 .r32-auth-password-hint {
   margin-top: -.375rem;
   color: var(--muted-foreground);
-  font-size: .6875rem;
+  font-size: var(--pt-lab-font-size-11);
   line-height: 1.45;
 }
 
@@ -308,7 +305,7 @@
   border: 0;
   background: transparent;
   color: var(--foreground);
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
 }
 
 .r32-auth-text-action:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -340,7 +337,7 @@
   display: grid;
   gap: .5rem;
   color: var(--muted-foreground);
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
 }
 
 .r32-auth-consent .pt-check {
@@ -348,7 +345,7 @@
   align-items: start;
   gap: .5rem;
   font-family: inherit;
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
   line-height: 1.5;
 }
 
@@ -365,7 +362,7 @@
   border: 0;
   background: transparent;
   color: var(--foreground);
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -376,7 +373,7 @@
   gap: .875rem;
   margin: 1.25rem 0;
   color: var(--muted-foreground);
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
 }
 
 .r32-auth-divider::before,
@@ -398,7 +395,7 @@
   background: var(--background);
   color: var(--foreground);
   font-family: inherit;
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
   text-overflow: ellipsis;
 }
 
@@ -413,7 +410,7 @@
   border-radius: 999px;
   background: var(--background);
   color: var(--foreground);
-  font-size: .625rem;
+  font-size: var(--pt-lab-font-size-10);
   font-weight: 650;
 }
 
@@ -427,7 +424,7 @@
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--muted) 44%, transparent);
   color: var(--muted-foreground);
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
 }
 
 .r32-auth-switch button {
@@ -454,7 +451,7 @@
   border-radius: .375rem;
   background: color-mix(in srgb, var(--pt-color-success) 8%, transparent);
   color: var(--pt-color-success);
-  font-size: .75rem;
+  font-size: var(--pt-lab-font-size-12);
   line-height: 1.45;
 }
 
@@ -516,15 +513,15 @@
 }
 .r32-oauth-route > div { min-width: 0; min-height: 7.5rem; display: grid; place-content: center; justify-items: center; gap: .5rem; text-align: center; }
 .r32-oauth-route > div > span { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: .375rem; background: var(--accent); color: var(--accent-foreground); }
-.r32-oauth-route small { color: var(--muted-foreground); font-size: .6875rem; }
-.r32-oauth-route strong { max-width: 100%; overflow: hidden; font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+.r32-oauth-route small { color: var(--muted-foreground); font-size: var(--pt-lab-font-size-11); }
+.r32-oauth-route strong { max-width: 100%; overflow: hidden; font-size: var(--pt-lab-font-size-12); text-overflow: ellipsis; white-space: nowrap; }
 .r32-oauth-route > span { display: flex; align-items: center; color: var(--primary); }
 .r32-oauth-route > span i { height: 1px; flex: 1; background: var(--primary); }
 .r32-oauth-route[data-complete] > div:last-child > span { background: color-mix(in srgb, var(--pt-color-success) 12%, transparent); color: var(--pt-color-success); }
 .r32-oauth-route[data-complete] > span,
 .r32-oauth-route[data-complete] > div:last-child small { color: var(--pt-color-success); }
 .r32-oauth-route[data-complete] > span i { background: var(--pt-color-success); }
-.r32-auth-process-note { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; color: var(--muted-foreground); font-size: .75rem; line-height: 1.45; }
+.r32-auth-process-note { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; color: var(--muted-foreground); font-size: var(--pt-lab-font-size-12); line-height: 1.45; }
 .r32-auth-process-note.is-complete { margin-bottom: 1rem; color: var(--pt-color-success); }
 .r32-spin { animation: r32-auth-spin 900ms linear infinite; }
 @keyframes r32-auth-spin { to { transform: rotate(360deg); } }
@@ -559,7 +556,7 @@
   .r32-auth-tools { top: 1rem; right: 1rem; }
   .r32-auth-form-shell { padding: 1.5rem 1.125rem 1.125rem; }
   .r32-auth-page-heading { margin-bottom: 1.25rem; }
-  .r32-auth-page-heading h1 { font-size: 1.125rem; }
+  .r32-auth-page-heading h1 { font-size: var(--pt-lab-font-size-18); }
   .r32-auth-field-grid { grid-template-columns: 1fr; }
   .r32-oauth-grid { grid-template-columns: 1fr; }
   .r32-auth-switch { margin: 1.25rem -1.125rem -1.125rem; padding: .875rem 1.125rem; }

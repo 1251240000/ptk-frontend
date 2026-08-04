@@ -362,7 +362,7 @@ function TrendChart({ points, totals, measure }: { points: AnalyticsPoint[]; tot
                       <p>Previous: {formatMeasure(past, measure)}</p>
                     </TooltipContent>
                   </Tooltip>
-                  <span className='truncate text-center text-[10px] text-muted-foreground'>{showLabel ? point.shortLabel : ''}</span>
+                  <span className='truncate text-center text-2xs text-muted-foreground'>{showLabel ? point.shortLabel : ''}</span>
                 </div>
               )
             })}

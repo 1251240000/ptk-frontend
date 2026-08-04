@@ -318,7 +318,7 @@ function ConversationRail({ conversations, currentId, query, busy, onQuery, onNe
           </span>
           <ArrowRight className='size-4 text-muted-foreground' />
         </button>
-        <p className='mt-2 flex gap-2 px-2 text-[11px] leading-4 text-muted-foreground'><ShieldCheck className='mt-0.5 size-3.5 shrink-0' />History stays in this browser.</p>
+        <p className='mt-2 flex gap-2 px-2 text-compact leading-4 text-muted-foreground'><ShieldCheck className='mt-0.5 size-3.5 shrink-0' />History stays in this browser.</p>
       </div>
     </div>
   )

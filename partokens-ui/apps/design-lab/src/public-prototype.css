@@ -715,44 +715,10 @@
 
 /* Public pages share the finalized console theme and component language. */
 .public-shadcn {
-  --pt-color-bg-canvas: var(--background);
-  --pt-color-bg-surface: var(--card);
-  --pt-color-bg-subtle: var(--muted);
-  --pt-color-bg-inset: var(--accent);
-  --pt-color-bg-footer: var(--muted);
-  --pt-color-text-primary: var(--foreground);
-  --pt-color-text-secondary: var(--muted-foreground);
-  --pt-color-text-tertiary: var(--muted-foreground);
-  --pt-color-text-inverse: var(--primary-foreground);
-  --pt-color-text-on-action: var(--primary-foreground);
-  --pt-color-text-footer: var(--foreground);
-  --pt-color-text-footer-muted: var(--muted-foreground);
-  --pt-color-border-subtle: var(--border);
-  --pt-color-border-default: var(--border);
-  --pt-color-border-strong: var(--input);
-  --pt-color-action-primary: var(--primary);
-  --pt-color-action-hover: color-mix(in oklch, var(--primary) 88%, var(--background));
-  --pt-color-action-pressed: color-mix(in oklch, var(--primary) 80%, var(--background));
-  --pt-color-action-soft: var(--accent);
-  --pt-color-command-bg: var(--primary);
-  --pt-color-command-hover: color-mix(in oklch, var(--primary) 88%, var(--background));
-  --pt-color-command-fg: var(--primary-foreground);
-  --pt-color-command-secondary: var(--background);
-  --pt-color-command-secondary-hover: var(--accent);
-  --pt-color-command-secondary-fg: var(--foreground);
-  --pt-color-command-endpoint: var(--primary);
-  --pt-color-command-endpoint-fg: var(--primary-foreground);
-  --pt-color-band-blue: var(--muted);
-  --pt-color-band-lilac: var(--muted);
-  --pt-color-band-mint: var(--muted);
-  --pt-color-band-coral: var(--muted);
-  --pt-font-display: 'Inter', 'Noto Sans SC', sans-serif;
-  --pt-font-interface: 'Inter', 'Noto Sans SC', sans-serif;
-  --pt-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', 'Noto Sans SC', sans-serif;
-  font-size: 14px;
+  font-family: var(--pt-lab-font-interface);
+  font-size: var(--pt-lab-font-size-14);
 }
 
 .public-shadcn :focus-visible {
@@ -778,13 +744,13 @@
   background: var(--primary);
   color: var(--primary-foreground);
 }
-.public-shadcn .r3-brand strong { font-family: inherit; font-size: .875rem; font-weight: 600; }
+.public-shadcn .r3-brand strong { font-family: inherit; font-size: var(--pt-lab-font-size-14); font-weight: 600; }
 .public-shadcn .r3-locale-control { border: 0; border-radius: .375rem; background: transparent; }
 .public-shadcn .r3-locale-control:hover { background: var(--accent); color: var(--accent-foreground); }
 .public-shadcn .r3-header-tools { gap: .25rem; }
 .public-shadcn .r3-header-tools .pt-icon-button,
 .public-shadcn .r3-header-tools .pt-button { border-radius: .375rem; }
-.public-shadcn .r3-console-link { min-height: 2.25rem; color: var(--foreground); font-size: .875rem; font-weight: 500; }
+.public-shadcn .r3-console-link { min-height: 2.25rem; color: var(--foreground); font-size: var(--pt-lab-font-size-14); font-weight: 500; }
 
 .public-shadcn .r3-public-footer { border-top: 1px solid var(--border); background: var(--muted); color: var(--foreground); }
 .public-shadcn .r3-footer-main { max-width: 80rem; grid-template-columns: minmax(16rem, .7fr) minmax(38rem, 1.3fr); gap: 5rem; padding: 4rem 1.5rem 3rem; }
@@ -836,6 +802,8 @@
 .r3-home-page .r3-home-faq { padding-right: var(--r37-pad); padding-left: var(--r37-pad); }
 
 .r3-home-page .r3-home-hero {
+  position: relative;
+  isolation: isolate;
   min-width: 0;
   min-height: calc(100svh - var(--pt-layout-header) - 120px);
   display: grid;
@@ -846,6 +814,23 @@
   background: var(--r37-canvas);
 }
 .r3-home-page .r3-home-hero > * { min-width: 0; }
+.r3-home-page .r3-home-hero > :not(.r37-hero-background) { position: relative; z-index: 1; }
+.r3-home-page .r37-hero-background {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center top;
+  opacity: .9;
+  pointer-events: none;
+  user-select: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 56%, rgb(0 0 0 / 55%) 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 56%, rgb(0 0 0 / 55%) 78%, transparent 100%);
+}
+.public-shadcn.dark .r3-home-page .r37-hero-background { opacity: .82; }
 .r3-home-page .r3-home-hero-copy { display: block; max-width: 860px; margin: 0 auto; text-align: center; }
 .r3-home-page .r3-home-hero-copy > span,
 .r3-home-page .r3-home-section-heading > span,

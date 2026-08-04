@@ -1,5 +1,7 @@
 import {
   BarChart3,
+  Bell,
+  BookOpen,
   Check,
   CircleUserRound,
   Globe2,
@@ -94,10 +96,12 @@ export type ConsoleRoute =
   | 'console-connections'
   | 'console-notifications'
 
+export type ConsoleTarget = ConsoleRoute | 'system' | 'docs' | 'notices'
+
 export type ConsoleScreenProps = {
   theme: Theme
   onTheme: () => void
-  onNavigate: (target: ConsoleRoute | 'system') => void
+  onNavigate: (target: ConsoleTarget) => void
 }
 
 type ConsoleShellProps = ConsoleScreenProps & {
@@ -165,7 +169,7 @@ const routeLabels: Record<ConsoleRoute, string> = {
 function useConsoleNavigation(onNavigate: ConsoleScreenProps['onNavigate']) {
   const { isMobile, setOpenMobile } = useSidebar()
 
-  return (target: ConsoleRoute | 'system') => {
+  return (target: ConsoleTarget) => {
     if (isMobile) setOpenMobile(false)
     onNavigate(target)
 
@@ -347,11 +351,17 @@ function ConsoleHeader({ activeRoute, theme, onTheme, onNavigate }: Omit<Console
       <div className='flex h-full items-center gap-3 p-4 sm:gap-4'>
         <SidebarTrigger ref={triggerRef} variant='outline' className='max-md:scale-110 md:hidden' data-console-sidebar-trigger />
         <Separator orientation='vertical' className='h-6 md:hidden' />
-        <div className='min-w-0 text-sm'>
+        <div className='min-w-0 truncate text-sm max-[340px]:hidden'>
           <span className='hidden text-muted-foreground sm:inline'>{routeSections[activeRoute]} / </span>
           <span className='font-medium'>{routeLabels[activeRoute]}</span>
         </div>
         <div className='ms-auto flex items-center gap-1'>
+          <Button variant='ghost' size='icon' className='rounded-full' aria-label='Notifications' title='Notifications' onClick={() => onNavigate('notices')}>
+            <Bell />
+          </Button>
+          <Button variant='ghost' size='icon' className='rounded-full' aria-label='Documentation' title='Documentation' onClick={() => onNavigate('docs')}>
+            <BookOpen />
+          </Button>
           <LanguageMenu />
           <ThemeMenu theme={theme} onTheme={onTheme} />
           <DropdownMenu>

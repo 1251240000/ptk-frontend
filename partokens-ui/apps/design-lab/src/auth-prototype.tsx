@@ -345,6 +345,13 @@ function AuthRail({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
 export function AuthPrototype(props: AuthPrototypeProps) {
   const { screen, locale, theme, onLocale, onTheme, go } = props
   const t = (key: string) => translate(locale, key)
+
+  useEffect(() => {
+    const body = document.body
+    body.classList.add('shadcn-admin-portal', theme)
+    return () => body.classList.remove('shadcn-admin-portal', 'light', 'dark')
+  }, [theme])
+
   let form: ReactNode
   if (screen === 'signin') form = <SignInForm locale={locale} go={go} />
   else if (screen === 'signup') form = <SignUpForm locale={locale} go={go} />

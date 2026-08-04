@@ -294,8 +294,8 @@ function SubscriptionSection({
             <article key={plan.id} className={`grid flex-1 grid-cols-3 items-center gap-4 p-4 md:grid-cols-[minmax(150px,1.2fr)_repeat(3,minmax(82px,0.65fr))_auto] ${plan.featured ? 'bg-muted/25' : ''}`}>
               <div className='col-span-3 flex min-w-0 flex-wrap items-center gap-2 md:col-span-1'>
                 <p className='text-sm font-semibold'>{plan.name}</p>
-                {plan.featured ? <Badge variant='outline'><Star className='fill-amber-400 text-amber-500' />Featured</Badge> : null}
-                {activeCount > 0 ? <Badge variant='outline'><Check className='text-emerald-600' />{activeCount} active</Badge> : null}
+                {plan.featured ? <Badge variant='outline'><Star className='fill-warning-signal text-warning' />Featured</Badge> : null}
+                {activeCount > 0 ? <Badge variant='outline'><Check className='text-success' />{activeCount} active</Badge> : null}
               </div>
               <div className='min-w-0'>
                 <p className='text-xs text-muted-foreground'>Price</p>
@@ -423,7 +423,7 @@ function TopUpSection({
                   <span className='block text-xs text-muted-foreground'>Pay</span>
                   <span className='mt-1 block font-mono text-sm font-medium tabular-nums'>{money(paid)}</span>
                 </span>
-                <CheckCircle2 className={selected ? 'size-4 text-emerald-600' : 'size-4 invisible'} />
+                <CheckCircle2 className={selected ? 'size-4 text-success' : 'size-4 invisible'} />
               </button>
             )
           })}
@@ -560,7 +560,7 @@ function BillingHistory({
                   <TableCell>{record.paymentMethod}</TableCell>
                   <TableCell className='font-mono text-xs tabular-nums'>{money(record.amount)}</TableCell>
                   <TableCell className='font-mono text-xs tabular-nums'>{money(record.paid)}</TableCell>
-                  <TableCell><Badge variant='outline'><Check className='text-emerald-600' />{record.status}</Badge></TableCell>
+                  <TableCell><Badge variant='outline'><Check className='text-success' />{record.status}</Badge></TableCell>
                   <TableCell className='text-end'><Button variant='ghost' size='icon' aria-label={`View ${record.id}`} onClick={(event) => onDetails(record, event)}><Eye /></Button></TableCell>
                 </TableRow>
               ))}</TableBody>
@@ -571,7 +571,7 @@ function BillingHistory({
               <article key={record.id} className='p-4'>
                 <div className='flex min-w-0 items-start justify-between gap-3'>
                   <div className='min-w-0'><p className='text-sm font-medium'>{record.type}</p><code className='mt-1 block break-all font-mono text-xs text-muted-foreground'>{record.id}</code></div>
-                  <Badge variant='outline'><Check className='text-emerald-600' />{record.status}</Badge>
+                  <Badge variant='outline'><Check className='text-success' />{record.status}</Badge>
                 </div>
                 <dl className='mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm'>
                   <div><dt className='text-xs text-muted-foreground'>Amount</dt><dd className='mt-1 font-mono tabular-nums'>{money(record.amount)}</dd></div>
@@ -654,7 +654,7 @@ function BillingDetail({ record }: { record: BillingRecord }) {
       <div className='p-3'><dt className='text-xs text-muted-foreground'>Type</dt><dd className='mt-1'>{record.type}</dd></div>
       <div className='p-3'><dt className='text-xs text-muted-foreground'>Time</dt><dd className='mt-1'>{record.time}</dd></div>
       <div className='grid grid-cols-2 gap-4 p-3'><div><dt className='text-xs text-muted-foreground'>Amount</dt><dd className='mt-1 font-mono tabular-nums'>{money(record.amount)}</dd></div><div><dt className='text-xs text-muted-foreground'>Paid</dt><dd className='mt-1 font-mono tabular-nums'>{money(record.paid)}</dd></div></div>
-      <div className='grid grid-cols-2 gap-4 p-3'><div><dt className='text-xs text-muted-foreground'>Payment method</dt><dd className='mt-1'>{record.paymentMethod}</dd></div><div><dt className='text-xs text-muted-foreground'>Status</dt><dd className='mt-1'><Badge variant='outline'><Check className='text-emerald-600' />{record.status}</Badge></dd></div></div>
+      <div className='grid grid-cols-2 gap-4 p-3'><div><dt className='text-xs text-muted-foreground'>Payment method</dt><dd className='mt-1'>{record.paymentMethod}</dd></div><div><dt className='text-xs text-muted-foreground'>Status</dt><dd className='mt-1'><Badge variant='outline'><Check className='text-success' />{record.status}</Badge></dd></div></div>
     </dl>
   )
 }

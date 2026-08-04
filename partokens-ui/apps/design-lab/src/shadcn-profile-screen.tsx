@@ -206,7 +206,7 @@ function AccountSummary({ profile }: { profile: Profile }) {
           <div key={label} className='flex min-w-0 items-start gap-3 px-4 py-3'>
             <Icon className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
             <div className='min-w-0 flex-1'><p className='text-sm font-medium'>{label}</p><p className='mt-0.5 truncate text-xs text-muted-foreground'>{detail}</p></div>
-            <Badge variant='outline' className='shrink-0'><Check className='text-emerald-600' />{value}</Badge>
+            <Badge variant='outline' className='shrink-0'><Check className='text-success' />{value}</Badge>
           </div>
         ))}
       </div>
@@ -241,7 +241,7 @@ function SecuritySettings({ twoFactor, passkey, onTwoFactor, onPasskey, onPasswo
         <div className='flex min-w-0 items-start gap-3 px-4 py-4'>
           <MonitorCheck className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
           <div className='min-w-0 flex-1'><Label>Current session</Label><p className='mt-1 text-xs text-muted-foreground'>Shanghai, China · Active now</p></div>
-          <Badge variant='outline' className='shrink-0'><Check className='text-emerald-600' />Current</Badge>
+          <Badge variant='outline' className='shrink-0'><Check className='text-success' />Current</Badge>
         </div>
       </div>
     </section>
@@ -266,7 +266,7 @@ function ConnectedAccounts({ connected, onToggle }: { connected: Record<Provider
           return (
             <div key={id} className='grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center'>
               <span className='flex size-9 items-center justify-center rounded-md border bg-muted/40'><Icon className='size-4' /></span>
-              <div className='min-w-0'><div className='flex flex-wrap items-center gap-2'><p className='text-sm font-medium'>{name}</p><Badge variant='outline'>{isConnected ? <Check className='text-emerald-600' /> : null}{isEmail ? 'Primary' : isConnected ? 'Connected' : 'Available'}</Badge></div><p className='mt-1 text-xs text-muted-foreground'>{description}</p></div>
+              <div className='min-w-0'><div className='flex flex-wrap items-center gap-2'><p className='text-sm font-medium'>{name}</p><Badge variant='outline'>{isConnected ? <Check className='text-success' /> : null}{isEmail ? 'Primary' : isConnected ? 'Connected' : 'Available'}</Badge></div><p className='mt-1 text-xs text-muted-foreground'>{description}</p></div>
               {isEmail ? null : <Button variant='outline' onClick={() => onToggle(id)}>{isConnected ? <Unplug /> : <Link2 />}{isConnected ? 'Disconnect' : 'Connect'}</Button>}
             </div>
           )

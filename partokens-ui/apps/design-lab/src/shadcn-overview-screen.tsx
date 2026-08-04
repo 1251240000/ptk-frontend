@@ -55,8 +55,8 @@ import {
 
 import {
   ConsoleShell,
-  type ConsoleRoute,
   type ConsoleScreenProps,
+  type ConsoleTarget,
 } from './shadcn-console-shell'
 
 type OverviewDataState = 'ready' | 'empty' | 'error'
@@ -77,7 +77,7 @@ type UsageRecord = {
 type ShadcnOverviewScreenProps = Omit<ConsoleScreenProps, 'onNavigate'> & {
   online: boolean | null
   version?: string
-  onNavigate: (target: ConsoleRoute | 'system' | 'notices') => void
+  onNavigate: (target: ConsoleTarget) => void
 }
 
 const recentUsage: UsageRecord[] = [
@@ -125,7 +125,7 @@ const metrics = [
 
 function UsageStatus({ status }: { status: UsageRecord['status'] }) {
   if (status === 'error') return <Badge variant='destructive'>Error</Badge>
-  return <Badge variant='outline' className='gap-1.5'><span className='size-1.5 rounded-full bg-emerald-500' />Succeeded</Badge>
+  return <Badge variant='outline' className='gap-1.5'><span className='size-1.5 rounded-full bg-success-signal' />Succeeded</Badge>
 }
 
 function UsageDetails({ record }: { record: UsageRecord }) {
@@ -268,7 +268,7 @@ function RequestReadiness({ onNavigate }: Pick<ShadcnOverviewScreenProps, 'onNav
               <p className='text-xs text-muted-foreground'>Step {index + 1}</p>
               <p className='break-words text-sm font-medium'>{label}</p>
             </div>
-            <Check className='ms-auto size-4 shrink-0 text-emerald-500' />
+            <Check className='ms-auto size-4 shrink-0 text-success-signal' />
           </div>
         ))}
       </div>
@@ -305,7 +305,7 @@ function ServiceReadiness({
         {checking ? (
           <Badge variant='secondary' className='shrink-0 gap-1.5'><LoaderCircle className='size-3.5 animate-spin' />Checking</Badge>
         ) : available ? (
-          <Badge variant='outline' className='shrink-0 gap-1.5'><span className='size-1.5 rounded-full bg-emerald-500' />Available</Badge>
+          <Badge variant='outline' className='shrink-0 gap-1.5'><span className='size-1.5 rounded-full bg-success-signal' />Available</Badge>
         ) : (
           <Badge variant='destructive' className='shrink-0'>Unavailable</Badge>
         )}

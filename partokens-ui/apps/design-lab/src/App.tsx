@@ -357,6 +357,8 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.documentElement.lang = usesSharedLocale ? publicLocale : locale
+    const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--pt-lab-meta-theme-color').trim()
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', themeColor)
     window.localStorage.setItem('partokens-locale', usesSharedLocale ? publicLocale : locale)
     window.localStorage.setItem('partokens-theme', theme)
   }, [theme, locale, publicLocale, usesSharedLocale])

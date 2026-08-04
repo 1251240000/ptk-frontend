@@ -55,8 +55,8 @@ import {
 
 import {
   ConsoleShell,
-  type ConsoleRoute,
   type ConsoleScreenProps,
+  type ConsoleTarget,
 } from './shadcn-console-shell'
 
 type OverviewDataState = 'ready' | 'empty' | 'error'
@@ -77,7 +77,7 @@ type UsageRecord = {
 type ShadcnOverviewScreenProps = Omit<ConsoleScreenProps, 'onNavigate'> & {
   online: boolean | null
   version?: string
-  onNavigate: (target: ConsoleRoute | 'system' | 'notices') => void
+  onNavigate: (target: ConsoleTarget) => void
 }
 
 const recentUsage: UsageRecord[] = [

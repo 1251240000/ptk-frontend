@@ -283,6 +283,7 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
       <button type="button" className="r3-brand-button" onClick={() => navigate('home')} aria-label="Partokens"><Brand /></button>
       <div className="r3-header-tools">
         <Button type="button" variant="ghost" size="icon" className={`r3-public-tool-button rounded-full${screen === 'notices' ? ' bg-accent text-accent-foreground' : ''}`} aria-label={t('Notices')} title={t('Notices')} onClick={() => navigate('notices')}><Bell /></Button>
+        <Button type="button" variant="ghost" size="icon" className={`r3-public-tool-button rounded-full${screen === 'docs' ? ' bg-accent text-accent-foreground' : ''}`} aria-label={t('Docs')} title={t('Docs')} onClick={() => navigate('docs')}><BookOpen /></Button>
         <InterfaceLanguageMenu locale={locale} onLocale={onLocale} t={t} buttonClassName="r3-public-tool-button" />
         <InterfaceThemeMenu theme={theme} onTheme={onTheme} t={t} buttonClassName="r3-public-tool-button" />
         <button type="button" className="r3-console-link" onClick={() => navigate('console')}><span>{t('Go to console')}</span><ArrowRight size={16} /></button>
@@ -292,7 +293,7 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
 
     {mobileOpen ? <div ref={mobileNavRef} className="r3-mobile-nav" role="dialog" aria-modal="true" aria-label={t('Menu')}>
       <header><Brand /><button ref={mobileCloseRef} type="button" className="pt-icon-button" aria-label={t('Close')} title={t('Close')} onClick={() => setMobileOpen(false)}><X size={18} /></button></header>
-      <nav><button type="button" aria-current={screen === 'notices' ? 'page' : undefined} onClick={() => navigate('notices')}>{t('Notices')}<ChevronRight size={18} /></button></nav>
+      <nav><button type="button" aria-current={screen === 'notices' ? 'page' : undefined} onClick={() => navigate('notices')}>{t('Notices')}<ChevronRight size={18} /></button><button type="button" aria-current={screen === 'docs' ? 'page' : undefined} onClick={() => navigate('docs')}>{t('Docs')}<ChevronRight size={18} /></button></nav>
       <div className="r3-mobile-nav-footer">
         <label className="r3-locale-control"><Globe2 size={17} /><select value={locale} aria-label={t('Language')} onChange={(event) => onLocale(event.target.value as AppLocale)}>{locales.map((item) => <option value={item} key={item}>{localeLabels[item]}</option>)}</select></label>
         <button type="button" className="pt-icon-button" aria-label={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} title={t(theme === 'dark' ? 'Light mode' : 'Dark mode')} onClick={onTheme}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
@@ -328,6 +329,11 @@ function HomeSectionHeading({ eyebrow, title, body, id }: { eyebrow: string; tit
 const homeStudioAssets = {
   light: { atlas: '/home/home-studio-atlas-light.webp', detail: '/home/home-studio-detail-light.webp' },
   dark: { atlas: '/home/home-studio-atlas-dark.webp', detail: '/home/home-studio-detail-dark.webp' },
+} as const
+
+const homeHeroAssets = {
+  light: '/home/home-hero-routing-light.avif',
+  dark: '/home/home-hero-routing-dark.avif',
 } as const
 
 function HomeThemeImage({ theme, variant, alt, className, eager = false }: { theme: Theme; variant: 'atlas' | 'detail'; alt: string; className?: string; eager?: boolean }) {
@@ -453,7 +459,11 @@ function HomePage({ locale, theme, go }: Pick<PublicPrototypeProps, 'locale' | '
   const useCaseIcons = [FileCheck2, ImageIcon, Network]
 
   useEffect(() => {
-    Object.values(homeStudioAssets).flatMap((assets) => Object.values(assets)).forEach((src) => { const image = new Image(); image.src = src })
+    const sources = [
+      ...Object.values(homeHeroAssets),
+      ...Object.values(homeStudioAssets).flatMap((assets) => Object.values(assets)),
+    ]
+    sources.forEach((src) => { const image = new Image(); image.src = src })
   }, [])
 
   useEffect(() => {
@@ -479,6 +489,7 @@ function HomePage({ locale, theme, go }: Pick<PublicPrototypeProps, 'locale' | '
 
   return <main ref={rootRef} className="r3-home-page">
     <section className="r3-home-hero" aria-labelledby="r37-home-title">
+      <img className="r37-hero-background" src={homeHeroAssets[theme]} width={3840} height={2160} alt="" aria-hidden="true" fetchPriority="high" />
       <div className="r3-home-hero-copy"><span>{copy.hero.eyebrow}</span><h1 id="r37-home-title">Partokens</h1><h2>{copy.hero.title}</h2><p>{copy.hero.body}</p><div className="r37-hero-actions"><RouteButton onClick={() => go('console')}>{copy.hero.actions.primary}</RouteButton><button type="button" className="r37-secondary-action" onClick={() => go('docs')}><BookOpen size={17} /><span>{copy.hero.actions.secondary}</span></button></div><ul className="r37-hero-capabilities">{copy.hero.capabilities.map((item) => <li key={item.id}><Check size={14} />{item.label}</li>)}</ul></div>
       <HomeProductPreview locale={locale} theme={theme} />
     </section>

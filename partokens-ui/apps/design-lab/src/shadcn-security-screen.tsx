@@ -154,7 +154,7 @@ function SecurityOverview({ twoFactor, passkey, passwordUpdatedAt }: { twoFactor
         {statuses.map(({ label, value, detail, icon: Icon, active, mono }, index) => (
           <div key={label} className={`min-w-0 p-4 ${index === 1 ? 'border-t sm:border-s sm:border-t-0' : ''} ${index === 2 ? 'border-t xl:border-s xl:border-t-0' : ''} ${index === 3 ? 'border-t sm:border-s xl:border-t-0' : ''}`}>
             <div className='flex min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground'><Icon className='size-4 shrink-0' /><span className='break-words'>{label}</span></div>
-            <Badge variant='outline' className='mt-3 max-w-full'><Check className={active ? 'text-emerald-600' : 'text-muted-foreground'} /><span className='break-words'>{value}</span></Badge>
+            <Badge variant='outline' className='mt-3 max-w-full'><Check className={active ? 'text-success' : 'text-muted-foreground'} /><span className='break-words'>{value}</span></Badge>
             <p className={`mt-2 break-words text-xs text-muted-foreground ${mono ? 'font-mono tabular-nums' : ''}`}>{detail}</p>
           </div>
         ))}

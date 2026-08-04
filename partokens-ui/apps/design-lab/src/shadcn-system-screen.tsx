@@ -226,7 +226,7 @@ function CatalogSearch({ onNavigate }: { onNavigate: (id: SectionId) => void }) 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant='outline' className='group relative hidden h-8 w-40 justify-start bg-muted/25 text-sm font-normal text-muted-foreground shadow-none hover:bg-accent sm:flex lg:w-64'>
-          <Search className='absolute start-2' /><span className='ms-4'>Search components</span><kbd className='pointer-events-none absolute end-1.5 hidden h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium lg:flex'>⌘ K</kbd>
+          <Search className='absolute start-2' /><span className='ms-4'>Search components</span><kbd className='pointer-events-none absolute end-1.5 hidden h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-2xs font-medium lg:flex'>⌘ K</kbd>
         </Button>
       </DialogTrigger>
       <DialogContent className='gap-0 overflow-hidden p-0 sm:max-w-lg'>
@@ -355,7 +355,7 @@ export function ShadcnSystemScreen({ theme, onTheme, onExit }: ShadcnSystemScree
                     </div>
                   </Specimen>
                   <Specimen title='Typography & shape' description='Inter, Manrope, and the upstream 10px base radius.'>
-                    <div className='space-y-5'><div><p className='font-manrope text-2xl font-bold'>Dashboard heading</p><p className='mt-1 text-sm text-muted-foreground'>Interface copy uses Inter with a compact 14px default.</p></div><Separator /><div className='flex items-end gap-3'>{[['rounded-sm', 'size-10'], ['rounded-md', 'size-12'], ['rounded-lg', 'size-14'], ['rounded-xl', 'size-16']].map(([radius, size], index) => <div key={radius} className={`grid place-items-center border bg-muted ${radius} ${size}`}><span className='text-[10px]'>{index + 1}</span></div>)}</div></div>
+                    <div className='space-y-5'><div><p className='font-manrope text-2xl font-bold'>Dashboard heading</p><p className='mt-1 text-sm text-muted-foreground'>Interface copy uses Inter with a compact 14px default.</p></div><Separator /><div className='flex items-end gap-3'>{[['rounded-sm', 'size-10'], ['rounded-md', 'size-12'], ['rounded-lg', 'size-14'], ['rounded-xl', 'size-16']].map(([radius, size], index) => <div key={radius} className={`grid place-items-center border bg-muted ${radius} ${size}`}><span className='text-2xs'>{index + 1}</span></div>)}</div></div>
                   </Specimen>
                 </div>
               </section>
