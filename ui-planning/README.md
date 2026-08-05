@@ -59,6 +59,8 @@ No credential values or user-specific production data are recorded in these docu
 15. [R3.5 Playground](./15-r35-playground.md)
 16. [R3.6 image studio](./16-r36-image-studio.md)
 17. [R3.7 homepage refresh and image assets](./17-r37-homepage-refresh.md)
+18. [R4 implementation tasks](./r4-implementation-tasks/00-scope-and-foundation.md)
+19. [R4 development session prompt](./r4-implementation-tasks/SESSION-PROMPT.md)
 
 ## Confirmed Capability Findings
 
