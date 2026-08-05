@@ -58,6 +58,9 @@ export const resources = {
       'Draft content': '草稿内容', 'Effective date': '生效日期', 'Owner review required': '等待负责人审核',
       'User Agreement': '用户协议', 'Terms of Service': '服务协议', 'Privacy Policy': '隐私政策',
       'Interface data unavailable': '暂时无法获取数据', Retry: '重试', 'Sign out': '退出登录', 'Source code': '源代码',
+      Product: '产品', Resources: '资源', Legal: '条款', Contact: '联系', 'Account data': '账户数据', Embeddings: '向量嵌入', 'Go to console': '前往控制台',
+      'Available models depend on live configuration.': '可用模型以服务端实时配置为准。', 'The server remains authoritative for billing and routing.': '计费与路由结果始终以服务端为准。',
+      'Existing API service is unaffected.': '现有 API 服务不受影响。', 'Versioned notices': '版本化通知', 'Material changes are published as versioned notices with a new effective date and a readable description of the change.': '重大变更会以版本化通知发布，并提供新的生效日期与清晰的变更说明。',
     },
   },
   'zh-TW': {
@@ -88,6 +91,9 @@ export const resources = {
       'Draft content': '草稿內容', 'Effective date': '生效日期', 'Owner review required': '等待負責人審核',
       'User Agreement': '使用者協議', 'Terms of Service': '服務協議', 'Privacy Policy': '隱私權政策',
       'Interface data unavailable': '暫時無法取得資料', Retry: '重試', 'Sign out': '登出', 'Source code': '原始碼',
+      Product: '產品', Resources: '資源', Legal: '條款', Contact: '聯絡', 'Account data': '帳戶資料', Embeddings: '向量嵌入', 'Go to console': '前往控制台',
+      'Available models depend on live configuration.': '可用模型以伺服器即時設定為準。', 'The server remains authoritative for billing and routing.': '計費與路由結果始終以伺服器為準。',
+      'Existing API service is unaffected.': '現有 API 服務不受影響。', 'Versioned notices': '版本化通知', 'Material changes are published as versioned notices with a new effective date and a readable description of the change.': '重大變更會以版本化通知發布，並提供新的生效日期與清楚的變更說明。',
     },
   },
   en: { translation: {} as Record<string, string> },
@@ -1081,6 +1087,12 @@ const phaseFivePlaygroundTranslations: Record<AppLocale, Record<string, string>>
 for (const locale of locales) Object.assign(resources[locale].translation, phaseFivePlaygroundTranslations[locale])
 
 const phaseSevenTranslationRows: Array<[string, ...string[]]> = [
+  ['Reviewed content', '已审核内容', '已審核內容', 'Reviewed content', '確認済みコンテンツ', 'Проверенный материал', 'Contenu vérifié', 'Nội dung đã duyệt'],
+  ['Loading model pricing', '正在加载模型价格', '正在載入模型價格', 'Loading model pricing', 'モデル価格を読み込み中', 'Загрузка цен моделей', 'Chargement des tarifs des modèles', 'Đang tải giá mô hình'],
+  ['Model pricing is unavailable', '模型价格暂不可用', '模型價格暫時無法使用', 'Model pricing is unavailable', 'モデル価格を利用できません', 'Цены моделей недоступны', 'Tarifs des modèles indisponibles', 'Giá mô hình không khả dụng'],
+  ['No models are available for this account.', '当前账户没有可用模型。', '目前帳戶沒有可用模型。', 'No models are available for this account.', 'このアカウントで利用できるモデルはありません。', 'Для этого аккаунта нет доступных моделей.', 'Aucun modèle n’est disponible pour ce compte.', 'Tài khoản này không có mô hình khả dụng.'],
+  ['Some model records were incomplete. Only validated fields are shown.', '部分模型记录不完整，仅显示已验证字段。', '部分模型記錄不完整，僅顯示已驗證欄位。', 'Some model records were incomplete. Only validated fields are shown.', '一部のモデル情報が不完全なため、検証済みの項目のみ表示しています。', 'Некоторые записи моделей неполны. Показаны только проверенные поля.', 'Certaines fiches modèle sont incomplètes. Seuls les champs validés sont affichés.', 'Một số bản ghi mô hình chưa đầy đủ. Chỉ hiển thị trường đã xác thực.'],
+  ['Not returned', '未返回', '未回傳', 'Not returned', '未返却', 'Нет данных', 'Non renvoyé', 'Chưa trả về'],
   ['2FA disabled', '双重验证已关闭', '雙重驗證已停用', '2FA disabled', '2FA を無効にしました', '2FA отключена', '2FA désactivée', 'Đã tắt 2FA'],
   ['2FA enabled', '双重验证已启用', '雙重驗證已啟用', '2FA enabled', '2FA を有効にしました', '2FA включена', '2FA activée', 'Đã bật 2FA'],
   ['API connected', 'API 已连接', 'API 已連線', 'API connected', 'API 接続済み', 'API подключён', 'API connectée', 'API đã kết nối'],

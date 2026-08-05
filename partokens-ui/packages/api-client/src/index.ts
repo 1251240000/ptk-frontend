@@ -20,6 +20,7 @@ export type PartokensStatus = {
   system_name?: string
   logo?: string
   version?: string
+  start_time?: number
   register_enabled?: boolean
   email_verification?: boolean
   turnstile_check?: boolean
@@ -37,6 +38,22 @@ export type PartokensStatus = {
     scopes?: string
   }>
   [key: string]: unknown
+}
+
+export type PublicPricingModel = {
+  model_name: string
+  vendor_name?: string
+  quota_type?: number
+  model_ratio?: number
+  model_price?: number
+  supported_endpoint_types?: string[]
+}
+
+export type PricingCatalog = {
+  success: boolean
+  message?: string
+  data: PublicPricingModel[]
+  partial: boolean
 }
 
 export type CurrentUser = {
@@ -835,6 +852,30 @@ export async function getPricing(): Promise<ApiEnvelope<unknown>> {
 export async function getPricingWithSignal(signal?: AbortSignal): Promise<ApiEnvelope<unknown>> {
   const response = await api.get('/api/pricing', { signal })
   return parseEnvelope(response.data)
+}
+
+const publicPricingModelSchema = z.object({
+  model_name: z.string().min(1),
+  vendor_name: z.string().optional(),
+  quota_type: z.number().int().optional(),
+  model_ratio: z.number().finite().nonnegative().optional(),
+  model_price: z.number().finite().nonnegative().optional(),
+  supported_endpoint_types: z.array(z.string().min(1)).optional(),
+}).strip()
+
+export async function getPricingCatalog(signal?: AbortSignal): Promise<PricingCatalog> {
+  const response = await api.get('/api/pricing', { signal })
+  const root = z.object({ success: z.boolean(), message: z.string().optional(), data: z.unknown().optional() }).passthrough().parse(response.data)
+  if (!root.success) return { success: false, message: root.message, data: [], partial: false }
+  if (!Array.isArray(root.data)) return { success: true, message: root.message, data: [], partial: true }
+  const data: PublicPricingModel[] = []
+  let partial = false
+  for (const item of root.data) {
+    const parsed = publicPricingModelSchema.safeParse(item)
+    if (parsed.success) data.push(parsed.data)
+    else partial = true
+  }
+  return { success: true, message: root.message, data, partial }
 }
 
 export async function getTokens(input: { p?: number; size?: number } = {}, signal?: AbortSignal): Promise<ApiEnvelope<PaginatedData<TokenSummary>>> {

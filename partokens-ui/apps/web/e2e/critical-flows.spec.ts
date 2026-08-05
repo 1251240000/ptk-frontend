@@ -206,7 +206,7 @@ test('usage-log filters preserve self scope and open a redacted detail drawer', 
   await expect(page.getByText(/billing_mode/)).toHaveCount(0)
 })
 
-test('overview uses live fixture state and model filters change the visible catalog', async ({ page }) => {
+test('overview and the public model catalog use live fixture state', async ({ page }) => {
   await primeUserSession(page)
   await installMockApi(page)
   await page.goto('/en/console/overview')
@@ -219,20 +219,17 @@ test('overview uses live fixture state and model filters change the visible cata
   await expect(page.getByText('/v1/chat/completions').first()).toBeVisible()
 
   await page.goto('/en/models')
-  await expect(page.locator('.model-row')).toHaveCount(2)
-  await page.getByLabel('Billing').selectOption('fixed')
-  await expect(page.locator('.model-row')).toHaveCount(1)
+  await expect(page.locator('.r3-model-row')).toHaveCount(2)
+  await expect(page.getByRole('heading', { name: 'gpt-4.1-mini' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'gpt-image-1' })).toBeVisible()
-  await page.getByLabel('Endpoint').selectOption('chat')
-  await expect(page.locator('.model-row')).toHaveCount(0)
 })
 
 test('public model marketplace explains a deployment-level pricing login requirement', async ({ page }) => {
-  await installMockApi(page, { pricingRequiresAuth: true })
+  await installMockApi(page, { anonymous: true })
   await page.goto('/en/models')
   await expect(page.getByRole('heading', { name: 'Sign in to view model pricing' })).toBeVisible()
-  await expect(page.getByText('This deployment requires an account before showing model pricing.')).toBeVisible()
-  await expect(page.getByRole('main').getByRole('link', { name: 'Sign in', exact: true })).toHaveAttribute('href', '/en/auth/sign-in')
+  await expect(page.locator('.r3-model-gate').getByText('This deployment requires an account before showing model pricing.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0)
 })
 

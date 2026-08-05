@@ -1,4 +1,4 @@
-import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet, redirect, useLocation, useParams } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet, redirect, useParams } from '@tanstack/react-router'
 import { LoaderCircle } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,19 +7,13 @@ import { isAppLocale, resolvePreferredLocale } from '@partokens/i18n'
 
 import { ConsoleShell } from '@/components/console-shell'
 import { consoleRouteAsyncOptions } from '@/components/console-route-state'
-import { TopNav } from '@/components/top-nav'
 import { i18n } from '@/lib/i18n'
 import {
   canonicalConsoleRoute,
   consoleBaseSegment,
   consoleCompatibilityBaseSegment,
   consoleRouteMap,
-  isConsoleViewportSection,
 } from '@/lib/routes'
-import { AboutPage, LegalPage } from '@/pages/content-pages'
-import { DocsPage } from '@/pages/docs-page'
-import { HomePage } from '@/pages/home-page'
-import { ModelsPage } from '@/pages/models-page'
 import { ForgotPasswordPage, OAuthCallbackPage, OtpPage, ResetPasswordPage, SignInPage, SignUpPage } from '@/pages/auth-pages'
 import { useSessionStore } from '@/stores/session'
 
@@ -33,7 +27,6 @@ const rootIndexRoute = createRoute({
 
 function LocaleBoundary() {
   const params = useParams({ strict: false }) as { locale?: string }
-  const pathname = useLocation({ select: (state) => state.pathname })
   const locale = isAppLocale(params.locale) ? params.locale : null
   useEffect(() => {
     if (!locale) { window.location.replace(`/${resolvePreferredLocale()}/`); return }
@@ -42,17 +35,28 @@ function LocaleBoundary() {
     void i18n.changeLanguage(locale)
   }, [locale])
   if (!locale) return null
-  const section = pathname.split('/').filter(Boolean)[1]
-  const ownsFullViewport = section === 'auth' || isConsoleViewportSection(section)
-  return <>{ownsFullViewport ? null : <TopNav />}<Outlet /></>
+  return <Outlet />
 }
 
 const localeRoute = createRoute({ getParentRoute: () => rootRoute, path: '$locale', component: LocaleBoundary })
-const homeRoute = createRoute({ getParentRoute: () => localeRoute, path: '/', component: HomePage })
-const modelsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'models', component: ModelsPage })
-const docsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'docs', component: DocsPage })
-const aboutRoute = createRoute({ getParentRoute: () => localeRoute, path: 'about', component: AboutPage })
-const legalRoute = createRoute({ getParentRoute: () => localeRoute, path: 'legal/$kind', component: LegalPage })
+const publicHomeComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicHomeRoute')
+const publicModelsComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicModelsRoute')
+const publicDocsComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicDocsRoute')
+const publicAboutComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicAboutRoute')
+const publicNoticesComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicNoticesRoute')
+const publicStatusComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicStatusRoute')
+const publicUserAgreementComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicUserAgreementRoute')
+const publicServiceAgreementComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicServiceAgreementRoute')
+const publicPrivacyPolicyComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicPrivacyPolicyRoute')
+const homeRoute = createRoute({ getParentRoute: () => localeRoute, path: '/', component: publicHomeComponent })
+const modelsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'models', component: publicModelsComponent })
+const docsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'docs', component: publicDocsComponent })
+const aboutRoute = createRoute({ getParentRoute: () => localeRoute, path: 'about', component: publicAboutComponent })
+const noticesRoute = createRoute({ getParentRoute: () => localeRoute, path: 'notices', component: publicNoticesComponent })
+const statusRoute = createRoute({ getParentRoute: () => localeRoute, path: 'status', component: publicStatusComponent })
+const userAgreementRoute = createRoute({ getParentRoute: () => localeRoute, path: 'legal/user-agreement', component: publicUserAgreementComponent })
+const serviceAgreementRoute = createRoute({ getParentRoute: () => localeRoute, path: 'legal/service-agreement', component: publicServiceAgreementComponent })
+const privacyPolicyRoute = createRoute({ getParentRoute: () => localeRoute, path: 'legal/privacy-policy', component: publicPrivacyPolicyComponent })
 const signInRoute = createRoute({ getParentRoute: () => localeRoute, path: 'auth/sign-in', component: SignInPage })
 const signUpRoute = createRoute({ getParentRoute: () => localeRoute, path: 'auth/sign-up', component: SignUpPage })
 const forgotRoute = createRoute({ getParentRoute: () => localeRoute, path: 'auth/forgot-password', component: ForgotPasswordPage })
@@ -114,7 +118,7 @@ const technicalResetRoute = createRoute({ getParentRoute: () => rootRoute, path:
 
 const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, profileRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
 const consoleCompatibilityTree = consoleCompatibilityRoute.addChildren([consoleCompatibilityIndexRoute, consoleCompatibilityOverviewRoute, consoleCompatibilityAnalyticsRoute, consoleCompatibilityKeysRoute, consoleCompatibilityUsageLogsRoute])
-const localeTree = localeRoute.addChildren([homeRoute, modelsRoute, docsRoute, aboutRoute, legalRoute, signInRoute, signUpRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree])
+const localeTree = localeRoute.addChildren([homeRoute, modelsRoute, docsRoute, aboutRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree])
 const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })

@@ -15,6 +15,7 @@ import {
   getCheckinStatus,
   getFlowQuotaData,
   getPricingWithSignal,
+  getPricingCatalog,
   getQuotaData,
   getLogStats,
   getLogs,
@@ -80,6 +81,54 @@ afterAll(() => {
 })
 
 describe('New API adapter contracts', () => {
+  it('validates the authenticated public pricing catalog and preserves partial state', async () => {
+    api.defaults.adapter = async (config) => ({
+      config,
+      data: {
+        success: true,
+        data: [
+          { model_name: 'gpt-4.1-mini', vendor_name: 'OpenAI', model_ratio: 1, supported_endpoint_types: ['chat'] },
+          { model_name: '', model_ratio: -1 },
+          { model_name: 'gpt-image-1', model_price: 0.04, unsupported_internal_field: 'drop-me' },
+        ],
+      },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    })
+
+    const response = await getPricingCatalog()
+
+    expect(response).toEqual({
+      success: true,
+      data: [
+        { model_name: 'gpt-4.1-mini', vendor_name: 'OpenAI', model_ratio: 1, supported_endpoint_types: ['chat'] },
+        { model_name: 'gpt-image-1', model_price: 0.04 },
+      ],
+      partial: true,
+    })
+  })
+
+  it('does not synthesize pricing rows when the public catalog is unavailable or malformed', async () => {
+    api.defaults.adapter = async (config) => ({
+      config,
+      data: { success: true, data: null },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    })
+    await expect(getPricingCatalog()).resolves.toMatchObject({ success: true, data: [], partial: true })
+
+    api.defaults.adapter = async (config) => ({
+      config,
+      data: { success: false, message: 'Unauthorized', data: null },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    })
+    await expect(getPricingCatalog()).resolves.toEqual({ success: false, message: 'Unauthorized', data: [], partial: false })
+  })
+
   it('uses the current detail, search, update, and reveal key routes', async () => {
     await searchTokens({ keyword: 'mobile', p: 2, size: 25 })
     await getToken(17)

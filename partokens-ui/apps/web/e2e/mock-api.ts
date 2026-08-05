@@ -38,9 +38,11 @@ function authBundle(user: typeof standardUser, tokenVersion: number) {
 }
 
 type MockApiOptions = {
+  anonymous?: boolean
   role?: number
   requireTwoFactor?: boolean
   pricingRequiresAuth?: boolean
+  statusResponses?: Array<{ status?: number; body: unknown }>
   tokenCreateOmitsData?: boolean
   onRequest?: (request: Request) => void
 }
@@ -60,6 +62,7 @@ async function json(route: Route, data: unknown, status = 200) {
 export async function installMockApi(page: Page, options: MockApiOptions = {}) {
   const user = { ...standardUser, role: options.role ?? standardUser.role }
   let authVersion = 1
+  let statusResponseIndex = 0
   let nextTokenId = 8
   let tokens = [{
     id: 7,
@@ -103,6 +106,11 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     const method = request.method()
 
     if (path === '/api/status') {
+      const configuredStatus = options.statusResponses?.[statusResponseIndex++]
+      if (configuredStatus) {
+        await json(route, configuredStatus.body, configuredStatus.status ?? 200)
+        return
+      }
       await json(route, envelope({
         system_name: 'Partokens',
         version: 'fixture',
@@ -134,6 +142,10 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       return
     }
     if (path === '/api/user/auth/refresh' && method === 'POST') {
+      if (options.anonymous) {
+        await json(route, { success: false, message: 'Unauthorized', code: 'AUTH_REQUIRED' }, 401)
+        return
+      }
       await json(route, envelope(authBundle(user, authVersion++)))
       return
     }
