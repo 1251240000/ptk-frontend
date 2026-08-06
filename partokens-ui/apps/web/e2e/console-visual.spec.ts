@@ -4,9 +4,11 @@ import { installMockApi, primeUserSession } from './mock-api'
 
 const output = process.env.PARTOKENS_E2E_EVIDENCE_DIR || '../../dogfood-output/r60-console-staging-validation/screenshots'
 const viewports = [
-  { name: '1440', width: 1440, height: 1000 },
+  { name: '1440', width: 1440, height: 900 },
+  { name: '1024', width: 1024, height: 768 },
+  { name: '768', width: 768, height: 900 },
   { name: '390', width: 390, height: 844 },
-  { name: '320', width: 320, height: 844 },
+  { name: '320', width: 320, height: 720 },
 ] as const
 
 async function setTheme(page: Page, theme: 'light' | 'dark') {
@@ -15,6 +17,31 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
 
 async function expectNoOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+}
+
+async function expectHeaderControlsFit(page: Page) {
+  const boxes = await page.locator('header [data-slot="button"]:visible').evaluateAll((elements) => elements
+    .map((element) => element.getBoundingClientRect())
+    .map((rect) => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom })))
+  for (let index = 0; index < boxes.length; index += 1) {
+    for (let next = index + 1; next < boxes.length; next += 1) {
+      const first = boxes[index]!
+      const second = boxes[next]!
+      const overlaps = first.left < second.right && second.left < first.right && first.top < second.bottom && second.top < first.bottom
+      expect(overlaps, `header controls overlap at ${await page.evaluate(() => `${window.innerWidth}x${window.innerHeight}`)}`).toBe(false)
+    }
+  }
+}
+
+async function expectGeometryMatch(production: Page, design: Page, selector: string, label: string) {
+  const actual = await production.locator(selector).first().boundingBox()
+  const baseline = await design.locator(selector).first().boundingBox()
+  expect(actual, `${label} production box`).not.toBeNull()
+  expect(baseline, `${label} design box`).not.toBeNull()
+  expect(Math.abs(actual!.x - baseline!.x), `${label} x`).toBeLessThanOrEqual(1)
+  expect(Math.abs(actual!.y - baseline!.y), `${label} y`).toBeLessThanOrEqual(1)
+  expect(Math.abs(actual!.width - baseline!.width), `${label} width`).toBeLessThanOrEqual(1)
+  if (selector !== 'main') expect(Math.abs(actual!.height - baseline!.height), `${label} height`).toBeLessThanOrEqual(1)
 }
 
 for (const viewport of viewports) {
@@ -28,6 +55,8 @@ for (const viewport of viewports) {
       await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
       await expectNoOverflow(page)
+      await expectHeaderControlsFit(page)
+      if (viewport.width <= 340) await expect(page.locator('[data-console-breadcrumb]')).toBeHidden()
       await page.screenshot({ path: `${output}/overview-production-${theme}-${viewport.name}.png` })
       if (theme === 'light') await page.screenshot({ path: `${output}/shell-production-light-${viewport.name}.png` })
     })
@@ -110,6 +139,32 @@ for (const viewport of viewports) {
     })
   }
 }
+
+test('the authenticated shell keeps design-lab geometry across required viewports and themes', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const production = await browser.newPage()
+  const design = await browser.newPage()
+  await installMockApi(production)
+
+  for (const theme of ['light', 'dark'] as const) {
+    for (const viewport of viewports) {
+      await production.setViewportSize(viewport)
+      await design.setViewportSize(viewport)
+      await setTheme(production, theme)
+      await setTheme(design, theme)
+      await production.goto('/en/console/overview')
+      await expect(production.getByRole('heading', { name: 'Overview' })).toBeVisible()
+      await design.goto('http://127.0.0.1:4180/#console')
+      await expect(design.getByRole('heading', { name: 'Overview' })).toBeVisible()
+      for (const selector of ['header.sticky', 'main']) {
+        await expectGeometryMatch(production, design, selector, `${selector} ${viewport.name} ${theme}`)
+      }
+    }
+  }
+
+  await production.close()
+  await design.close()
+})
 
 test('Canonical Console Overview overlay and mobile navigation restore focus', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })

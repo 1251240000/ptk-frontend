@@ -21,7 +21,7 @@ describe('canonical Console source boundaries', () => {
     const references = roots.flatMap((root) => filesUnder(root)
       .filter((path) => ['.ts', '.tsx'].includes(extname(path)))
       .filter((path) => readFileSync(path, 'utf8').includes(compatibilityPath))
-      .map((path) => relative(webRoot, path)))
+      .map((path) => relative(webRoot, path).replaceAll('\\\\', '/').replaceAll('\\', '/')))
 
     expect(references.sort()).toEqual(['e2e/console.spec.ts'])
     expect(readFileSync(join(srcRoot, 'lib/routes.ts'), 'utf8')).toContain(`'${compatibilityPath.slice(1)}'`)

@@ -8,6 +8,7 @@ import {
   consolePageFromPathname,
   consoleRouteMap,
   isConsoleViewportSection,
+  localizedLocation,
   localizedUserPath,
 } from './routes'
 
@@ -18,6 +19,10 @@ describe('localized user routes', () => {
 
   it('falls back to the canonical simplified Chinese prefix', () => {
     expect(localizedUserPath(undefined, '/console/keys')).toBe('/zh-CN/console/keys')
+  })
+
+  it('changes locale without dropping the active route, query, or hash', () => {
+    expect(localizedLocation('/en/console/analytics', 'ja', '?range=30#trend')).toBe('/ja/console/analytics?range=30#trend')
   })
 
   it.each([

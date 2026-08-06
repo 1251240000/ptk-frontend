@@ -4,6 +4,17 @@
 @custom-variant dark (&:is([data-theme='dark'] *));
 
 @theme inline {
+  --font-inter: var(--pt-lab-font-interface);
+  --font-manrope: var(--pt-lab-font-accent);
+  --font-mono: var(--pt-lab-font-mono);
+  --text-2xs: var(--pt-lab-font-size-10);
+  --text-compact: var(--pt-lab-font-size-11);
+  --text-xs: var(--pt-lab-font-size-12);
+  --text-sm: var(--pt-lab-font-size-14);
+  --text-base: var(--pt-lab-font-size-16);
+  --text-lg: var(--pt-lab-font-size-18);
+  --text-xl: var(--pt-lab-font-size-20);
+  --text-2xl: var(--pt-lab-font-size-24);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -23,6 +34,10 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--pt-lab-color-success);
+  --color-success-signal: var(--pt-lab-color-success-signal);
+  --color-warning: var(--pt-lab-color-warning);
+  --color-warning-signal: var(--pt-lab-color-warning-signal);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -109,8 +124,8 @@ body.console-portal {
   min-height: 100svh;
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', 'Noto Sans SC', sans-serif;
-  font-size: 14px;
+  font-family: var(--pt-lab-font-interface);
+  font-size: var(--pt-lab-font-size-14);
   letter-spacing: 0;
 }
 
@@ -172,7 +187,7 @@ body.console-portal,
 .console-root textarea,
 body.console-portal button,
 body.console-portal input {
-  font-family: 'Inter', 'Noto Sans SC', sans-serif;
+  font-family: var(--pt-lab-font-interface);
   letter-spacing: 0;
 }
 

@@ -755,6 +755,8 @@ export function ConsoleKeysPage() {
   const createTrigger = useRef<HTMLButtonElement>(null)
   const batchTrigger = useRef<HTMLButtonElement>(null)
   const mounted = useRef(true)
+  const sessionRevision = useSessionStore((state) => state.revision)
+  const previousSessionRevision = useRef(sessionRevision)
 
   useEffect(() => {
     mounted.current = true
@@ -842,6 +844,25 @@ export function ConsoleKeysPage() {
     ),
     gcTime: 0,
   })
+
+  useEffect(() => {
+    if (!secret) return
+    const timer = window.setTimeout(() => {
+      setSecret(null)
+      setCopied(false)
+      reveal.reset()
+    }, 60_000)
+    return () => window.clearTimeout(timer)
+  }, [secret])
+
+  useEffect(() => {
+    if (previousSessionRevision.current === sessionRevision) return
+    previousSessionRevision.current = sessionRevision
+    setRevealTarget(null)
+    setSecret(null)
+    setCopied(false)
+    reveal.reset()
+  }, [reveal, sessionRevision])
 
   const clearFilters = () => {
     setSearch('')

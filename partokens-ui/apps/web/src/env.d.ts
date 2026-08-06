@@ -10,7 +10,7 @@ interface ImportMeta {
 
 interface Window {
   turnstile?: {
-    render: (container: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback'?: () => void }) => string
+    render: (container: HTMLElement, options: { sitekey: string; size?: 'normal' | 'flexible' | 'compact'; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback'?: () => void }) => string
     remove: (widgetId: string) => void
   }
 }

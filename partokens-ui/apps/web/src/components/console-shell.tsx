@@ -1,21 +1,19 @@
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router'
 import {
-  BadgeCheck,
   BarChart3,
   Bell,
+  BookOpen,
   Check,
-  ChevronsUpDown,
   CircleUserRound,
+  Globe2,
   Image as ImageIcon,
   KeyRound,
   LayoutDashboard,
-  Link2,
   LogOut,
   MessageSquare,
   Monitor,
   Moon,
   ReceiptText,
-  ShieldCheck,
   Sun,
   WalletCards,
 } from 'lucide-react'
@@ -42,7 +40,6 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -52,10 +49,10 @@ import {
   Toaster,
   useSidebar,
 } from '@partokens/design-system/components'
-import { isAppLocale } from '@partokens/i18n'
+import { isAppLocale, localeLabels, locales, type AppLocale } from '@partokens/i18n'
 
 import { consoleRouteRetryStorageKey } from '@/components/console-route-state'
-import { canonicalConsoleRoute, consolePageFromPathname, type CanonicalConsolePage } from '@/lib/routes'
+import { canonicalConsoleRoute, consolePageFromPathname, localizedLocation, type CanonicalConsolePage } from '@/lib/routes'
 import { usePreferenceStore, type ThemeMode } from '@/stores/preferences'
 import { useSessionStore } from '@/stores/session'
 
@@ -64,11 +61,17 @@ type ConsolePage = CanonicalConsolePage
 type NavigationItem = {
   label: string
   icon: typeof KeyRound
-  page?: ConsolePage
-  unavailable?: boolean
+  page: ConsolePage
 }
 
 const consoleNavigation: Array<{ label: string; items: NavigationItem[] }> = [
+  {
+    label: 'Workspace',
+    items: [
+      { label: 'Playground', page: 'playground', icon: MessageSquare },
+      { label: 'Image studio', page: 'studio', icon: ImageIcon },
+    ],
+  },
   {
     label: 'General',
     items: [
@@ -79,20 +82,10 @@ const consoleNavigation: Array<{ label: string; items: NavigationItem[] }> = [
     ],
   },
   {
-    label: 'Workspace',
-    items: [
-      { label: 'Playground', page: 'playground', icon: MessageSquare },
-      { label: 'Image studio', page: 'studio', icon: ImageIcon },
-    ],
-  },
-  {
     label: 'Account',
     items: [
       { label: 'Wallet', page: 'wallet', icon: WalletCards },
       { label: 'Profile', page: 'profile', icon: CircleUserRound },
-      { label: 'Security', icon: ShieldCheck, unavailable: true },
-      { label: 'Connections', icon: Link2, unavailable: true },
-      { label: 'Notifications', icon: Bell, unavailable: true },
     ],
   },
 ]
@@ -131,55 +124,18 @@ function useConsoleNavigation() {
 
 function BrandMenu() {
   const { t } = useTranslation()
-  const { isMobile } = useSidebar()
-  const closeMobileNavigation = useConsoleNavigation()
-  const params = useParams({ strict: false }) as { locale?: string }
-  const locale = isAppLocale(params.locale) ? params.locale : 'zh-CN'
 
   return (
     <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <PartokensMark className="size-4" />
-              </div>
-              <div className="grid flex-1 text-start text-sm leading-tight">
-                <span className="truncate font-semibold">Partokens</span>
-                <span className="truncate text-xs">{t('Developer console')}</span>
-              </div>
-              <ChevronsUpDown className="ms-auto size-4" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            align="start"
-            side={isMobile ? 'bottom' : 'right'}
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">{t('Workspace')}</DropdownMenuLabel>
-            <DropdownMenuItem className="gap-2 p-2" asChild>
-              <Link to={canonicalConsoleRoute('overview')} params={{ locale }} onClick={closeMobileNavigation}>
-                <div className="flex size-6 items-center justify-center rounded-sm border">
-                  <LayoutDashboard className="size-4" />
-                </div>
-                {t('Developer console')}
-                <Check className="ms-auto size-4" />
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2" disabled aria-label={`${t('Component lab')} - ${t('Unavailable')}`}>
-              <div className="flex size-6 items-center justify-center rounded-sm border">
-                <BadgeCheck className="size-4" />
-              </div>
-              {t('Component lab')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <SidebarMenuItem className="flex h-12 items-center gap-2 rounded-md p-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0">
+        <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
+          <PartokensMark className="size-4" />
+        </div>
+        <div className="grid min-w-0 flex-1 text-start text-sm leading-tight group-data-[collapsible=icon]:hidden">
+          <span className="truncate font-semibold">Partokens</span>
+          <span className="truncate text-xs">{t('Developer console')}</span>
+        </div>
+        <SidebarTrigger className="ms-auto size-8 shrink-0" data-console-sidebar-trigger />
       </SidebarMenuItem>
     </SidebarMenu>
   )
@@ -203,26 +159,16 @@ function ConsoleNavigation({ activePage }: { activePage: ConsolePage }) {
 
             return (
               <SidebarMenuItem key={item.label}>
-                {item.page ? (
-                  <SidebarMenuButton asChild isActive={isActive} tooltip={t(item.label)}>
-                    <Link
-                      to={canonicalConsoleRoute(item.page)}
-                      params={{ locale }}
-                      aria-current={isActive ? 'page' : undefined}
-                      onClick={closeMobileNavigation}
-                    >
-                      {content}
-                    </Link>
-                  </SidebarMenuButton>
-                ) : (
-                  <SidebarMenuButton
-                    disabled={item.unavailable}
-                    tooltip={`${t(item.label)} - ${t('Unavailable')}`}
-                    aria-label={`${t(item.label)} - ${t('Unavailable')}`}
+                <SidebarMenuButton asChild isActive={isActive} tooltip={t(item.label)}>
+                  <Link
+                    to={canonicalConsoleRoute(item.page)}
+                    params={{ locale }}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={closeMobileNavigation}
                   >
                     {content}
-                  </SidebarMenuButton>
-                )}
+                  </Link>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             )
           })}
@@ -263,7 +209,6 @@ function UserMenu() {
                 <span className="truncate font-semibold">{name}</span>
                 <span className="truncate text-xs">{email}</span>
               </div>
-              <ChevronsUpDown className="ms-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -281,10 +226,10 @@ function UserMenu() {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link to={canonicalConsoleRoute('profile')} params={{ locale }}><CircleUserRound />{t('Profile')}</Link>
+                <Link to={canonicalConsoleRoute('wallet')} params={{ locale }}><WalletCards />{t('Wallet')}</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem disabled aria-label={`${t('Notifications')} - ${t('Unavailable')}`}>
-                <Bell />{t('Notifications')}
+              <DropdownMenuItem asChild>
+                <Link to={canonicalConsoleRoute('profile')} params={{ locale }}><CircleUserRound />{t('Profile')}</Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -331,7 +276,14 @@ function HeaderAccountMenu() {
   const params = useParams({ strict: false }) as { locale?: string }
   const locale = isAppLocale(params.locale) ? params.locale : 'zh-CN'
   const user = useSessionStore((state) => state.user)
+  const signOut = useSessionStore((state) => state.signOut)
   const name = user?.display_name || user?.username || t('Account')
+  const email = user?.email || user?.username || ''
+
+  const handleSignOut = async () => {
+    await signOut()
+    window.location.assign(`/${locale}/auth/sign-in`)
+  }
 
   return (
     <DropdownMenu modal={false}>
@@ -340,15 +292,62 @@ function HeaderAccountMenu() {
           <CircleUserRound />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel className="truncate">{name}</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="min-w-56 rounded-lg">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="truncate text-sm font-medium">{name}</p>
+            <p className="truncate text-xs text-muted-foreground">{email}</p>
+          </div>
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to={canonicalConsoleRoute('profile')} params={{ locale }}><CircleUserRound />{t('Profile')}</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled aria-label={`${t('Notifications')} - ${t('Unavailable')}`}>
-          <Bell />{t('Notifications')}
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link to={canonicalConsoleRoute('wallet')} params={{ locale }}><WalletCards />{t('Wallet')}</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link to={canonicalConsoleRoute('profile')} params={{ locale }}><CircleUserRound />{t('Profile')}</Link>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => void handleSignOut()}><LogOut />{t('Sign out')}</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const pageSections: Record<ConsolePage, string> = {
+  overview: 'General',
+  analytics: 'General',
+  keys: 'General',
+  usageLogs: 'General',
+  playground: 'Workspace',
+  studio: 'Workspace',
+  wallet: 'Account',
+  profile: 'Account',
+}
+
+function LanguageMenu() {
+  const { t } = useTranslation()
+  const params = useParams({ strict: false }) as { locale?: string }
+  const locale = isAppLocale(params.locale) ? params.locale : 'en'
+  const pathname = useLocation({ select: (state) => state.pathname })
+  const replaceLocale = (nextLocale: AppLocale) => {
+    window.location.assign(localizedLocation(pathname, nextLocale, window.location.search, window.location.hash))
+  }
+
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="rounded-full" aria-label={t('Change interface language')} title={t('Change interface language')}>
+          <Globe2 aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">{t('Interface language')}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup value={locale} onValueChange={(value) => isAppLocale(value) && replaceLocale(value)}>
+          {locales.map((option) => <DropdownMenuRadioItem key={option} value={option}>{localeLabels[option]}<Check className={locale === option ? 'ms-auto' : 'ms-auto invisible'} /></DropdownMenuRadioItem>)}
+        </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -357,6 +356,8 @@ function HeaderAccountMenu() {
 function ConsoleHeader({ activePage }: { activePage: ConsolePage }) {
   const { t } = useTranslation()
   const { isMobile, openMobile } = useSidebar()
+  const params = useParams({ strict: false }) as { locale?: string }
+  const locale = isAppLocale(params.locale) ? params.locale : 'en'
   const triggerRef = useRef<HTMLButtonElement>(null)
   const wasOpenRef = useRef(openMobile)
 
@@ -372,13 +373,20 @@ function ConsoleHeader({ activePage }: { activePage: ConsolePage }) {
   return (
     <header className="sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-full items-center gap-3 p-4 sm:gap-4">
-        <SidebarTrigger ref={triggerRef} variant="outline" className="max-md:scale-110" data-console-sidebar-trigger />
-        <Separator orientation="vertical" className="h-6" />
-        <div className="min-w-0 text-sm">
-          <span className="hidden text-muted-foreground sm:inline">{t('Console')} / </span>
+        <SidebarTrigger ref={triggerRef} variant="outline" className="max-md:scale-110 md:hidden" data-console-sidebar-trigger />
+        <Separator orientation="vertical" className="h-6 md:hidden" />
+        <div data-console-breadcrumb className="min-w-0 text-sm max-[340px]:hidden">
+          <span className="hidden text-muted-foreground sm:inline">{t(pageSections[activePage])} / </span>
           <span className="font-medium">{t(pageLabels[activePage])}</span>
         </div>
         <div className="ms-auto flex items-center gap-1">
+          <Button asChild variant="ghost" size="icon" className="rounded-full" aria-label={t('Notifications')} title={t('Notifications')}>
+            <Link to="/$locale/notices" params={{ locale }}><Bell /></Link>
+          </Button>
+          <Button asChild variant="ghost" size="icon" className="rounded-full" aria-label={t('Docs')} title={t('Docs')}>
+            <Link to="/$locale/docs" params={{ locale }}><BookOpen /></Link>
+          </Button>
+          <LanguageMenu />
           <ThemeMenu />
           <HeaderAccountMenu />
         </div>
@@ -430,12 +438,12 @@ export function ConsoleShell() {
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="@container/content min-w-0">
+        <div className="@container/content relative flex min-w-0 w-full flex-1 flex-col bg-background">
           <ConsoleHeader activePage={activePage} />
           <main ref={mainRef} className="w-full px-4 py-6 sm:px-6" tabIndex={-1} aria-label={t('Console content')}>
             <div className="mx-auto w-full max-w-7xl space-y-6"><Outlet /></div>
           </main>
-        </SidebarInset>
+        </div>
       </SidebarProvider>
       <Toaster theme={toasterTheme} position="bottom-right" richColors closeButton />
     </div>

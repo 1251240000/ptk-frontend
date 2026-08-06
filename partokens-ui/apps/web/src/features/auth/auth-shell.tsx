@@ -182,8 +182,8 @@ export function AuthField(props: AuthFieldProps) {
   const hintId = props.hint ? `${id}-hint` : undefined
   const errorId = props.error ? `${id}-error` : undefined
   const Icon = props.icon
-  return <label className="pt-field r32-auth-field" htmlFor={id}>
-    <span>{props.label}</span>
+  return <div className="pt-field r32-auth-field">
+    <label htmlFor={id}>{props.label}</label>
     <span className="pt-field-control">
       <Icon className="pt-field-leading" size={17} aria-hidden="true" />
       <input
@@ -207,13 +207,14 @@ export function AuthField(props: AuthFieldProps) {
     </span>
     {props.hint ? <small id={hintId}>{props.hint}</small> : null}
     {props.error ? <small id={errorId} className="r32-auth-field-error">{props.error}</small> : null}
-  </label>
+  </div>
 }
 
-export function PasswordField(props: { label: string; value: string; onChange: (value: string) => void; autoComplete: string; hint?: string; name?: string }) {
-  const { t } = useTranslation()
+export function PasswordField(props: { label: string; value: string; onChange: (value: string) => void; autoComplete: string; hint?: string; name?: string; locale?: AppLocale }) {
+  const { t, i18n: activeI18n } = useTranslation()
   const [visible, setVisible] = useState(false)
-  const label = visible ? t('Hide password') : t('Show password')
+  const translate = props.locale ? activeI18n.getFixedT(props.locale) : t
+  const label = visible ? translate('Hide password') : translate('Show password')
   return <AuthField
     label={props.label}
     value={props.value}

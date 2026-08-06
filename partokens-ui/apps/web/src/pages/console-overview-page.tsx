@@ -332,7 +332,7 @@ function ServiceReadiness(props: { query: ReturnType<typeof useQuery<SafeStatus>
         </dl>
       )}
       <footer className="mt-auto border-t p-3">
-        <Button asChild variant="ghost" size="sm" className="w-full justify-between"><Link to="/$locale/docs" params={{ locale: props.locale }}>{t('Notices')}<ArrowRight /></Link></Button>
+        <Button asChild variant="ghost" size="sm" className="w-full justify-between"><Link to="/$locale/notices" params={{ locale: props.locale }}>{t('Notices')}<ArrowRight /></Link></Button>
       </footer>
     </section>
   )

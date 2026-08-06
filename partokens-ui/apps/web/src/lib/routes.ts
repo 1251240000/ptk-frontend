@@ -65,3 +65,9 @@ export function localizedUserPath(locale: string | undefined, path: `/${string}`
   const safeLocale = isAppLocale(locale) ? locale : 'zh-CN'
   return `/${safeLocale}${path}`
 }
+
+export function localizedLocation(pathname: string, locale: string | undefined, search = '', hash = ''): string {
+  const safeLocale = isAppLocale(locale) ? locale : 'zh-CN'
+  const path = pathname.replace(/^\/[^/]+(?=\/|$)/, `/${safeLocale}`)
+  return `${path === pathname && !pathname.startsWith(`/${safeLocale}`) ? `/${safeLocale}${pathname}` : path}${search}${hash}`
+}

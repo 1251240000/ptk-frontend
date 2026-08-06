@@ -269,6 +269,7 @@
 .r32-auth-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
 
 .r32-auth-field { gap: .5rem; }
+.r32-auth-field > label:first-child,
 .r32-auth-field > span:first-child {
   color: var(--foreground);
   font-family: inherit;

@@ -730,6 +730,27 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
   expect(pageErrors).toEqual([])
 })
 
+test('canonical console API key reveal expires from memory without closing the confirmation surface', async ({ page }) => {
+  await primeUserSession(page)
+  await installMockApi(page)
+  await page.goto('/en/console/keys')
+  await expect(page.getByText('Studio fixture', { exact: true }).first()).toBeVisible()
+
+  await page.evaluate(() => {
+    const nativeSetTimeout = window.setTimeout.bind(window)
+    window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => (
+      nativeSetTimeout(handler, timeout === 60_000 ? 250 : timeout, ...args)
+    )) as typeof window.setTimeout
+  })
+
+  await page.getByRole('button', { name: 'Actions Studio fixture' }).click()
+  await page.getByRole('menuitem', { name: 'Reveal' }).click()
+  await page.getByRole('button', { name: 'Confirm reveal' }).click()
+  await expect(page.getByText('fixture-session-token')).toBeVisible()
+  await expect(page.getByText('fixture-session-token')).toHaveCount(0, { timeout: 2_000 })
+  await expect(page.getByRole('dialog', { name: 'Reveal full key?' })).toBeVisible()
+})
+
 test('canonical console API keys refreshes a list 401 and keeps a mutation 403 local', async ({ page }) => {
   await primeUserSession(page)
   let refreshAttempts = 0
