@@ -1,3 +1,5 @@
+import { authTranslationRows } from './auth'
+
 export const locales = ['zh-CN', 'zh-TW', 'en', 'ja', 'ru', 'fr', 'vi'] as const
 export type AppLocale = (typeof locales)[number]
 
@@ -1482,6 +1484,12 @@ const r59ConsoleTranslationRows: Array<[string, ...string[]]> = [
 ]
 
 for (const [key, ...values] of r59ConsoleTranslationRows) {
+  locales.forEach((locale, index) => {
+    ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
+  })
+}
+
+for (const [key, ...values] of authTranslationRows) {
   locales.forEach((locale, index) => {
     ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
   })

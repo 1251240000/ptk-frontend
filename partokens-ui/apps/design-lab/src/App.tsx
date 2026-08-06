@@ -50,6 +50,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { PartokensMark } from '@partokens/design-system/components'
 import { resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 import { AuthPrototype, type AuthPrototypeScreen } from './auth-prototype'
 import { PublicPrototype, type PublicPrototypeScreen } from './public-prototype'
@@ -76,8 +77,6 @@ function initialTheme(): Theme {
   const saved = window.localStorage.getItem('partokens-theme')
   return saved === 'dark' ? 'dark' : 'light'
 }
-
-const brandLogoUrl = 'https://oss.partokens.com/assets/icons/favicon-96x96.png'
 
 const zh = {
   concept: 'R1 设计原型', models: '模型广场', docs: '使用文档', about: '关于', signIn: '登录', console: '控制台',
@@ -145,7 +144,7 @@ function screenFromHash(): Screen {
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {
-  return <span className="brand-lockup"><span className="brand-mark"><img src={brandLogoUrl} alt="" /></span>{compact ? null : <span>Partokens</span>}</span>
+  return <span className="brand-lockup"><span className="brand-mark"><PartokensMark size={30} /></span>{compact ? null : <span>Partokens</span>}</span>
 }
 
 function IconButton({ label, onClick, children, className = '' }: { label: string; onClick?: () => void; children: React.ReactNode; className?: string }) {
@@ -194,7 +193,7 @@ function ProductPreview({ t, online, version }: { t: Copy; online: boolean | nul
       <span className={online ? 'live-status online' : 'live-status'}><i />{online ? t.serviceOnline : t.serviceWaiting}{version ? ` / ${version}` : ''}</span>
     </div>
     <div className="preview-app-shell">
-      <aside className="preview-rail" aria-hidden="true"><span className="mini-brand"><img src={brandLogoUrl} alt="" /></span><MessageSquare className="active" size={18} /><ImageIcon size={18} /><KeyRound size={18} /><LayoutDashboard size={18} /></aside>
+      <aside className="preview-rail" aria-hidden="true"><span className="mini-brand"><PartokensMark size={25} /></span><MessageSquare className="active" size={18} /><ImageIcon size={18} /><KeyRound size={18} /><LayoutDashboard size={18} /></aside>
       <section className="preview-chat">
         <header><div><span>{t.previewWorkspace}</span><strong>{t.previewNewChat}</strong></div><span className="preview-model-control"><ShieldCheck size={15} />{t.localConversation}</span></header>
         <div className="preview-messages">

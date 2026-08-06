@@ -115,8 +115,13 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
         system_name: 'Partokens',
         version: 'fixture',
         register_enabled: true,
+        password_login_enabled: true,
+        password_register_enabled: true,
+        oauth_register_enabled: true,
         email_verification: true,
+        github_oauth: true,
         github_client_id: 'github-fixture',
+        linuxdo_oauth: true,
         linuxdo_client_id: 'linuxdo-fixture',
         custom_oauth_providers: [{
           id: 1,
@@ -159,6 +164,14 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (path === '/api/user/register' || path === '/api/verification') {
       await json(route, envelope(null))
+      return
+    }
+    if (path === '/api/reset_password') {
+      await json(route, envelope(null))
+      return
+    }
+    if (path === '/api/user/reset' && method === 'POST') {
+      await json(route, envelope('fixture-reset-password'))
       return
     }
     if (path === '/api/oauth/state') {

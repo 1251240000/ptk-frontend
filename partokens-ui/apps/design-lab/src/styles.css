@@ -33,7 +33,7 @@ code, .mono, .section-label, .prototype-badge, .sample-label { font-family: var(
 .brand-button { border: 0; padding: 0; background: transparent; }
 .brand-lockup { display: inline-flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 650; white-space: nowrap; }
 .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--legacy-line); border-radius: 7px; background: #fff; }
-.brand-mark img { width: 30px; height: 30px; object-fit: contain; }
+.brand-mark .partokens-mark { width: 30px; height: 30px; color: var(--pt-color-action-primary); }
 .prototype-badge { display: inline-flex; align-items: center; gap: 7px; color: var(--legacy-muted); font-size: 10px; font-weight: 600; text-transform: uppercase; white-space: nowrap; }
 .prototype-badge > span { width: 7px; height: 7px; border-radius: 50%; background: var(--legacy-coral); }
 .icon-button { width: 40px; height: 40px; display: inline-grid; place-items: center; position: relative; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--legacy-muted); }
@@ -85,7 +85,7 @@ code, .mono, .section-label, .prototype-badge, .sample-label { font-family: var(
 .preview-rail > svg { width: 34px; height: 34px; padding: 8px; border-radius: 6px; }
 .preview-rail > svg.active { background: var(--legacy-blue-soft); color: var(--legacy-blue); }
 .mini-brand { width: 28px; height: 28px; display: grid; place-items: center; margin-bottom: 6px; overflow: hidden; border: 1px solid var(--legacy-line); border-radius: 6px; background: #fff; }
-.mini-brand img { width: 25px; height: 25px; }
+.mini-brand .partokens-mark { width: 25px; height: 25px; color: var(--pt-color-action-primary); }
 .preview-chat { min-width: 0; display: grid; grid-template-rows: 54px 1fr auto auto; background: var(--legacy-paper); }
 .preview-chat > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 18px; border-bottom: 1px solid var(--legacy-line); }
 .preview-chat > header > div { display: grid; gap: 1px; }

@@ -46,6 +46,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 
 import {
   Button,
+  PartokensMark,
 } from '@partokens/design-system/components'
 import {
   getCurrentNotice,
@@ -69,7 +70,6 @@ import {
 import { localeLabels, locales, resources, type AppLocale } from '@partokens/i18n'
 import type { PartokensStatus, PublicPricingModel } from '@partokens/api-client'
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from './interface-tool-menus'
-import { PartokensMark } from './partokens-mark'
 import { isNoticeSeen, markNoticeSeen, subscribeNoticeRead } from './notice-read-state'
 
 export type PublicPrototypeScreen =

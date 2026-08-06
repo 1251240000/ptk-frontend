@@ -46,6 +46,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 
 import {
   Button,
+  PartokensMark,
 } from '@partokens/design-system/components'
 import {
   getCurrentNotice,
@@ -55,7 +56,6 @@ import {
 } from '@partokens/content'
 import { localeLabels, locales, resources, type AppLocale } from '@partokens/i18n'
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from './interface-tool-menus'
-import { PartokensMark } from './partokens-mark'
 import { completedDocsOrder, getDocsDocument, getDocsSearchText, type DocsCodeSample, type DocsContentBlock, type DocsDocument } from './public-docs-content'
 import { docsCatalog, publicDocsCopy, type DocsItemId, type DocsItemTarget } from './public-docs-copy'
 import { homePageCopy, type HomePageCopy, type HomePageTarget } from './public-home-copy'

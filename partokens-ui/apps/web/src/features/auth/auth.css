@@ -133,6 +133,29 @@
   line-height: 1.6;
 }
 
+.r32-auth-rail-status {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  color: color-mix(in srgb, var(--auth-rail-fg) 82%, transparent);
+  font-family: var(--pt-lab-font-mono);
+  font-size: var(--pt-lab-font-size-11);
+}
+
+.r32-auth-rail-status i {
+  width: .4375rem;
+  height: .4375rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--auth-rail-fg) 44%, transparent);
+}
+
+.r32-auth-rail-status i[data-available] { background: var(--pt-color-success-signal); }
+.r32-auth-rail-story > small {
+  color: color-mix(in srgb, var(--auth-rail-fg) 68%, transparent);
+  font-size: var(--pt-lab-font-size-11);
+  line-height: 1.45;
+}
+
 .r32-auth-task {
   min-width: 0;
   min-height: 100svh;
@@ -279,6 +302,7 @@
 .r32-auth-field .pt-field-control:has(.r32-field-action) input { padding-right: 2.75rem; }
 .r32-auth-field .pt-field-control:has(.r32-send-code) input { padding-right: 6.75rem; }
 .r32-auth-field small { color: var(--muted-foreground); font-size: var(--pt-lab-font-size-11); line-height: 1.45; }
+.r32-auth-field .r32-auth-field-error { color: var(--destructive); }
 .r32-auth-password-hint {
   margin-top: -.375rem;
   color: var(--muted-foreground);
@@ -374,7 +398,8 @@
   padding-left: 1.5rem;
 }
 
-.r32-auth-consent button {
+.r32-auth-consent button,
+.r32-auth-consent a {
   padding: 0;
   border: 0;
   background: transparent;
@@ -444,7 +469,8 @@
   font-size: var(--pt-lab-font-size-12);
 }
 
-.r32-auth-switch button {
+.r32-auth-switch button,
+.r32-auth-switch a {
   display: inline-flex;
   align-items: center;
   gap: .25rem;
@@ -455,7 +481,8 @@
   font-weight: 550;
 }
 
-.r32-auth-switch button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.r32-auth-switch button:hover,
+.r32-auth-switch a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 .r32-form-success,
 .r32-form-error {
@@ -481,6 +508,16 @@
   background: transparent;
   color: inherit;
   font-weight: 600;
+}
+
+.r32-form-error button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .r32-form-error {
@@ -540,6 +577,8 @@
 .r32-oauth-route[data-complete] > span i { background: var(--pt-color-success); }
 .r32-auth-process-note { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; color: var(--muted-foreground); font-size: var(--pt-lab-font-size-12); line-height: 1.45; }
 .r32-auth-process-note.is-complete { margin-bottom: 1rem; color: var(--pt-color-success); }
+.r32-oauth-wrap > .r32-form-error { margin-top: .75rem; }
+.r32-turnstile-field { min-height: 4.0625rem; overflow: hidden; }
 .r32-spin { animation: r32-auth-spin 900ms linear infinite; }
 @keyframes r32-auth-spin { to { transform: rotate(360deg); } }
 

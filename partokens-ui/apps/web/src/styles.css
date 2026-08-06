@@ -321,9 +321,7 @@ pre,
   border-color: var(--brand-strong);
 }
 .secondary-button,
-.oauth-button,
-.secondary-button:hover,
-.oauth-button:hover {
+.secondary-button:hover {
   border-color: var(--line-strong);
   background: var(--surface-muted);
 }
@@ -642,117 +640,12 @@ pre,
 .data-state-error {
   color: var(--danger);
 }
-.auth-page {
-  min-height: 100svh;
-  display: grid;
-  grid-template-columns: minmax(320px, 0.8fr) minmax(500px, 1.2fr);
-  background: var(--surface);
-}
-.auth-signal {
-  min-height: 100%;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 30px 42px;
-  overflow: hidden;
-  border-right: 1px solid var(--line);
-  background: var(--canvas);
-}
-.auth-signal::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.6;
-  pointer-events: none;
-  background-image:
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 5%,
-    black 45%,
-    transparent 95%
-  );
-}
-.auth-signal > * {
-  position: relative;
-  z-index: 1;
-}
-.auth-signal-body {
-  max-width: 420px;
-}
-.auth-signal-mark {
-  width: 66px;
-  height: 66px;
-  display: grid;
-  place-items: center;
-  margin: 24px 0;
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  color: var(--brand);
-}
-.auth-signal h1 {
-  margin: 0;
-  font-size: 58px;
-  line-height: 1;
-  font-weight: 600;
-}
-.auth-signal-body > p {
-  margin: 15px 0 30px;
-  color: var(--muted);
-  font-size: 18px;
-}
-.auth-health {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  font:
-    10px "IBM Plex Mono",
-    monospace;
-  color: var(--muted);
-}
-.auth-back {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--muted);
-  font-size: 12px;
-}
-.auth-form-panel {
-  min-height: 100svh;
-  display: grid;
-  place-items: center;
-  padding: 54px 30px;
-  overflow-y: auto;
-}
-.auth-form-wrap {
-  width: min(430px, 100%);
-}
-.auth-form-wrap > header h2 {
-  margin: 8px 0 8px;
-  font-size: 35px;
-  font-weight: 550;
-}
-.auth-form-wrap > header p {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
-  margin-bottom: 30px;
-}
-.auth-form {
-  display: grid;
-  gap: 17px;
-}
-.auth-form label,
 .dialog label,
 .profile-form label,
 .studio-inspector label {
   display: grid;
   gap: 7px;
 }
-.auth-form label > span:first-child,
 .dialog label > span,
 .profile-form label > span,
 .studio-inspector label > span {
@@ -760,7 +653,6 @@ pre,
   font-size: 11px;
   font-weight: 600;
 }
-.auth-form input,
 .dialog input,
 .profile-form input,
 .studio-inspector input,
@@ -774,53 +666,11 @@ pre,
   outline: 0;
   background: var(--surface);
 }
-.auth-form input:focus,
 .dialog input:focus,
 .profile-form input:focus,
 .studio-inspector textarea:focus {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px var(--brand-soft);
-}
-.form-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: -9px;
-}
-.form-row a,
-.auth-switch a {
-  color: var(--brand-strong);
-  font-size: 12px;
-  font-weight: 600;
-}
-.consent-field {
-  grid-template-columns: 18px 1fr !important;
-  gap: 2px 10px !important;
-  align-items: start;
-}
-.consent-field input {
-  width: 16px;
-  height: 16px;
-  margin: 2px 0 0;
-  accent-color: var(--brand);
-}
-.consent-field > span {
-  color: var(--muted) !important;
-  font-size: 11px !important;
-  line-height: 1.5;
-  font-weight: 400 !important;
-}
-.consent-links {
-  grid-column: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.consent-links a {
-  color: var(--brand-strong);
-}
-.auth-submit {
-  width: 100%;
-  height: 43px;
 }
 .form-error,
 .form-success {
@@ -840,84 +690,6 @@ pre,
   background: var(--healthy-soft);
   color: var(--healthy);
 }
-.form-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 24px 0 14px;
-  color: var(--muted);
-  font:
-    9px "IBM Plex Mono",
-    monospace;
-}
-.form-divider::before,
-.form-divider::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: var(--line);
-}
-.oauth-grid {
-  display: grid;
-  gap: 8px;
-}
-.oauth-button {
-  width: 100%;
-  justify-content: flex-start;
-  padding-left: 18px;
-}
-.provider-glyph {
-  width: 17px;
-  height: 17px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #1f2328;
-  color: white;
-  font-size: 10px;
-}
-.google-glyph {
-  background: #4285f4;
-}
-.oauth-wrap .form-error {
-  margin-top: 10px;
-}
-.auth-switch {
-  margin: 22px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
-}
-.input-action {
-  display: grid;
-  grid-template-columns: 1fr auto;
-}
-.input-action input {
-  border-radius: 4px 0 0 4px;
-}
-.input-action button {
-  min-width: 90px;
-  border: 1px solid var(--line-strong);
-  border-left: 0;
-  border-radius: 0 4px 4px 0;
-  background: var(--surface-muted);
-  font-size: 11px;
-}
-.generated-password {
-  display: grid;
-  gap: 14px;
-}
-.generated-password span {
-  color: var(--muted);
-  font-size: 11px;
-}
-.generated-password code {
-  padding: 16px;
-  border: 1px solid var(--line-strong);
-  background: var(--surface-muted);
-  overflow-wrap: anywhere;
-}
-
 .console-page {
   width: min(1320px, 100%);
   margin: 0 auto;
@@ -2777,32 +2549,6 @@ td code {
   .hero-next {
     left: 20px;
   }
-  .auth-page {
-    grid-template-columns: 1fr;
-  }
-  .auth-signal {
-    min-height: 170px;
-    padding: 20px;
-  }
-  .auth-signal-body {
-    margin-top: 28px;
-  }
-  .auth-signal-mark,
-  .auth-signal-body > p,
-  .auth-health {
-    display: none;
-  }
-  .auth-signal h1 {
-    font-size: 36px;
-  }
-  .auth-back {
-    display: none;
-  }
-  .auth-form-panel {
-    min-height: auto;
-    padding: 38px 20px 70px;
-    place-items: start center;
-  }
   .console-page {
     padding: 28px 16px 70px;
   }
@@ -3024,9 +2770,6 @@ td code {
   }
   .page-heading h1 {
     overflow-wrap: anywhere;
-  }
-  .auth-form-wrap > header h2 {
-    font-size: 29px;
   }
   .metric {
     padding: 14px;

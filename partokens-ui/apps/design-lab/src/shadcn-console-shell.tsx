@@ -40,10 +40,10 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
+  PartokensMark,
   Toaster,
   useSidebar,
 } from '@partokens/design-system/components'
-import { PartokensMark } from './partokens-mark'
 
 export type Theme = 'light' | 'dark'
 export type ConsoleLanguage = 'en' | 'zh-CN' | 'zh-TW' | 'ja' | 'ru' | 'fr'

@@ -8,6 +8,7 @@ import {
   api,
   authenticatedFetch,
   clearAuthentication,
+  confirmPasswordReset,
   exchangeOAuth,
   getSelf,
   installAuthentication,
@@ -387,6 +388,12 @@ describe('authentication lifecycle', () => {
     expect(useSessionStore.getState().accessToken).toBeNull()
   })
 
+  it('rejects a password-reset success that does not contain a one-time password', async () => {
+    api.defaults.adapter = async (config) => response(config, { success: true, data: { unexpected: true } })
+
+    await expect(confirmPasswordReset({ email: 'unit@example.test', token: 'unit-reset' })).rejects.toBeInstanceOf(AuthContractError)
+  })
+
   it('refreshes and retries native fetch once with the rotated bearer', async () => {
     installAuthentication(bundle('native-old-access'))
     api.defaults.adapter = async (config) => response(config, {
@@ -505,8 +512,8 @@ describe('authentication lifecycle', () => {
   it('accepts an OAuth bind callback only from the expected popup, origin, provider, and state', async () => {
     const close = vi.fn()
     const assign = vi.fn()
-    const popup = { close, closed: false, location: { assign } }
-    const wrongPopup = { close: vi.fn(), closed: false, location: { assign: vi.fn() } }
+    const popup = { close, closed: false, location: { assign }, sessionStorage: memoryStorage() }
+    const wrongPopup = { close: vi.fn(), closed: false, location: { assign: vi.fn() }, sessionStorage: memoryStorage() }
     vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
     let exchangeCalls = 0
     api.defaults.adapter = async (config) => {
@@ -547,7 +554,7 @@ describe('authentication lifecycle', () => {
 
     expect(exchangeCalls).toBe(1)
     expect(close).toHaveBeenCalledTimes(1)
-    expect(window.localStorage.getItem('partokens-oauth-intent')).toBeNull()
+    expect(window.localStorage.length).toBe(0)
   })
 
   it('does not persist or print access credentials', () => {

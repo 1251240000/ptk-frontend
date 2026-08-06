@@ -39,6 +39,7 @@ export {
 } from './dropdown-menu'
 export { Input } from './input'
 export { Label } from './label'
+export { PartokensMark } from './partokens-mark'
 export {
   Select,
   SelectContent,

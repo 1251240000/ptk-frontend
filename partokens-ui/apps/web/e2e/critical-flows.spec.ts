@@ -13,19 +13,24 @@ function requestBody(request: Request) {
   }
 }
 
-test('legal consent gates password and OAuth sign-in before an ordinary-user redirect', async ({ page }) => {
+test('legal consent defaults checked and still gates password and OAuth sign-in', async ({ page }) => {
   await installMockApi(page)
   await page.goto('/en/auth/sign-in')
 
   const submit = page.getByRole('button', { name: 'Sign in', exact: true })
+  const consent = page.getByRole('checkbox')
+  await expect(consent).toBeChecked()
   await expect(submit).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeEnabled()
   await expect(page.getByLabel('Username or email')).toHaveCount(1)
   await expect(page.getByLabel('Verification code')).toHaveCount(0)
 
   await page.getByLabel('Username or email').fill('fixture-user')
   await page.getByLabel('Password', { exact: true }).fill('fixture-password')
-  await page.getByRole('checkbox').check()
+  await consent.uncheck()
+  await expect(submit).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeDisabled()
+  await consent.check()
 
   await expect(submit).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeEnabled()
@@ -62,6 +67,7 @@ test('email verification is limited to registration and the submitted code is pr
     },
   })
   await page.goto('/en/auth/sign-up')
+  await expect(page.getByRole('checkbox')).toBeChecked()
 
   await page.getByLabel('Username', { exact: true }).fill('new-fixture-user')
   await page.getByLabel('Email', { exact: true }).fill('new@example.test')
@@ -72,7 +78,6 @@ test('email verification is limited to registration and the submitted code is pr
   await page.getByLabel('Verification code').fill('123456')
   await page.getByLabel('Password', { exact: true }).fill('fixture-password')
   await page.getByLabel('Confirm password').fill('fixture-password')
-  await page.getByRole('checkbox').check()
   await page.getByRole('button', { name: 'Create account' }).click()
 
   await page.waitForURL('**/en/auth/sign-in')
@@ -96,7 +101,10 @@ test('administrators leave the standalone locale routes for the native managemen
 
 test('OAuth callback restores the saved locale and enters the ordinary-user console', async ({ page }) => {
   let callback = ''
-  await page.addInitScript(() => window.localStorage.setItem('partokens-oauth-locale', 'fr'))
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem('partokens-oauth-locale', 'fr')
+    window.sessionStorage.setItem('partokens-oauth-state:google', 'fixture-state')
+  })
   await installMockApi(page, {
     onRequest: (request) => {
       if (new URL(request.url()).pathname === '/api/oauth/google') callback = request.url()
@@ -125,10 +133,43 @@ test('password login completes the required two-factor route before entering the
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await page.waitForURL('**/en/auth/otp')
 
-  await page.getByLabel('Verification code').fill('123456')
+  await page.getByLabel('Authenticator code').fill('123456')
   await page.getByRole('button', { name: 'Verify' }).click()
   await page.waitForURL('**/en/console/overview')
   expect(verification).toEqual({ code: '123456', flow_token: 'fixture-two-factor-flow' })
+})
+
+test('two-factor backup mode normalizes the displayed code before submission', async ({ page }) => {
+  let verification: Record<string, unknown> = {}
+  await installMockApi(page, {
+    requireTwoFactor: true,
+    onRequest: (request) => {
+      if (new URL(request.url()).pathname === '/api/user/login/2fa') verification = requestBody(request)
+    },
+  })
+  await page.goto('/en/auth/sign-in')
+  await page.getByLabel('Username or email').fill('fixture-user')
+  await page.getByLabel('Password', { exact: true }).fill('fixture-password')
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.getByRole('button', { name: 'Use a backup code' }).click()
+  await page.getByLabel('Backup code').fill('cawd-oqdv')
+  await page.getByRole('button', { name: 'Verify' }).click()
+
+  await page.waitForURL('**/en/console/overview')
+  expect(verification).toEqual({ code: 'CAWDOQDV', flow_token: 'fixture-two-factor-flow' })
+})
+
+test('technical reset links restore the locale and remove reset credentials after success', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('partokens-locale', 'fr'))
+  await installMockApi(page)
+  await page.goto('/user/reset?email=member%40example.test&token=fixture-reset-token')
+
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
+  await expect(page.getByText('me***@example.test')).toBeVisible()
+  await page.getByRole('button', { name: 'Réinitialiser le mot de passe' }).click()
+  await expect(page.getByText('fixture-reset-password')).toBeVisible()
+  await expect.poll(() => new URL(page.url()).search).toBe('')
 })
 
 test('API key lifecycle covers create, edit, disable, reveal, and delete', async ({ page }) => {

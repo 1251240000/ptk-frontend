@@ -22,12 +22,18 @@ export type PartokensStatus = {
   version?: string
   start_time?: number
   register_enabled?: boolean
+  password_login_enabled?: boolean
+  password_register_enabled?: boolean
+  oauth_register_enabled?: boolean
   email_verification?: boolean
   turnstile_check?: boolean
   turnstile_site_key?: string
   github_client_id?: string
+  github_oauth?: boolean
   linuxdo_client_id?: string
+  linuxdo_oauth?: boolean
   oidc_client_id?: string
+  oidc_enabled?: boolean
   oidc_authorization_endpoint?: string
   custom_oauth_providers?: Array<{
     id: number
@@ -824,12 +830,14 @@ export async function sendPasswordReset(email: string, turnstile?: string): Prom
 
 export async function confirmPasswordReset(input: { email: string; token: string }): Promise<ApiEnvelope<string>> {
   const response = await api.post('/api/user/reset', input)
-  return parseEnvelope<string>(response.data)
+  const envelope = parseMutationEnvelope<string>(response.data)
+  if (envelope.success && (typeof envelope.data !== 'string' || !envelope.data)) throw new AuthContractError()
+  return envelope
 }
 
 export async function exchangeOAuth(
   provider: string,
-  params: { code: string; state?: string },
+  params: { code?: string; state: string; error?: string; error_description?: string },
   intent: 'login' | 'bind' = 'login',
 ): Promise<AuthApiEnvelope<AuthBundle | { action: 'bind' }>> {
   const response = await api.get(`/api/oauth/${encodeURIComponent(provider)}`, {

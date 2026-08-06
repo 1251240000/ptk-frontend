@@ -27,7 +27,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import { brandLogoUrl } from '@partokens/content'
+import { PartokensMark } from '@partokens/design-system/components'
 import { resources, type AppLocale } from '@partokens/i18n'
 import { authPrototypeCopy } from './auth-prototype-copy'
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from './interface-tool-menus'
@@ -60,7 +60,7 @@ function translate(locale: AppLocale, key: string) {
 }
 
 function AuthBrand() {
-  return <span className="r32-auth-brand"><span><img src={brandLogoUrl} alt="" /></span><strong>Partokens</strong></span>
+  return <span className="r32-auth-brand"><span><PartokensMark size={17} /></span><strong>Partokens</strong></span>
 }
 
 function RouteButton({ children, disabled = false, type = 'button', onClick }: { children: ReactNode; disabled?: boolean; type?: 'button' | 'submit'; onClick?: () => void }) {
@@ -327,9 +327,10 @@ function OtpForm({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
   </>
 }
 
-function AuthRail({ locale, go }: Pick<AuthPrototypeProps, 'locale' | 'go'>) {
+function AuthRail({ locale, theme, go }: Pick<AuthPrototypeProps, 'locale' | 'theme' | 'go'>) {
   const copy = authPrototypeCopy[locale]
   return <aside className="r32-auth-rail">
+    <img className="r32-auth-rail-background" src={`/auth/auth-routing-${theme}.jpg`} alt="" />
     <button type="button" className="r32-auth-brand-button" aria-label="Partokens" onClick={() => go('home')}><AuthBrand /></button>
     <div className="r32-auth-rail-art" aria-hidden="true" />
     <footer>
@@ -362,7 +363,7 @@ export function AuthPrototype(props: AuthPrototypeProps) {
   else form = <OtpForm locale={locale} go={go} />
   return <div className={`r32-auth-screen shadcn-admin ${theme}`}>
     <main className="r32-auth-layout">
-      <AuthRail locale={locale} go={go} />
+      <AuthRail locale={locale} theme={theme} go={go} />
       <section className="r32-auth-task">
         <div className="r32-auth-tools">
           <InterfaceLanguageMenu locale={locale} onLocale={onLocale} t={t} buttonClassName="r32-auth-tool-button" contentClassName="r32-auth-tool-menu" />
