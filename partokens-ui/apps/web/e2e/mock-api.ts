@@ -13,6 +13,16 @@ export const standardUser = {
   aff_quota: 0,
   aff_history_quota: 0,
   aff_count: 0,
+  setting: JSON.stringify({
+    notify_type: 'webhook',
+    quota_warning_threshold: 500_000,
+    webhook_url: 'https://hooks.example.test/account',
+    webhook_secret: 'configured',
+    notification_email: 'fixture@example.test',
+    accept_unset_model_ratio_model: false,
+    record_ip_log: false,
+    language: 'en',
+  }),
 }
 
 const fixtureSessionId = '10000000-0000-4000-8000-000000000042'
@@ -41,9 +51,12 @@ type MockApiOptions = {
   anonymous?: boolean
   role?: number
   requireTwoFactor?: boolean
+  twoFactorEnabled?: boolean
+  passkeyEnabled?: boolean
   pricingRequiresAuth?: boolean
   statusResponses?: Array<{ status?: number; body: unknown }>
   tokenCreateOmitsData?: boolean
+  userSetting?: Record<string, unknown>
   onRequest?: (request: Request) => void
 }
 
@@ -60,10 +73,15 @@ async function json(route: Route, data: unknown, status = 200) {
 }
 
 export async function installMockApi(page: Page, options: MockApiOptions = {}) {
-  const user = { ...standardUser, role: options.role ?? standardUser.role }
+  const user = {
+    ...standardUser,
+    role: options.role ?? standardUser.role,
+    ...(options.userSetting ? { setting: JSON.stringify(options.userSetting) } : {}),
+  }
   let authVersion = 1
   let statusResponseIndex = 0
   let nextTokenId = 8
+  let twoFactorEnabled = options.twoFactorEnabled ?? false
   let tokens = [{
     id: 7,
     name: 'Studio fixture',
@@ -130,6 +148,13 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
           client_id: 'google-fixture',
           authorization_endpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
           scopes: 'openid profile email',
+        }, {
+          id: 2,
+          name: 'Enterprise SSO',
+          slug: 'enterprise-sso',
+          client_id: 'enterprise-fixture',
+          authorization_endpoint: 'https://sso.example.test/oauth/authorize',
+          scopes: 'openid profile email',
         }],
       }))
       return
@@ -160,6 +185,14 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (path === '/api/user/self' && method === 'GET') {
       await json(route, envelope(user))
+      return
+    }
+    if (path === '/api/user/self' && method === 'PUT') {
+      await json(route, envelope(null))
+      return
+    }
+    if (path === '/api/user/setting' && method === 'PUT') {
+      await json(route, envelope(null))
       return
     }
     if (path === '/api/user/register' || path === '/api/verification') {
@@ -274,19 +307,70 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       return
     }
     if (path === '/api/user/topup/self') {
-      await json(route, envelope({ items: [], total: 0, page: 1, page_size: 10 }))
+      await json(route, envelope({ items: [{ id: 19, amount: 50, money: 45, trade_no: 'FIXTURE-ORDER-19', payment_method: 'Fixture Pay', create_time: 1_721_520_000, complete_time: 1_721_520_030, status: 'success' }], total: 1, page: 1, page_size: 10 }))
       return
     }
     if (path === '/api/subscription/plans') {
-      await json(route, envelope([]))
+      await json(route, envelope([{ plan: { id: 4, title: 'Builder', subtitle: 'Fixture plan', price_amount: 20, currency: 'USD', duration_unit: 'month', duration_value: 1, quota_reset_period: 'monthly', enabled: true, sort_order: 1, allow_balance_pay: true, max_purchase_per_user: 2, total_amount: 2_500_000 } }]))
       return
     }
     if (path === '/api/subscription/self') {
-      await json(route, envelope({ billing_preference: 'subscription_first', subscriptions: [], all_subscriptions: [] }))
+      const subscription = { subscription: { id: 31, plan_id: 4, status: 'active', source: 'balance', start_time: 1_721_520_000, end_time: 1_724_112_000, amount_total: 2_500_000, amount_used: 400_000 } }
+      await json(route, envelope({ billing_preference: 'subscription_first', subscriptions: [subscription], all_subscriptions: [subscription] }))
       return
     }
     if (path === '/api/user/aff') {
       await json(route, envelope('fixture-affiliate'))
+      return
+    }
+    if (path === '/api/user/oauth/bindings' && method === 'GET') {
+      await json(route, envelope([{ provider_id: '1', provider_name: 'Google', external_id: 'fixture-google' }]))
+      return
+    }
+    if (/^\/api\/user\/oauth\/bindings\/[^/]+$/.test(path) && method === 'DELETE') {
+      await json(route, envelope(null))
+      return
+    }
+    if (path === '/api/user/2fa/status') {
+      await json(route, envelope({ enabled: twoFactorEnabled, locked: false, backup_codes_remaining: twoFactorEnabled ? 8 : 0 }))
+      return
+    }
+    if (path === '/api/user/2fa/setup' && method === 'POST') {
+      await json(route, envelope({
+        secret: 'JBSWY3DPEHPK3PXP',
+        qr_code_data: 'otpauth://totp/Partokens:fixture?secret=JBSWY3DPEHPK3PXP&issuer=Partokens',
+        backup_codes: ['BACKUP-1001', 'BACKUP-1002', 'BACKUP-1003', 'BACKUP-1004'],
+      }))
+      return
+    }
+    if (path === '/api/user/2fa/enable' && method === 'POST') {
+      twoFactorEnabled = true
+      await json(route, envelope(null))
+      return
+    }
+    if (path === '/api/user/2fa/disable' && method === 'POST') {
+      twoFactorEnabled = false
+      await json(route, envelope(null))
+      return
+    }
+    if (path === '/api/user/2fa/backup_codes' && method === 'POST') {
+      await json(route, envelope({ backup_codes: ['BACKUP-2001', 'BACKUP-2002', 'BACKUP-2003', 'BACKUP-2004'] }))
+      return
+    }
+    if (path === '/api/user/passkey') {
+      await json(route, envelope({ enabled: options.passkeyEnabled ?? false, last_used_at: options.passkeyEnabled ? '2026-08-07T10:00:00Z' : null }))
+      return
+    }
+    if (path === '/api/user/checkin' && method === 'GET') {
+      await json(route, envelope({ enabled: true, stats: { checked_in_today: false, total_checkins: 2, total_quota: 20_000, checkin_count: 2, records: [{ checkin_date: '2026-08-01', quota_awarded: 10_000 }, { checkin_date: '2026-08-03', quota_awarded: 10_000 }] } }))
+      return
+    }
+    if (path === '/api/user/checkin' && method === 'POST') {
+      await json(route, envelope({ quota_awarded: 10_000 }))
+      return
+    }
+    if (path === '/api/user/token' && method === 'GET') {
+      await json(route, envelope('fixture-transient-system-token'))
       return
     }
     if (path === '/api/data/self') {

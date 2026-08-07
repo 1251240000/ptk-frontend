@@ -217,11 +217,11 @@ export function studioModelCapabilities(model: string): StudioModelCapabilities 
     }
   }
   return {
-    sizes: ['1024x1024', '1024x1536', '1536x1024'],
-    qualities: ['standard'],
+    sizes: ['auto'],
+    qualities: ['auto'],
     backgrounds: ['auto'],
-    maxCount: 4,
-    supportsEdit: true,
+    maxCount: 1,
+    supportsEdit: false,
   }
 }
 
@@ -237,7 +237,7 @@ function imageErrorMessage(status: number, payload: unknown): string {
   }
   if (status === 401 || status === 403) return 'The selected API key cannot use this model'
   if (status === 429) return 'The request was rate limited or the key quota is insufficient'
-  return `Image generation failed (${status})`
+  return 'The image service could not complete this request.'
 }
 
 function base64Blob(value: string): Blob {

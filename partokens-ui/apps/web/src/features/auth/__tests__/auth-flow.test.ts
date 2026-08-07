@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { authFailureKind, localizedAuthError, validatedReturnPath } from '../auth-flow'
+import { authFailureKind, clearOAuthContext, localizedAuthError, readOAuthContext, validatedReturnPath } from '../auth-flow'
 import {
   clearRegistrationContext,
   readRegistrationContext,
@@ -34,6 +34,23 @@ describe('authentication navigation and transient state', () => {
 
     clearRegistrationContext()
     expect(readRegistrationContext()).toBeNull()
+  })
+
+  it('reads and clears a legacy OAuth callback context during migration', () => {
+    window.sessionStorage.setItem('partokens-oauth-locale', 'fr')
+    window.sessionStorage.setItem('partokens-oauth-return', '/fr/console/overview')
+    window.sessionStorage.setItem('partokens-oauth-state:google', 'legacy-state')
+
+    expect(readOAuthContext('google')).toEqual({
+      intent: 'login',
+      locale: 'fr',
+      provider: 'google',
+      returnTo: '/fr/console/overview',
+      state: 'legacy-state',
+    })
+
+    clearOAuthContext()
+    expect(readOAuthContext('google')).toBeNull()
   })
 
   it('maps transport and rate-limit failures without exposing raw responses', () => {

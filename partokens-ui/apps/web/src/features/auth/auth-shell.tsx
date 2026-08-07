@@ -33,7 +33,7 @@ import { InterfaceLanguageMenu, InterfaceThemeMenu } from '@/features/public/int
 import { i18n } from '@/lib/i18n'
 import { usePreferenceStore } from '@/stores/preferences'
 
-import { startOAuthAuthorization } from './oauth'
+import { localizedAuthError, startOAuthAuthorization } from './auth-flow'
 
 type Translate = (key: string) => string
 
@@ -47,14 +47,7 @@ export function useAuthStatus() {
 }
 
 export function authErrorMessage(error: unknown, t: Translate, fallback: string): string {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return t('You appear to be offline. Check your connection and try again.')
-  if (typeof error === 'object' && error && 'response' in error) {
-    const response = (error as { response?: { status?: number; data?: { message?: string } } }).response
-    if (response?.status === 429) return t('Too many attempts. Wait a moment and try again.')
-    if (response?.status && response.status >= 500) return t('The authentication service is temporarily unavailable. Try again.')
-    if (response?.data?.message) return t(response.data.message)
-  }
-  return error instanceof Error && error.message ? t(error.message) : fallback
+  return localizedAuthError(error, fallback, t)
 }
 
 function AuthBrand() {

@@ -1,24 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import {
+  Bot,
   Check,
+  ChevronDown,
   Copy,
-  Download,
-  HardDrive,
+  Database,
+  Ellipsis,
   LoaderCircle,
-  MessageSquare,
   PanelLeft,
   Pencil,
-  Plus,
   RotateCcw,
-  Search,
   Send,
-  SlidersHorizontal,
+  Settings2,
   Sparkles,
   Square,
   Trash2,
-  Upload,
-  X,
+  UserRound,
 } from 'lucide-react'
 import {
   type ChangeEvent,
@@ -33,15 +31,54 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import {
-  getUserGroups,
+  getUserGroupsWithSignal,
   getUserModels,
   playgroundCompletion,
   streamPlaygroundCompletion,
 } from '@partokens/api-client'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  Textarea,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  useSidebar,
+} from '@partokens/design-system/components'
 import { isAppLocale } from '@partokens/i18n'
 
-import { Modal } from '@/components/modal'
-import { IconButton } from '@/components/ui'
+import {
+  ConversationRail,
+  PlaygroundIconButton,
+  PlaygroundLoading,
+  PlaygroundLocalData,
+  PlaygroundMessageContent,
+  PlaygroundParametersForm,
+  PlaygroundStorageError,
+} from '@/features/playground/playground-ui'
 import {
   createConversation,
   database,
@@ -55,7 +92,6 @@ import { extractItems } from '@/lib/format'
 import {
   buildPlaygroundCompletionInput,
   createPlaygroundExport,
-  formatLocalBytes,
   normalizePlaygroundParameters,
   normalizeStoredConversation,
   parsePlaygroundImport,
@@ -67,6 +103,18 @@ import { useSessionStore } from '@/stores/session'
 
 const PERSIST_DELAY_MS = 80
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024
+const suggestedPrompts = ['Plan a model rollout', 'Compare prompt costs', 'Draft an incident update']
+
+type PlaygroundDataState = 'loading' | 'live' | 'error'
+type PlaygroundOverlay =
+  | { kind: 'selection' }
+  | { kind: 'parameters' }
+  | { kind: 'local-data' }
+  | { kind: 'edit-message'; id: string }
+  | { kind: 'delete-message'; id: string }
+  | { kind: 'delete-conversation'; id: string }
+  | { kind: 'clear-all' }
+  | null
 
 function mergeStreamChunk(current: string, chunk: string): string {
   if (current && chunk.startsWith(current)) return chunk
@@ -86,11 +134,20 @@ function downloadJson(value: unknown, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+function responseStatus(message: LocalMessage): string {
+  if (message.status === 'streaming') return 'Streaming'
+  if (message.status === 'stopped') return 'Stopped'
+  if (message.status === 'error') return 'Failed'
+  return 'Complete'
+}
+
 export function PlaygroundPage() {
   const { t } = useTranslation()
+  const translate = (key: string) => t(key)
   const params = useParams({ strict: false }) as { locale?: string; chatId?: string }
   const locale = isAppLocale(params.locale) ? params.locale : 'zh-CN'
   const navigate = useNavigate()
+  const { isMobile } = useSidebar()
   const { user, setUser } = useSessionStore()
   const [conversations, setConversations] = useState<LocalConversation[]>([])
   const [currentId, setCurrentId] = useState<string | null>(null)
@@ -100,15 +157,15 @@ export function PlaygroundPage() {
   const [group, setGroup] = useState('default')
   const [parameters, setParameters] = useState<PlaygroundParameters>({ ...defaultPlaygroundParameters })
   const [parameterDraft, setParameterDraft] = useState<PlaygroundParameters>({ ...defaultPlaygroundParameters })
-  const [titleDraft, setTitleDraft] = useState('')
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
-  const [editingMessage, setEditingMessage] = useState('')
+  const [selectionDraft, setSelectionDraft] = useState({ group: 'default', model: '' })
+  const [editDraft, setEditDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [parametersOpen, setParametersOpen] = useState(false)
-  const [localDataOpen, setLocalDataOpen] = useState(false)
-  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false)
+  const [overlay, setOverlay] = useState<PlaygroundOverlay>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [dataState, setDataState] = useState<PlaygroundDataState>('loading')
+  const [importing, setImporting] = useState(false)
   const [browserStorage, setBrowserStorage] = useState<{ usage: number; quota: number } | null>(null)
   const conversationsRef = useRef<LocalConversation[]>([])
   const currentIdRef = useRef<string | null>(null)
@@ -118,17 +175,27 @@ export function PlaygroundPage() {
   const pendingPersistRef = useRef<LocalConversation | null>(null)
   const importRef = useRef<HTMLInputElement>(null)
   const busyRef = useRef(false)
+  const streamRef = useRef<HTMLDivElement>(null)
+  const historyTriggerRef = useRef<HTMLButtonElement>(null)
+  const moreTriggerRef = useRef<HTMLButtonElement>(null)
+  const overlayTriggerRef = useRef<HTMLElement | null>(null)
 
   const modelsQuery = useQuery({
     queryKey: ['user-models', group],
-    queryFn: () => getUserModels(group),
+    queryFn: ({ signal }) => getUserModels(group, signal),
     enabled: Boolean(user),
     retry: false,
   })
   const groupsQuery = useQuery({
     queryKey: ['user-groups'],
-    queryFn: getUserGroups,
+    queryFn: ({ signal }) => getUserGroupsWithSignal(signal),
     enabled: Boolean(user),
+    retry: false,
+  })
+  const selectionModelsQuery = useQuery({
+    queryKey: ['user-models', selectionDraft.group],
+    queryFn: ({ signal }) => getUserModels(selectionDraft.group, signal),
+    enabled: Boolean(user && overlay?.kind === 'selection' && selectionDraft.group),
     retry: false,
   })
   const models = Array.isArray(modelsQuery.data?.data)
@@ -136,29 +203,16 @@ export function PlaygroundPage() {
     : extractItems<string>(modelsQuery.data?.data)
   const groups = groupsQuery.data?.data && typeof groupsQuery.data.data === 'object'
     ? Object.keys(groupsQuery.data.data as Record<string, unknown>)
-    : ['default']
+    : []
+  const selectionModels = Array.isArray(selectionModelsQuery.data?.data)
+    ? (selectionModelsQuery.data.data as string[])
+    : extractItems<string>(selectionModelsQuery.data?.data)
 
-  const replaceConversations = (items: LocalConversation[]) => {
+  const replaceConversations = useCallback((items: LocalConversation[]) => {
     const sorted = [...items].sort((a, b) => b.updatedAt - a.updatedAt)
     conversationsRef.current = sorted
     setConversations(sorted)
-  }
-
-  const refresh = useCallback(async (preferredId?: string) => {
-    if (!user) return []
-    const items = (await database.conversations
-      .where('ownerNamespace')
-      .equals(ownerNamespace(user.id))
-      .reverse()
-      .sortBy('updatedAt'))
-      .map(normalizeStoredConversation)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-    replaceConversations(items)
-    const candidate = preferredId || params.chatId || currentIdRef.current
-    const nextId = items.some((item) => item.id === candidate) ? candidate! : items[0]?.id || null
-    setCurrentId(nextId)
-    return items
-  }, [params.chatId, user])
+  }, [])
 
   const announceChange = () => channelRef.current?.postMessage({ type: 'changed' })
 
@@ -195,7 +249,42 @@ export function PlaygroundPage() {
     pendingPersistRef.current = null
   }
 
-  useEffect(() => { void refresh() }, [user?.id])
+  const refresh = useCallback(async (preferredId?: string) => {
+    if (!user) {
+      replaceConversations([])
+      setCurrentId(null)
+      setDataState('live')
+      return []
+    }
+    setDataState((state) => state === 'live' ? state : 'loading')
+    try {
+      const stored = await database.conversations
+        .where('ownerNamespace')
+        .equals(ownerNamespace(user.id))
+        .reverse()
+        .sortBy('updatedAt')
+      const items = stored.map(normalizeStoredConversation).sort((a, b) => b.updatedAt - a.updatedAt)
+      const recovered = items.filter((item, index) => JSON.stringify(item) !== JSON.stringify(stored[index]))
+      if (recovered.length) await database.conversations.bulkPut(recovered)
+      replaceConversations(items)
+      const candidate = preferredId || params.chatId || currentIdRef.current
+      const nextId = items.some((item) => item.id === candidate) ? candidate! : items[0]?.id || null
+      setCurrentId(nextId)
+      setDataState('live')
+
+      const playgroundPath = canonicalConsolePath(locale, 'playground')
+      if (params.chatId !== nextId) {
+        const target = nextId ? `${playgroundPath}/${encodeURIComponent(nextId)}` : playgroundPath
+        await navigate({ to: target as never, replace: true })
+      }
+      return items
+    } catch {
+      setDataState('error')
+      return []
+    }
+  }, [locale, navigate, params.chatId, replaceConversations, user])
+
+  useEffect(() => { void refresh() }, [refresh])
 
   useEffect(() => {
     if (!user || typeof BroadcastChannel === 'undefined') return
@@ -208,7 +297,7 @@ export function PlaygroundPage() {
       channel.close()
       if (channelRef.current === channel) channelRef.current = null
     }
-  }, [user?.id])
+  }, [refresh, user])
 
   useEffect(() => () => {
     abortRef.current?.abort()
@@ -217,23 +306,36 @@ export function PlaygroundPage() {
 
   const current = conversations.find((item) => item.id === currentId) || null
   currentIdRef.current = currentId
+
   useEffect(() => {
-    if (!current) {
-      setTitleDraft('')
-      return
-    }
+    if (!current) return
     setModel(current.model)
     setGroup(current.group || 'default')
     setParameters(normalizePlaygroundParameters(current.parameters))
-    setTitleDraft(current.title)
   }, [current?.id])
 
   useEffect(() => {
-    if (groups.length && !groups.includes(group)) setGroup(groups[0]!)
-  }, [group, groups])
+    if (!groupsQuery.isSuccess || !groups.length) return
+    const fallback = groups[0]!
+    if (!groups.includes(group)) setGroup(fallback)
+    if (!current || groups.includes(current.group)) return
+    const next = updateLocal(current.id, (conversation) => ({ ...conversation, group: fallback, model: '', updatedAt: Date.now() }))
+    if (next) void persistNow(next)
+  }, [current?.group, current?.id, groupsQuery.data, groupsQuery.isSuccess])
+
   useEffect(() => {
-    if (!model && models[0]) setModel(models[0])
-  }, [model, models])
+    if (!modelsQuery.isSuccess) return
+    const fallback = models[0] || ''
+    if (!models.includes(model)) setModel(fallback)
+    if (!current || models.includes(current.model)) return
+    const next = updateLocal(current.id, (conversation) => ({ ...conversation, model: fallback, updatedAt: Date.now() }))
+    if (next) void persistNow(next)
+  }, [current?.id, current?.model, modelsQuery.data, modelsQuery.isSuccess])
+
+  useEffect(() => {
+    if (overlay?.kind !== 'selection' || !selectionModelsQuery.isSuccess || selectionModels.includes(selectionDraft.model)) return
+    setSelectionDraft((value) => ({ ...value, model: selectionModels[0] || '' }))
+  }, [overlay?.kind, selectionDraft.model, selectionModelsQuery.data, selectionModelsQuery.isSuccess])
 
   useEffect(() => {
     void navigator.storage?.estimate().then((estimate) => {
@@ -241,21 +343,23 @@ export function PlaygroundPage() {
     })
   }, [conversations])
 
+  const latestMessage = current?.messages.at(-1)
+  useEffect(() => {
+    streamRef.current?.scrollTo({ top: streamRef.current.scrollHeight })
+  }, [current?.id, current?.messages.length, latestMessage?.content])
+
   const localExport = useMemo(() => createPlaygroundExport(conversations), [conversations])
   const localBytes = useMemo(() => new TextEncoder().encode(JSON.stringify(localExport)).byteLength, [localExport])
-  const filtered = conversations.filter((item) => item.title.toLowerCase().includes(query.trim().toLowerCase()))
 
   const routeToConversation = async (id: string | null) => {
     setCurrentId(id)
-    setMobileHistoryOpen(false)
+    setHistoryOpen(false)
     const playgroundPath = canonicalConsolePath(locale, 'playground')
-    const target = id
-      ? `${playgroundPath}/${encodeURIComponent(id)}`
-      : playgroundPath
+    const target = id ? `${playgroundPath}/${encodeURIComponent(id)}` : playgroundPath
     await navigate({ to: target as never })
   }
 
-  const newChat = async () => {
+  const newChat = async (firstMessage?: string) => {
     if (!user || busy) return null
     const created = await createConversation(user.id)
     const next = {
@@ -263,7 +367,7 @@ export function PlaygroundPage() {
       model,
       group,
       parameters: { ...parameters },
-      title: t('New conversation'),
+      title: firstMessage?.trim().slice(0, 72) || t('New conversation'),
     }
     await persistNow(next)
     replaceConversations([next, ...conversationsRef.current])
@@ -271,17 +375,25 @@ export function PlaygroundPage() {
     return next
   }
 
-  const deleteChat = async (conversation: LocalConversation) => {
-    if (busy || !window.confirm(t('Delete this conversation from this browser?'))) return
-    await database.conversations.delete(conversation.id)
+  const renameConversation = async (id: string, title: string) => {
+    if (busy) return
+    const next = updateLocal(id, (conversation) => ({ ...conversation, title, updatedAt: Date.now() }))
+    if (next) await persistNow(next)
+    setNotice(t('Conversation renamed'))
+  }
+
+  const deleteConversation = async (id: string) => {
+    if (busy) return
+    await database.conversations.delete(id)
     announceChange()
-    const remaining = conversationsRef.current.filter((item) => item.id !== conversation.id)
+    const remaining = conversationsRef.current.filter((item) => item.id !== id)
     replaceConversations(remaining)
-    if (currentId === conversation.id) await routeToConversation(remaining[0]?.id || null)
+    if (currentId === id) await routeToConversation(remaining[0]?.id || null)
+    setNotice(t('Conversation deleted'))
   }
 
   const clearAll = async () => {
-    if (!user || busy || !window.confirm(t('Clear all local conversations for this account?'))) return
+    if (!user || busy) return
     const keys = await database.conversations
       .where('ownerNamespace')
       .equals(ownerNamespace(user.id))
@@ -290,21 +402,7 @@ export function PlaygroundPage() {
     announceChange()
     replaceConversations([])
     await routeToConversation(null)
-    setLocalDataOpen(false)
-  }
-
-  const saveConversationSelection = async (patch: Partial<Pick<LocalConversation, 'model' | 'group'>>) => {
-    if (!current) return
-    const next = updateLocal(current.id, (conversation) => ({ ...conversation, ...patch, updatedAt: Date.now() }))
-    if (next) await persistNow(next)
-  }
-
-  const saveTitle = async () => {
-    if (!current) return
-    const title = titleDraft.trim() || t('New conversation')
-    if (title === current.title) return
-    const next = updateLocal(current.id, (conversation) => ({ ...conversation, title, updatedAt: Date.now() }))
-    if (next) await persistNow(next)
+    setNotice(t('All conversations cleared'))
   }
 
   const requestError = (cause: unknown) => {
@@ -316,7 +414,7 @@ export function PlaygroundPage() {
     if (category === 'quota') return t('Your balance or request quota is insufficient.')
     if (category === 'model') return t('The selected model is unavailable for this account group.')
     if (category === 'rate') return t('Too many requests. Try again shortly.')
-    return cause instanceof Error ? cause.message : t('The model request failed.')
+    return t('The model request failed.')
   }
 
   const finishAssistant = async (
@@ -381,7 +479,7 @@ export function PlaygroundPage() {
       } else {
         const result = await playgroundCompletion(input, controller.signal)
         const response = result.choices?.[0]?.message
-        if (!response) throw new Error(t('The model returned no response content.'))
+        if (!response) throw new Error('empty-response')
         await finishAssistant(ready.id, assistantId, {
           content: response.content || '',
           reasoning: response.reasoning_content || '',
@@ -407,8 +505,6 @@ export function PlaygroundPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (!user || !draft.trim() || !model || busy) return
-    let conversation = current || await newChat()
-    if (!conversation) return
     const userMessage: LocalMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -416,6 +512,8 @@ export function PlaygroundPage() {
       status: 'complete',
       createdAt: Date.now(),
     }
+    const conversation = current || await newChat(userMessage.content)
+    if (!conversation) return
     const requestMessages = [...conversation.messages, userMessage]
     const next = updateLocal(conversation.id, (item) => ({
       ...item,
@@ -428,7 +526,6 @@ export function PlaygroundPage() {
     }))
     if (!next) return
     setDraft('')
-    setTitleDraft(next.title)
     await persistNow(next)
     await runCompletion(next, requestMessages)
   }
@@ -444,24 +541,24 @@ export function PlaygroundPage() {
     await runCompletion(next, requestMessages)
   }
 
-  const saveEditedMessage = async () => {
-    if (!current || !editingMessageId || !editingMessage.trim() || busy) return
-    const index = current.messages.findIndex((message) => message.id === editingMessageId && message.role === 'user')
+  const saveEditedMessage = async (messageId: string) => {
+    if (!current || !editDraft.trim() || busy) return
+    const index = current.messages.findIndex((message) => message.id === messageId && message.role === 'user')
     if (index < 0) return
     const requestMessages = [
       ...current.messages.slice(0, index),
-      { ...current.messages[index]!, content: editingMessage.trim(), status: 'complete' as const },
+      { ...current.messages[index]!, content: editDraft.trim(), status: 'complete' as const },
     ]
     const next = updateLocal(current.id, (conversation) => ({ ...conversation, messages: requestMessages, updatedAt: Date.now() }))
-    setEditingMessageId(null)
-    setEditingMessage('')
+    setEditDraft('')
+    setOverlay(null)
     if (!next) return
     await persistNow(next)
     await runCompletion(next, requestMessages)
   }
 
   const deleteMessage = async (messageId: string) => {
-    if (!current || busy || !window.confirm(t('Delete this message from the local conversation?'))) return
+    if (!current || busy) return
     const next = updateLocal(current.id, (conversation) => ({
       ...conversation,
       messages: conversation.messages.filter((message) => message.id !== messageId),
@@ -473,10 +570,31 @@ export function PlaygroundPage() {
   const saveParameters = async () => {
     const normalized = normalizePlaygroundParameters(parameterDraft)
     setParameters(normalized)
-    setParametersOpen(false)
-    if (!current) return
-    const next = updateLocal(current.id, (conversation) => ({ ...conversation, parameters: normalized, updatedAt: Date.now() }))
+    setOverlay(null)
+    if (current) {
+      const next = updateLocal(current.id, (conversation) => ({ ...conversation, parameters: normalized, updatedAt: Date.now() }))
+      if (next) await persistNow(next)
+    }
+    setNotice(t('Parameters saved'))
+  }
+
+  const saveSelection = async () => {
+    if (!current || !selectionDraft.model || !selectionDraft.group) return
+    setModel(selectionDraft.model)
+    setGroup(selectionDraft.group)
+    const next = updateLocal(current.id, (conversation) => ({ ...conversation, ...selectionDraft, updatedAt: Date.now() }))
     if (next) await persistNow(next)
+    setOverlay(null)
+    setNotice(t('Conversation settings saved'))
+  }
+
+  const copyMessage = async (message: LocalMessage) => {
+    try {
+      await navigator.clipboard.writeText(message.content)
+      setNotice(t('Copied'))
+    } catch {
+      setError(t('Copy failed'))
+    }
   }
 
   const exportConversations = () => {
@@ -489,20 +607,20 @@ export function PlaygroundPage() {
     event.target.value = ''
     if (!file || !user) return
     setError('')
+    setImporting(true)
     try {
-      if (file.size > MAX_IMPORT_BYTES) {
-        setError(t('The conversation file is too large.'))
-        return
-      }
+      if (file.size > MAX_IMPORT_BYTES) throw new Error('too-large')
       const imported = parsePlaygroundImport(JSON.parse(await file.text()), ownerNamespace(user.id))
       await database.conversations.bulkAdd(imported)
       announceChange()
       await refresh(imported[0]?.id)
       if (imported[0]) await routeToConversation(imported[0].id)
       setNotice(t('Local conversations imported.'))
-      setLocalDataOpen(false)
+      setOverlay(null)
     } catch (cause) {
-      setError(t('Unable to import this conversation file.'))
+      setError(t(cause instanceof Error && cause.message === 'too-large' ? 'The conversation file is too large.' : 'Unable to import this conversation file.'))
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -512,207 +630,316 @@ export function PlaygroundPage() {
     event.currentTarget.form?.requestSubmit()
   }
 
-  const renderConversationSidebar = (mobile = false) => (
-    <aside className={mobile ? 'conversation-sidebar mobile' : 'conversation-sidebar'} aria-label={t('Local conversations')}>
-      <button className="button primary-button new-chat-button" disabled={busy} onClick={() => void newChat()}>
-        <Plus size={16} />
-        {t('New chat')}
-      </button>
-      <label className="search-field">
-        <Search size={15} />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('Search conversations')} />
-      </label>
-      <div className="conversation-heading">
-        <span>{t('Local history')}</span>
-        <span>{conversations.length}</span>
+  const openOverlay = (next: Exclude<PlaygroundOverlay, null>, trigger?: HTMLElement) => {
+    overlayTriggerRef.current = trigger ?? document.activeElement as HTMLElement | null
+    setOverlay(next)
+  }
+
+  const openOverlayAfterMenu = (next: Exclude<PlaygroundOverlay, null>, trigger?: HTMLElement) => {
+    overlayTriggerRef.current = trigger ?? document.activeElement as HTMLElement | null
+    window.setTimeout(() => setOverlay(next), 150)
+  }
+
+  const closeOverlay = () => setOverlay(null)
+
+  const closeAutoFocus = (event: Event) => {
+    event.preventDefault()
+    window.setTimeout(() => {
+      const trigger = overlayTriggerRef.current
+      if (trigger?.isConnected) trigger.focus()
+      else historyTriggerRef.current?.focus()
+    })
+  }
+
+  const openConversationDelete = (id: string, trigger: HTMLElement) => {
+    overlayTriggerRef.current = trigger
+    if (!historyOpen) {
+      setOverlay({ kind: 'delete-conversation', id })
+      return
+    }
+    setHistoryOpen(false)
+    window.setTimeout(() => setOverlay({ kind: 'delete-conversation', id }), 350)
+  }
+
+  const openLocalData = (trigger: HTMLElement) => {
+    overlayTriggerRef.current = trigger
+    if (!historyOpen) {
+      setOverlay({ kind: 'local-data' })
+      return
+    }
+    setHistoryOpen(false)
+    window.setTimeout(() => setOverlay({ kind: 'local-data' }), 350)
+  }
+
+  const confirmDestructive = async () => {
+    if (!overlay) return
+    const action = overlay
+    setOverlay(null)
+    if (action.kind === 'delete-conversation') await deleteConversation(action.id)
+    if (action.kind === 'delete-message') await deleteMessage(action.id)
+    if (action.kind === 'clear-all') await clearAll()
+  }
+
+  const railProps = {
+    conversations,
+    currentId,
+    query,
+    busy,
+    locale,
+    bytes: localBytes,
+    t: translate,
+    onQuery: setQuery,
+    onNew: () => { void newChat() },
+    onSelect: (id: string) => { void routeToConversation(id) },
+    onRename: (id: string, title: string) => { void renameConversation(id, title) },
+    onDelete: openConversationDelete,
+    onLocalData: openLocalData,
+  }
+
+  const overlayTitle = overlay?.kind === 'selection' ? t('Model and group')
+    : overlay?.kind === 'parameters' ? t('Generation parameters')
+      : overlay?.kind === 'local-data' ? t('Local conversation data')
+        : overlay?.kind === 'edit-message' ? t('Edit and regenerate')
+          : overlay?.kind === 'delete-message' ? t('Delete message')
+            : overlay?.kind === 'delete-conversation' ? t('Delete conversation')
+              : t('Clear all conversations')
+
+  const overlayDescription = overlay?.kind === 'selection' ? t('Choose the account group and model for this conversation.')
+    : overlay?.kind === 'parameters' ? t('Show the response as it arrives')
+      : overlay?.kind === 'local-data' ? t('Manage the IndexedDB data stored by this browser.')
+        : overlay?.kind === 'edit-message' ? t('Messages after this point will be replaced by a new response.')
+          : overlay?.kind === 'delete-message' ? t('Delete this message from the local conversation?')
+            : overlay?.kind === 'delete-conversation' ? t('Delete this conversation from this browser?')
+              : `${t('Clear every local conversation for this account?')} ${t('This cannot be undone.')}`
+
+  const complexOverlay = overlay?.kind === 'selection'
+    || overlay?.kind === 'parameters'
+    || overlay?.kind === 'local-data'
+    || overlay?.kind === 'edit-message'
+
+  const overlayBody = overlay?.kind === 'selection' ? (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="conversation-group">{t('Group')}</Label>
+        <Select
+          value={selectionDraft.group}
+          onValueChange={(nextGroup) => setSelectionDraft({ group: nextGroup, model: '' })}
+          disabled={groupsQuery.isLoading || groupsQuery.isError || !groups.length}
+        >
+          <SelectTrigger id="conversation-group" className="w-full"><SelectValue placeholder={t('Select group')} /></SelectTrigger>
+          <SelectContent>{groups.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent>
+        </Select>
       </div>
-      <div className="conversation-list">
-        {filtered.map((item) => (
-          <div key={item.id} className={item.id === currentId ? 'conversation-item active' : 'conversation-item'}>
-            <button disabled={busy} onClick={() => void routeToConversation(item.id)}>
-              <MessageSquare size={15} />
-              <span>
-                <strong>{item.title}</strong>
-                <small>{new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(item.updatedAt)}</small>
-              </span>
-            </button>
-            <IconButton label={t('Delete conversation')} disabled={busy} onClick={() => void deleteChat(item)}>
-              <Trash2 size={14} />
-            </IconButton>
-          </div>
-        ))}
-        {!filtered.length ? <div className="conversation-empty">{t('No conversations yet')}</div> : null}
+      <div className="space-y-2">
+        <Label htmlFor="conversation-model">{t('Model')}</Label>
+        <Select
+          value={selectionDraft.model}
+          onValueChange={(nextModel) => setSelectionDraft((value) => ({ ...value, model: nextModel }))}
+          disabled={selectionModelsQuery.isLoading || selectionModelsQuery.isError || !selectionModels.length}
+        >
+          <SelectTrigger id="conversation-model" className="w-full"><SelectValue placeholder={selectionModelsQuery.isLoading ? t('Loading') : t('Select model')} /></SelectTrigger>
+          <SelectContent>{selectionModels.map((item) => <SelectItem value={item} key={item}>{item}</SelectItem>)}</SelectContent>
+        </Select>
       </div>
-      <button className="local-disclosure local-data-button" onClick={() => setLocalDataOpen(true)}>
-        <ShieldLocal />
-        <span>
-          <strong>{t('Stored locally')}</strong>
-          <small>{formatLocalBytes(localBytes, locale)}</small>
-        </span>
-      </button>
-      <p className="local-privacy-copy">{t('Conversation history is stored only in this browser. Partokens does not store your conversation history.')}</p>
-    </aside>
+      {groupsQuery.isError || selectionModelsQuery.isError ? <p className="text-sm text-destructive" role="alert">{t('Interface data unavailable')}</p> : null}
+    </div>
+  ) : overlay?.kind === 'parameters' ? (
+    <PlaygroundParametersForm value={parameterDraft} t={translate} onChange={setParameterDraft} />
+  ) : overlay?.kind === 'local-data' ? (
+    <PlaygroundLocalData
+      conversations={conversations}
+      bytes={localBytes}
+      browserStorage={browserStorage}
+      busy={busy}
+      importing={importing}
+      locale={locale}
+      t={translate}
+      onExport={exportConversations}
+      onImport={() => importRef.current?.click()}
+      onClear={() => setOverlay({ kind: 'clear-all' })}
+    />
+  ) : overlay?.kind === 'edit-message' ? (
+    <div className="space-y-2"><Label htmlFor="edit-message">{t('Message')}</Label><Textarea id="edit-message" rows={8} value={editDraft} onChange={(event) => setEditDraft(event.target.value)} /></div>
+  ) : null
+
+  const overlayFooter = overlay?.kind === 'selection' ? (
+    <><Button variant="outline" onClick={closeOverlay}>{t('Cancel')}</Button><Button disabled={!selectionDraft.group || !selectionDraft.model} onClick={() => void saveSelection()}><Check />{t('Save')}</Button></>
+  ) : overlay?.kind === 'parameters' ? (
+    <><Button variant="outline" onClick={closeOverlay}>{t('Cancel')}</Button><Button onClick={() => void saveParameters()}><Check />{t('Save parameters')}</Button></>
+  ) : overlay?.kind === 'edit-message' ? (
+    <><Button variant="outline" onClick={closeOverlay}>{t('Cancel')}</Button><Button disabled={!editDraft.trim()} onClick={() => void saveEditedMessage(overlay.id)}><RotateCcw />{t('Save and regenerate')}</Button></>
+  ) : overlay?.kind === 'local-data' ? (
+    <Button variant="outline" onClick={closeOverlay}>{t('Close')}</Button>
+  ) : (
+    <><Button variant="outline" onClick={closeOverlay}>{t('Cancel')}</Button><Button variant="destructive" disabled={busy} onClick={() => void confirmDestructive()}><Trash2 />{overlay?.kind === 'clear-all' ? t('Clear all') : t('Delete')}</Button></>
   )
 
   return (
-    <div className="playground-layout">
-      {renderConversationSidebar()}
-      <section className="chat-workspace">
-        <header className="chat-toolbar">
-          <IconButton className="playground-mobile-history" label={t('Local conversations')} onClick={() => setMobileHistoryOpen(true)}>
-            <PanelLeft size={18} />
-          </IconButton>
-          <input
-            className="conversation-title-input"
-            aria-label={t('Conversation name')}
-            value={titleDraft}
-            disabled={!current || busy}
-            placeholder={t('New conversation')}
-            onChange={(event) => setTitleDraft(event.target.value)}
-            onBlur={() => void saveTitle()}
-            onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }}
-          />
-          <div className="chat-toolbar-controls">
-            <select
-              value={model}
-              onChange={(event) => { setModel(event.target.value); void saveConversationSelection({ model: event.target.value }) }}
-              aria-label={t('Model')}
-              disabled={busy}
-            >
-              <option value="">{t('Select model')}</option>
-              {models.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-            <select
-              value={group}
-              onChange={(event) => { setGroup(event.target.value); void saveConversationSelection({ group: event.target.value }) }}
-              aria-label={t('Group')}
-              disabled={busy}
-            >
-              {groups.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-            <IconButton label={t('Generation parameters')} disabled={busy} onClick={() => { setParameterDraft(parameters); setParametersOpen(true) }}>
-              <SlidersHorizontal size={17} />
-            </IconButton>
-            <IconButton label={t('Local data')} disabled={busy} onClick={() => setLocalDataOpen(true)}>
-              <HardDrive size={17} />
-            </IconButton>
-          </div>
-        </header>
-
-        <div className="message-stream" aria-live="polite">
-          {current?.messages.length ? current.messages.map((message) => (
-            <article key={message.id} className={`message ${message.role}`}>
-              <header>
-                <div>
-                  <span>{message.role === 'user' ? t('You') : 'Partokens'}</span>
-                  {message.status ? <small className={`message-status ${message.status}`}>{t(message.status === 'streaming' ? 'Streaming' : message.status === 'stopped' ? 'Stopped' : message.status === 'error' ? 'Failed' : 'Complete')}</small> : null}
-                </div>
-                <div className="message-actions">
-                  <IconButton label={t('Copy message')} onClick={() => void navigator.clipboard.writeText(message.content)}><Copy size={14} /></IconButton>
-                  {message.role === 'user' ? <IconButton label={t('Edit and regenerate')} disabled={busy} onClick={() => { setEditingMessageId(message.id); setEditingMessage(message.content) }}><Pencil size={14} /></IconButton> : null}
-                  {message.role === 'assistant' ? <IconButton label={t('Regenerate response')} disabled={busy} onClick={() => void regenerate(message.id)}><RotateCcw size={14} /></IconButton> : null}
-                  <IconButton label={t('Delete message')} disabled={busy} onClick={() => void deleteMessage(message.id)}><Trash2 size={14} /></IconButton>
-                </div>
-              </header>
-              {message.reasoning ? <details className="reasoning-block"><summary>{t('Reasoning')}</summary><p>{message.reasoning}</p></details> : null}
-              {message.content ? <p>{message.content}</p> : message.status === 'streaming' ? <div className="stream-cursor"><LoaderCircle className="spin" size={15} />{t('Waiting for the first response chunk')}</div> : null}
-              {message.error ? <div className="message-error" role="alert">{message.error}</div> : null}
-            </article>
-          )) : (
-            <div className="empty-chat">
-              <div><Sparkles size={24} /></div>
-              <h1>{t('Start with a question')}</h1>
-              <p>{t('Messages are sent through Partokens to the selected model provider when you submit them.')}</p>
+    <div data-playground-page>
+      <div className="h-[calc(100svh-7rem)] min-h-[520px] overflow-hidden rounded-md border bg-background shadow-xs lg:grid lg:min-h-[620px] lg:grid-cols-[248px_minmax(0,1fr)]">
+        <aside className="hidden min-h-0 border-e bg-muted/10 lg:block" aria-label={t('Local conversations')}><ConversationRail {...railProps} /></aside>
+        <section className="flex h-full min-h-0 min-w-0 flex-col">
+          <header className="flex min-h-12 items-center justify-between border-b px-2 py-1 sm:px-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button ref={historyTriggerRef} type="button" variant="ghost" size="icon" className="shrink-0 lg:hidden" aria-label={t('Open conversation history')} onClick={() => setHistoryOpen(true)}><PanelLeft /></Button>
+                </TooltipTrigger>
+                <TooltipContent>{t('Open conversation history')}</TooltipContent>
+              </Tooltip>
+              <h1 className="truncate px-1 text-sm font-medium" title={current?.title}>{current?.title || t('New conversation')}</h1>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild><Button ref={moreTriggerRef} className="ms-auto" variant="ghost" size="icon" aria-label={t('More Playground actions')}><Ellipsis /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>{t('Playground')}</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => openOverlayAfterMenu({ kind: 'local-data' }, moreTriggerRef.current ?? undefined)}><Database />{t('Local data')}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </header>
+
+          {dataState === 'loading' ? <PlaygroundLoading t={translate} /> : dataState === 'error' ? <PlaygroundStorageError t={translate} onRetry={() => void refresh()} /> : (
+            <>
+              <div ref={streamRef} className="min-h-0 flex-1 overflow-y-auto">
+                <div className="sr-only" role="status" aria-live="polite">{busy ? t('Streaming') : ''}</div>
+                {!current?.messages.length ? (
+                  <div className="flex min-h-full flex-col items-center justify-center px-5 py-12 text-center">
+                    <div className="mb-4 flex size-10 items-center justify-center rounded-md border bg-muted/40"><Sparkles className="size-5 text-muted-foreground" /></div>
+                    <h2 className="text-base font-semibold">{t('Start with a question')}</h2>
+                    <p className="mt-1 max-w-md text-sm text-muted-foreground">{t('Messages are sent through Partokens to the selected model provider when you submit them.')}</p>
+                    <div className="mt-5 grid w-full max-w-lg gap-2 sm:grid-cols-3">
+                      {suggestedPrompts.map((prompt) => <Button type="button" variant="outline" className="h-auto min-h-10 whitespace-normal px-3 py-2 text-xs" key={prompt} onClick={() => setDraft(t(prompt))}>{t(prompt)}</Button>)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mx-auto w-full max-w-3xl divide-y px-3 sm:px-6">
+                    {current.messages.map((message) => (
+                      <article className={`group py-5 ${message.role === 'assistant' ? 'border-s-2 border-s-primary ps-3 sm:ps-4' : ''}`} key={message.id}>
+                        <header className="flex items-start gap-3">
+                          <div className={`flex size-8 shrink-0 items-center justify-center rounded-md border ${message.role === 'assistant' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                            {message.role === 'assistant' ? <Bot className="size-4" /> : <UserRound className="size-4" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="text-sm font-medium">{message.role === 'assistant' ? 'Partokens' : t('You')}</span>
+                              <span className={`text-xs ${message.status === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>{t(responseStatus(message))}</span>
+                            </div>
+                            {message.reasoning ? <details className="mt-3 rounded-md border bg-muted/30 p-3 text-sm"><summary className="cursor-pointer font-medium">{t('Reasoning')}</summary><p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">{message.reasoning}</p></details> : null}
+                            <PlaygroundMessageContent content={message.content || (message.status === 'streaming' ? t('New answer streaming...') : '')} />
+                            {message.error ? <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{message.error}</p> : null}
+                          </div>
+                          <div className="hidden shrink-0 items-center sm:flex">
+                            <PlaygroundIconButton label={t('Copy message')} onClick={() => void copyMessage(message)}><Copy className="size-4" /></PlaygroundIconButton>
+                            {message.role === 'user'
+                              ? <PlaygroundIconButton label={t('Edit and regenerate')} disabled={busy} onClick={() => { setEditDraft(message.content); openOverlay({ kind: 'edit-message', id: message.id }) }}><Pencil className="size-4" /></PlaygroundIconButton>
+                              : <PlaygroundIconButton label={t('Regenerate response')} disabled={busy} onClick={() => void regenerate(message.id)}><RotateCcw className="size-4" /></PlaygroundIconButton>}
+                            <PlaygroundIconButton label={t('Delete message')} disabled={busy} onClick={() => openOverlay({ kind: 'delete-message', id: message.id })}><Trash2 className="size-4" /></PlaygroundIconButton>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="shrink-0 sm:hidden" aria-label={t('Message actions')}><Ellipsis /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={() => void copyMessage(message)}><Copy />{t('Copy')}</DropdownMenuItem>
+                              {message.role === 'user'
+                                ? <DropdownMenuItem disabled={busy} onSelect={() => { setEditDraft(message.content); openOverlayAfterMenu({ kind: 'edit-message', id: message.id }) }}><Pencil />{t('Edit and regenerate')}</DropdownMenuItem>
+                                : <DropdownMenuItem disabled={busy} onSelect={() => void regenerate(message.id)}><RotateCcw />{t('Regenerate response')}</DropdownMenuItem>}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem variant="destructive" disabled={busy} onSelect={() => openOverlayAfterMenu({ kind: 'delete-message', id: message.id })}><Trash2 />{t('Delete message')}</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </header>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <form className="border-t bg-background p-3 sm:p-4" onSubmit={(event) => void submit(event)}>
+                <div className="mx-auto max-w-3xl">
+                  {error ? <p className="mb-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive" role="alert">{error}</p> : null}
+                  {notice ? <p className="mb-2 rounded-md border bg-muted/30 p-2 text-sm text-muted-foreground" role="status">{notice}</p> : null}
+                  <div className="rounded-md border bg-background shadow-xs focus-within:ring-2 focus-within:ring-ring/50">
+                    <Textarea
+                      className="min-h-20 resize-none border-0 shadow-none focus-visible:ring-0"
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      onKeyDown={composerKeyDown}
+                      placeholder={t('Message the selected model...')}
+                      aria-label={t('Message')}
+                    />
+                    <div className="flex min-w-0 items-center justify-end gap-1.5 border-t px-2 py-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-fit min-w-0 max-w-[calc(100%-5.25rem)] flex-none justify-start px-2 text-xs transition-colors hover:bg-muted focus-visible:bg-muted sm:max-w-[210px] sm:text-sm"
+                        aria-label={model ? `${t('Model and group')}: ${model}` : t('Select model and group. Current model: none')}
+                        disabled={!current || busy}
+                        onClick={(event) => {
+                          if (!current) return
+                          const selectedGroup = groups.includes(current.group) ? current.group : groups[0] || current.group
+                          setSelectionDraft({ group: selectedGroup, model: selectedGroup === current.group ? current.model : '' })
+                          openOverlay({ kind: 'selection' }, event.currentTarget)
+                        }}
+                      >
+                        <span className="min-w-0 flex-1 truncate text-start">{model || t('Select model')}</span>
+                        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0"
+                            aria-label={t('Generation parameters')}
+                            disabled={!current || busy}
+                            onClick={() => { setParameterDraft({ ...parameters }); openOverlay({ kind: 'parameters' }) }}
+                          >
+                            <Settings2 />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('Generation parameters')}</TooltipContent>
+                      </Tooltip>
+                      {busy ? (
+                        <Button type="button" variant="outline" size="sm" className="shrink-0 px-2 sm:px-3" aria-label={t('Stop generation')} onClick={() => abortRef.current?.abort()}><Square /><span className="hidden sm:inline">{t('Stop')}</span></Button>
+                      ) : (
+                        <Button type="submit" size="sm" className="shrink-0 px-2 sm:px-3" aria-label={t('Send')} disabled={!draft.trim() || !model}><Send /><span className="hidden sm:inline">{t('Send')}</span></Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </>
           )}
-        </div>
+        </section>
+      </div>
 
-        <form className="composer" onSubmit={(event) => void submit(event)}>
-          {error ? <div className="form-error" role="alert">{error}</div> : null}
-          {notice ? <div className="form-success" role="status">{notice}</div> : null}
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={composerKeyDown}
-            placeholder={t('Start with a question')}
-            rows={3}
-          />
-          <div>
-            <span>{parameters.stream ? t('Streaming is on') : t('Streaming is off')} · {t('Messages are sent through Partokens to the selected model provider when you submit them.')}</span>
-            {busy ? (
-              <button type="button" className="button secondary-button" onClick={() => abortRef.current?.abort()}>
-                <Square size={15} />{t('Stop')}
-              </button>
-            ) : (
-              <button className="button primary-button" disabled={!draft.trim() || !model}>
-                <Send size={16} />{t('Send')}
-              </button>
-            )}
-          </div>
-        </form>
-      </section>
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="left" className="w-[min(90vw,320px)] gap-0 p-0" onCloseAutoFocus={(event) => { event.preventDefault(); historyTriggerRef.current?.focus() }}>
+          <SheetHeader className="border-b pe-12"><SheetTitle>{t('Conversation history')}</SheetTitle><SheetDescription>{t('Local conversations stored in this browser.')}</SheetDescription></SheetHeader>
+          <div className="min-h-0 flex-1"><ConversationRail {...railProps} /></div>
+        </SheetContent>
+      </Sheet>
 
-      {mobileHistoryOpen ? (
-        <Modal label={t('Local conversations')} className="playground-history-sheet" backdropClassName="playground-sheet-backdrop" onClose={() => setMobileHistoryOpen(false)}>
-          <header><strong>{t('Local conversations')}</strong><IconButton label={t('Close')} onClick={() => setMobileHistoryOpen(false)}><X size={18} /></IconButton></header>
-          {renderConversationSidebar(true)}
-        </Modal>
-      ) : null}
-
-      {parametersOpen ? (
-        <Modal label={t('Generation parameters')} className="dialog playground-settings-dialog" onClose={() => setParametersOpen(false)}>
-          <div className="dialog-heading"><div><span className="eyebrow">{t('Request controls')}</span><h2>{t('Generation parameters')}</h2></div><IconButton label={t('Close')} onClick={() => setParametersOpen(false)}><X size={18} /></IconButton></div>
-          <label className="toggle-row"><span><strong>{t('Streaming')}</strong><small>{t('Show the response as it arrives')}</small></span><input type="checkbox" checked={parameterDraft.stream} onChange={(event) => setParameterDraft((value) => ({ ...value, stream: event.target.checked }))} /></label>
-          {([
-            ['temperature', 'Temperature', 0, 2, 0.1],
-            ['topP', 'Top P', 0, 1, 0.1],
-            ['frequencyPenalty', 'Frequency penalty', -2, 2, 0.1],
-            ['presencePenalty', 'Presence penalty', -2, 2, 0.1],
-          ] as const).map(([key, label, min, max, step]) => (
-            <label className="parameter-row" key={key}>
-              <span><strong>{t(label)}</strong><code>{parameterDraft[key]}</code></span>
-              <input type="range" min={min} max={max} step={step} value={parameterDraft[key]} onChange={(event) => setParameterDraft((value) => ({ ...value, [key]: Number(event.target.value) }))} />
-            </label>
-          ))}
-          <div className="parameter-number-grid">
-            <label><span>{t('Max tokens')}</span><input type="number" min={1} max={200000} value={parameterDraft.maxTokens} onChange={(event) => setParameterDraft((value) => ({ ...value, maxTokens: Math.max(1, Math.min(200000, Number(event.target.value) || 1)) }))} /></label>
-            <label><span>{t('Seed')}</span><input type="number" min={0} max={2147483647} value={parameterDraft.seed ?? ''} placeholder={t('Not set')} onChange={(event) => setParameterDraft((value) => ({ ...value, seed: event.target.value === '' ? null : Math.max(0, Math.min(2147483647, Number(event.target.value) || 0)) }))} /></label>
-          </div>
-          <div className="dialog-actions"><button className="button secondary-button" onClick={() => setParametersOpen(false)}>{t('Cancel')}</button><button className="button primary-button" onClick={() => void saveParameters()}><Check size={15} />{t('Save parameters')}</button></div>
-        </Modal>
-      ) : null}
-
-      {localDataOpen ? (
-        <Modal label={t('Local data')} className="dialog playground-data-dialog" onClose={() => setLocalDataOpen(false)}>
-          <div className="dialog-heading"><div><span className="eyebrow">{t('Browser storage')}</span><h2>{t('Local conversation data')}</h2></div><IconButton label={t('Close')} onClick={() => setLocalDataOpen(false)}><X size={18} /></IconButton></div>
-          <dl className="local-data-stats">
-            <div><dt>{t('Conversations')}</dt><dd>{new Intl.NumberFormat(locale).format(conversations.length)}</dd></div>
-            <div><dt>{t('Conversation data')}</dt><dd>{formatLocalBytes(localBytes, locale)}</dd></div>
-            <div><dt>{t('Browser storage used')}</dt><dd>{browserStorage ? formatLocalBytes(browserStorage.usage, locale) : '—'}</dd></div>
-            <div><dt>{t('Browser storage limit')}</dt><dd>{browserStorage?.quota ? formatLocalBytes(browserStorage.quota, locale) : '—'}</dd></div>
-          </dl>
-          <div className="local-data-actions">
-            <button className="button secondary-button" disabled={!conversations.length} onClick={exportConversations}><Download size={15} />{t('Export conversations')}</button>
-            <button className="button secondary-button" onClick={() => importRef.current?.click()}><Upload size={15} />{t('Import conversations')}</button>
-            <button className="button secondary-button danger-text" disabled={!conversations.length || busy} onClick={() => void clearAll()}><Trash2 size={15} />{t('Clear all')}</button>
-          </div>
-          <p className="local-data-note">{t('Conversation history is stored only in this browser. Partokens does not store your conversation history.')}</p>
-        </Modal>
-      ) : null}
-
-      {editingMessageId ? (
-        <Modal label={t('Edit and regenerate')} className="dialog edit-message-dialog" onClose={() => setEditingMessageId(null)}>
-          <div className="dialog-heading"><h2>{t('Edit and regenerate')}</h2><IconButton label={t('Close')} onClick={() => setEditingMessageId(null)}><X size={18} /></IconButton></div>
-          <label><span>{t('Message')}</span><textarea data-modal-initial-focus rows={7} value={editingMessage} onChange={(event) => setEditingMessage(event.target.value)} /></label>
-          <div className="dialog-actions"><button className="button secondary-button" onClick={() => setEditingMessageId(null)}>{t('Cancel')}</button><button className="button primary-button" disabled={!editingMessage.trim()} onClick={() => void saveEditedMessage()}><RotateCcw size={15} />{t('Save and regenerate')}</button></div>
-        </Modal>
+      {overlay && complexOverlay && isMobile ? (
+        <Sheet open onOpenChange={(open) => !open && closeOverlay()}>
+          <SheetContent className="w-full sm:max-w-md" onCloseAutoFocus={closeAutoFocus}>
+            <SheetHeader><SheetTitle>{overlayTitle}</SheetTitle><SheetDescription>{overlayDescription}</SheetDescription></SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">{overlayBody}</div>
+            <SheetFooter className="border-t">{overlayFooter}</SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : overlay ? (
+        <Dialog open onOpenChange={(open) => !open && closeOverlay()}>
+          <DialogContent key={overlay.kind} className={complexOverlay ? 'max-h-[90svh] overflow-y-auto sm:max-w-xl' : 'sm:max-w-md'} onCloseAutoFocus={closeAutoFocus}>
+            <DialogHeader><DialogTitle>{overlayTitle}</DialogTitle><DialogDescription>{overlayDescription}</DialogDescription></DialogHeader>
+            {overlayBody}
+            <DialogFooter>{overlayFooter}</DialogFooter>
+          </DialogContent>
+        </Dialog>
       ) : null}
 
       <input ref={importRef} hidden type="file" accept="application/json,.json" onChange={(event) => void importConversations(event)} />
     </div>
   )
-}
-
-function ShieldLocal() {
-  return <span className="local-icon" aria-hidden="true">LOCAL</span>
 }

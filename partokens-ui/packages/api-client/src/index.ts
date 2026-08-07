@@ -157,7 +157,7 @@ export type PlaygroundCompletionInput = {
   max_tokens?: number
   frequency_penalty?: number
   presence_penalty?: number
-  seed?: number | null
+  seed?: number
 }
 
 export type PlaygroundStreamUpdate = {
@@ -1242,9 +1242,10 @@ export async function redeemTopupCode(key: string): Promise<ApiEnvelope<number>>
   return parseEnvelope<number>(response.data)
 }
 
-export async function getBillingHistory(input: { p?: number; page_size?: number; keyword?: string } = {}): Promise<ApiEnvelope<PaginatedData<TopupRecord>>> {
+export async function getBillingHistory(input: { p?: number; page_size?: number; keyword?: string } = {}, signal?: AbortSignal): Promise<ApiEnvelope<PaginatedData<TopupRecord>>> {
   const response = await api.get('/api/user/topup/self', {
     params: { p: input.p ?? 1, page_size: input.page_size ?? 20, keyword: input.keyword || undefined },
+    signal,
   })
   return parseEnvelope<PaginatedData<TopupRecord>>(response.data)
 }
@@ -1374,8 +1375,8 @@ export async function deletePasskey(): Promise<ApiEnvelope<unknown>> {
   return parseEnvelope(response.data)
 }
 
-export async function getCheckinStatus(month: string): Promise<ApiEnvelope<CheckinStatus>> {
-  const response = await api.get('/api/user/checkin', { params: { month } })
+export async function getCheckinStatus(month: string, signal?: AbortSignal): Promise<ApiEnvelope<CheckinStatus>> {
+  const response = await api.get('/api/user/checkin', { params: { month }, signal })
   return parseEnvelope<CheckinStatus>(response.data)
 }
 

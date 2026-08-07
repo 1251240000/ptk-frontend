@@ -7,6 +7,7 @@ import {
 
 import { defaultPlaygroundParameters, type LocalConversation } from '@/db'
 import {
+  buildPlaygroundCompletionInput,
   createPlaygroundExport,
   normalizeStoredConversation,
   parsePlaygroundImport,
@@ -58,5 +59,28 @@ describe('Playground contracts', () => {
     expect(resolvePlaygroundTitle('New conversation', 'New conversation', '  First prompt  ', false)).toBe('First prompt')
     expect(resolvePlaygroundTitle('My saved title', 'New conversation', 'First prompt', false)).toBe('My saved title')
     expect(resolvePlaygroundTitle('Existing chat', 'New conversation', 'Later prompt', true)).toBe('Existing chat')
+  })
+
+  it('omits an unset seed while preserving explicit zero-valued parameters', () => {
+    const conversation: Pick<LocalConversation, 'model' | 'group' | 'parameters'> = {
+      model: 'gpt-test',
+      group: 'default',
+      parameters: {
+        ...defaultPlaygroundParameters,
+        temperature: 0,
+        topP: 0,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
+        seed: null,
+      },
+    }
+    const message = { id: 'message-1', role: 'user' as const, content: 'Hello', createdAt: 1 }
+
+    const withoutSeed = buildPlaygroundCompletionInput(conversation, [message])
+    expect(withoutSeed).toMatchObject({ temperature: 0, top_p: 0, frequency_penalty: 0, presence_penalty: 0 })
+    expect(withoutSeed).not.toHaveProperty('seed')
+
+    conversation.parameters.seed = 0
+    expect(buildPlaygroundCompletionInput(conversation, [message])).toHaveProperty('seed', 0)
   })
 })

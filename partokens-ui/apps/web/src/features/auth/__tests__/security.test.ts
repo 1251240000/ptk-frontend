@@ -2,15 +2,12 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { clearOAuthContext, readOAuthContext, validatedReturnPath, writeOAuthContext } from '../auth-flow'
 import { useAuthFlowStore } from '../auth-flow-store'
 import {
   cleanBackupCode,
-  clearOAuthLoginContext,
   formatBackupCode,
   maskEmail,
-  readOAuthLoginContext,
-  resolveAuthReturnPath,
-  saveOAuthLoginContext,
 } from '../auth-utils'
 
 const localStorageSetItem = vi.fn()
@@ -36,7 +33,7 @@ describe('authentication defaults', () => {
 
 describe('authentication navigation boundaries', () => {
   it('accepts a same-locale route while preserving its search and hash', () => {
-    expect(resolveAuthReturnPath('/en/console/usage-logs?type=2#request', 'en')).toBe('/en/console/usage-logs?type=2#request')
+    expect(validatedReturnPath('en', '/en/console/usage-logs?type=2#request')).toBe('/en/console/usage-logs?type=2#request')
   })
 
   it.each([
@@ -46,23 +43,31 @@ describe('authentication navigation boundaries', () => {
     '/en/auth/sign-up',
     'en/console/overview',
   ])('rejects an external, cross-locale, authentication, or relative return path', (candidate) => {
-    expect(resolveAuthReturnPath(candidate, 'en')).toBeNull()
+    expect(validatedReturnPath('en', candidate)).toBeNull()
   })
 })
 
 describe('transient OAuth context', () => {
   it('keeps only locale, state, and validated intent context in session storage', () => {
-    saveOAuthLoginContext('github', 'csrf-state', 'fr', '/fr/console/overview')
-
-    expect(readOAuthLoginContext('github')).toEqual({
+    writeOAuthContext({
+      intent: 'login',
       locale: 'fr',
+      provider: 'github',
+      state: 'csrf-state',
+      returnTo: '/fr/console/overview',
+    })
+
+    expect(readOAuthContext()).toEqual({
+      intent: 'login',
+      locale: 'fr',
+      provider: 'github',
       state: 'csrf-state',
       returnTo: '/fr/console/overview',
     })
     expect(localStorageSetItem).not.toHaveBeenCalled()
 
-    clearOAuthLoginContext('github')
-    expect(readOAuthLoginContext('github')).toEqual({ locale: null, state: null, returnTo: null })
+    clearOAuthContext()
+    expect(readOAuthContext()).toBeNull()
   })
 })
 

@@ -1,4 +1,6 @@
 const registrationContextKey = 'partokens-auth-registration-context'
+const legacyRegistrationEmailKey = 'partokens-auth-registration-email'
+const legacyRegistrationSentAtKey = 'partokens-auth-registration-sent-at'
 
 export type RegistrationContext = {
   email: string
@@ -7,14 +9,24 @@ export type RegistrationContext = {
 
 export function readRegistrationContext(): RegistrationContext | null {
   const raw = window.sessionStorage.getItem(registrationContextKey)
-  if (!raw) return null
-  try {
-    const value = JSON.parse(raw) as Partial<RegistrationContext>
-    if (typeof value.email !== 'string' || typeof value.sentAt !== 'number' || !Number.isFinite(value.sentAt)) return null
-    return { email: value.email, sentAt: value.sentAt }
-  } catch {
-    return null
+  if (raw) {
+    try {
+      const value = JSON.parse(raw) as Partial<RegistrationContext>
+      if (typeof value.email === 'string' && typeof value.sentAt === 'number' && Number.isFinite(value.sentAt)) {
+        return { email: value.email, sentAt: value.sentAt }
+      }
+    } catch {
+      // Fall through to the legacy migration below.
+    }
   }
+  const email = window.sessionStorage.getItem(legacyRegistrationEmailKey)
+  const sentAt = Number(window.sessionStorage.getItem(legacyRegistrationSentAtKey) || 0)
+  if (!email || !Number.isFinite(sentAt)) return null
+  const context = { email, sentAt }
+  writeRegistrationContext(context)
+  window.sessionStorage.removeItem(legacyRegistrationEmailKey)
+  window.sessionStorage.removeItem(legacyRegistrationSentAtKey)
+  return context
 }
 
 export function writeRegistrationContext(context: RegistrationContext) {
@@ -23,6 +35,8 @@ export function writeRegistrationContext(context: RegistrationContext) {
 
 export function clearRegistrationContext() {
   window.sessionStorage.removeItem(registrationContextKey)
+  window.sessionStorage.removeItem(legacyRegistrationEmailKey)
+  window.sessionStorage.removeItem(legacyRegistrationSentAtKey)
 }
 
 export function registrationCooldown(context: RegistrationContext | null, now = Date.now()) {

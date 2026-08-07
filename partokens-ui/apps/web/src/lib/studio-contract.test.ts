@@ -66,11 +66,38 @@ describe('studio image transport', () => {
 
     expect(fetcher).toHaveBeenCalledWith('/v1/images/edits', expect.objectContaining({ method: 'POST', body: expect.any(FormData) }))
   })
+
+  it('uses a stable translation key for unclassified HTTP failures', async () => {
+    setStudioCredential({ tokenId: 9, tokenName: 'Studio failure', key: 'sk-failure-only' })
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({}), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })) as unknown as typeof fetch
+
+    await expect(generateStudioImages({
+      model: 'gpt-image-1',
+      prompt: 'A request that fails safely',
+      size: 'auto',
+      quality: 'auto',
+      background: 'auto',
+      count: 1,
+    }, undefined, fetcher)).rejects.toThrow('The image service could not complete this request.')
+  })
 })
 
 describe('studio model capabilities', () => {
   it('gates DALL-E 3 to one output and no edit flow', () => {
     expect(studioModelCapabilities('dall-e-3')).toMatchObject({ maxCount: 1, supportsEdit: false })
+  })
+
+  it('uses conservative defaults for models without a reviewed override', () => {
+    expect(studioModelCapabilities('unreviewed-image-model')).toEqual({
+      sizes: ['auto'],
+      qualities: ['auto'],
+      backgrounds: ['auto'],
+      maxCount: 1,
+      supportsEdit: false,
+    })
   })
 })
 

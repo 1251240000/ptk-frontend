@@ -125,7 +125,7 @@ export function buildPlaygroundCompletionInput(
     max_tokens: parameters.maxTokens,
     frequency_penalty: parameters.frequencyPenalty,
     presence_penalty: parameters.presencePenalty,
-    seed: parameters.seed,
+    ...(parameters.seed == null ? {} : { seed: parameters.seed }),
   }
 }
 

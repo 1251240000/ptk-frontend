@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { clearRegistrationContext, readRegistrationContext } from './auth-utils'
+import { clearRegistrationContext, readRegistrationContext } from './registration-context'
 
 export type RegistrationDraft = {
   username: string
@@ -20,7 +20,7 @@ type AuthFlowState = {
 function emptyRegistration(): RegistrationDraft {
   return {
     username: '',
-    email: readRegistrationContext().email,
+    email: readRegistrationContext()?.email || '',
     verificationCode: '',
     password: '',
     confirm: '',

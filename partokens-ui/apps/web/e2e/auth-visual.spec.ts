@@ -57,14 +57,18 @@ test('authentication composition matches the active design-lab geometry across a
       await expect(page.locator('.r32-auth-brand svg.partokens-mark')).toBeVisible()
       await expect(page.getByRole('checkbox')).toBeChecked()
 
-      const productionBackground = await page.locator('.r32-auth-rail').evaluate((element) => getComputedStyle(element).backgroundImage)
-      const designBackground = await design.locator('.r32-auth-rail').evaluate((element) => getComputedStyle(element).backgroundImage)
+      const productionBackground = page.locator('.r32-auth-rail-background')
+      const designBackground = design.locator('.r32-auth-rail-background')
+      await expect(productionBackground).toHaveAttribute('src', `/auth/auth-routing-${theme}.jpg`)
+      await expect(designBackground).toHaveAttribute('src', `/auth/auth-routing-${theme}.jpg`)
       if (viewport.width <= 960) {
-        expect(productionBackground).toBe('none')
-        expect(designBackground).toBe('none')
+        await expect(productionBackground).toBeHidden()
+        await expect(designBackground).toBeHidden()
       } else {
-        expect(productionBackground).toContain(`home-hero-routing-${theme}.avif`)
-        expect(designBackground).toContain(`home-hero-routing-${theme}.avif`)
+        await expect(productionBackground).toBeVisible()
+        await expect(designBackground).toBeVisible()
+        expect(await productionBackground.evaluate((element) => element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0)).toBe(true)
+        expect(await designBackground.evaluate((element) => element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0)).toBe(true)
       }
 
       for (const selector of ['.r32-auth-rail', '.r32-auth-task', '.r32-auth-form-shell', '.r32-auth-route-button']) {

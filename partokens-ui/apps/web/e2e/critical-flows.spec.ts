@@ -42,6 +42,39 @@ test('legal consent defaults checked and still gates password and OAuth sign-in'
   await expect(page.getByRole('heading', { name: /Overview/ })).toBeVisible()
 })
 
+test('homepage console entry keeps the login session when refresh remains unavailable', async ({ page }) => {
+  let refreshAttempts = 0
+  let selfAttempts = 0
+  await installMockApi(page, {
+    anonymous: true,
+    onRequest: (request) => {
+      if (new URL(request.url()).pathname === '/api/user/auth/refresh') refreshAttempts += 1
+    },
+  })
+  await page.route('**/api/user/self', async (route) => {
+    selfAttempts += 1
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false, message: 'Unauthorized', code: 'AUTH_REQUIRED' }),
+    })
+  })
+
+  await page.goto('/en/')
+  await page.getByRole('button', { name: 'Go to console' }).first().click()
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/en/auth/sign-in')
+  expect(new URL(page.url()).searchParams.get('redirect')).toBe('/en/console/overview')
+
+  await page.getByLabel('Username or email').fill('fixture-user')
+  await page.getByLabel('Password', { exact: true }).fill('fixture-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+
+  await expect(page.getByRole('heading', { name: /Overview/ })).toBeVisible()
+  await expect(page).toHaveURL('/en/console/overview')
+  expect(selfAttempts).toBe(0)
+  expect(refreshAttempts).toBe(1)
+})
+
 test('all seven localized authentication entries remain usable at a mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await installMockApi(page)
@@ -106,6 +139,7 @@ test('OAuth callback restores the saved locale and enters the ordinary-user cons
     window.sessionStorage.setItem('partokens-oauth-state:google', 'fixture-state')
   })
   await installMockApi(page, {
+    anonymous: true,
     onRequest: (request) => {
       if (new URL(request.url()).pathname === '/api/oauth/google') callback = request.url()
     },
@@ -121,6 +155,7 @@ test('OAuth callback restores the saved locale and enters the ordinary-user cons
 test('password login completes the required two-factor route before entering the console', async ({ page }) => {
   let verification: Record<string, unknown> = {}
   await installMockApi(page, {
+    anonymous: true,
     requireTwoFactor: true,
     onRequest: (request) => {
       if (new URL(request.url()).pathname === '/api/user/login/2fa') verification = requestBody(request)
@@ -142,6 +177,7 @@ test('password login completes the required two-factor route before entering the
 test('two-factor backup mode normalizes the displayed code before submission', async ({ page }) => {
   let verification: Record<string, unknown> = {}
   await installMockApi(page, {
+    anonymous: true,
     requireTwoFactor: true,
     onRequest: (request) => {
       if (new URL(request.url()).pathname === '/api/user/login/2fa') verification = requestBody(request)
@@ -285,13 +321,16 @@ test('wallet exposes only current presets and revalidates the selected amount at
   await page.goto('/en/console/wallet')
 
   await expect(page.getByRole('heading', { name: 'Preset amounts' })).toBeVisible()
-  await expect(page.locator('.amount-options button')).toHaveCount(2)
-  await expect(page.locator('.amount-options button')).toHaveText([/\$10/, /\$50/])
+  const topup = page.getByRole('region', { name: 'Preset amounts' })
+  const presets = topup.getByRole('radiogroup', { name: 'Preset amounts' }).getByRole('radio')
+  await expect(presets).toHaveCount(2)
+  await expect(presets.nth(0)).toContainText('$10.00')
+  await expect(presets.nth(1)).toContainText('$50.00')
   await expect(page.locator('input[type="number"]')).toHaveCount(0)
 
-  await page.getByRole('button', { name: /\$50/ }).click()
-  await expect(page.getByText('$45.00', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Continue to payment' }).click()
+  await topup.getByRole('radio', { name: /\$50\.00/ }).click()
+  await expect(topup.getByText('$45.00', { exact: true })).toBeVisible()
+  await topup.getByRole('button', { name: 'Continue to payment' }).click()
   await expect(page.getByRole('dialog', { name: 'Confirm top-up' })).toBeVisible()
   await page.getByRole('button', { name: 'Confirm and continue' }).click()
   const paymentError = page.getByRole('alert')
@@ -307,8 +346,8 @@ test('Playground streams a reply and restores the browser-local conversation aft
   await page.goto('/en/console/playground')
 
   await expect(page.getByText('Conversation history is stored only in this browser. Partokens does not store your conversation history.').first()).toBeVisible()
-  await expect(page.getByLabel('Model')).toHaveValue('gpt-4.1-mini')
-  await page.getByPlaceholder('Start with a question').fill('Explain the fixture response.')
+  await expect(page.getByRole('button', { name: /Model and group.*gpt-4\.1-mini/ })).toBeVisible()
+  await page.getByPlaceholder('Message the selected model...').fill('Explain the fixture response.')
   await page.getByRole('button', { name: 'Send' }).click()
 
   await expect(page.getByText('This response arrived through a mocked SSE stream.')).toBeVisible()
@@ -316,10 +355,10 @@ test('Playground streams a reply and restores the browser-local conversation aft
   await expect(page.getByText('Checked the fixture.')).toBeVisible()
   await page.reload()
   await expect(page.getByText('This response arrived through a mocked SSE stream.')).toBeVisible()
-  await expect(page.getByLabel('Conversation name')).toHaveValue('Explain the fixture response.')
+  await expect(page.getByRole('heading', { name: 'Explain the fixture response.', level: 1 })).toBeVisible()
 })
 
-test('Image Studio uses a confirmed in-memory key and persists only the generated local asset', async ({ page }) => {
+test('Image Studio matches the design-lab flow while keeping the key in memory and results local', async ({ page }) => {
   let usedSessionCredential = false
   await primeUserSession(page)
   await installMockApi(page, {
@@ -331,19 +370,31 @@ test('Image Studio uses a confirmed in-memory key and persists only the generate
   })
   await page.goto('/en/console/studio')
 
-  await expect(page.getByLabel('Canvas name')).toBeVisible()
-  await expect(page.locator('.project-row')).toHaveCount(1)
+  await expect(page.getByRole('heading', { name: 'Image studio', level: 1 })).toBeVisible()
+  await expect(page.locator('[data-studio-page]')).toBeVisible()
   await page.getByLabel('Prompt', { exact: true }).fill('A precise fixture image')
-  await page.getByRole('combobox', { name: 'Model' }).selectOption('gpt-image-1')
-  await page.getByRole('combobox', { name: 'Existing key' }).selectOption('7')
-  page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Unlock for session' }).click()
-  await expect(page.getByText('Unlocked', { exact: true })).toBeVisible()
-
-  await page.getByRole('button', { name: 'Generate images' }).click()
-  await expect(page.getByRole('status')).toContainText('Images added to the local canvas')
-  await expect(page.locator('.canvas-node.result strong', { hasText: 'Generated image 1' })).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Model' })).toContainText('gpt-image-1')
+  await page.getByRole('button', { name: 'Generate' }).click()
+  const keyDialog = page.getByRole('dialog', { name: 'API key required' })
+  await expect(keyDialog).toContainText('The full key stays in memory only for this Studio session.')
+  await keyDialog.getByRole('combobox', { name: 'API key' }).click()
+  await page.getByRole('option', { name: 'Studio fixture' }).click()
+  await keyDialog.getByRole('button', { name: 'Unlock and generate' }).click()
+  await expect(page.getByRole('img', { name: 'A precise fixture image, Variation 1' })).toBeVisible()
+  await expect(page.getByText('1 of 1')).toBeVisible()
   expect(usedSessionCredential).toBe(true)
+
+  const projectCount = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open('partokens-local')
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const instance = open.result
+      const count = instance.transaction('studioProjects', 'readonly').objectStore('studioProjects').count()
+      count.onerror = () => { instance.close(); reject(count.error) }
+      count.onsuccess = () => { instance.close(); resolve(count.result) }
+    }
+  }))
+  expect(projectCount).toBe(1)
 
   const tokenPersisted = await page.evaluate(async () => {
     const marker = 'fixture-session-token'
@@ -375,9 +426,8 @@ test('Image Studio uses a confirmed in-memory key and persists only the generate
   expect(tokenPersisted).toBe(false)
 
   await page.reload()
-  await expect(page.locator('.canvas-node.result strong', { hasText: 'Generated image 1' })).toBeVisible()
-  await expect(page.locator('.project-row')).toHaveCount(1)
-  await expect(page.getByText('Locked', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Unlock for session' })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'A precise fixture image, Variation 1' })).toBeVisible()
+  await page.getByRole('button', { name: 'Generate' }).click()
+  await expect(page.getByRole('dialog', { name: 'API key required' })).toBeVisible()
   await page.screenshot({ path: `${evidenceScreenshots}/studio-local-asset-fixed.png` })
 })

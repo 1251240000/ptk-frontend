@@ -1,4 +1,11 @@
 import { authTranslationRows } from './auth'
+import { accountTranslationRows } from './account'
+import { playgroundTranslationRows } from './playground'
+import { studioTranslationRows } from './studio'
+
+export { accountTranslationRows } from './account'
+export { playgroundTranslationRows } from './playground'
+export { studioTranslationRows } from './studio'
 
 export const locales = ['zh-CN', 'zh-TW', 'en', 'ja', 'ru', 'fr', 'vi'] as const
 export type AppLocale = (typeof locales)[number]
@@ -1490,6 +1497,24 @@ for (const [key, ...values] of r59ConsoleTranslationRows) {
 }
 
 for (const [key, ...values] of authTranslationRows) {
+  locales.forEach((locale, index) => {
+    ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
+  })
+}
+
+for (const [key, ...values] of accountTranslationRows) {
+  locales.forEach((locale, index) => {
+    ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
+  })
+}
+
+for (const [key, ...values] of playgroundTranslationRows) {
+  locales.forEach((locale, index) => {
+    ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
+  })
+}
+
+for (const [key, ...values] of studioTranslationRows) {
   locales.forEach((locale, index) => {
     ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
   })

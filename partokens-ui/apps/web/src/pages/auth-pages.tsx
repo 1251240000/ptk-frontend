@@ -8,4 +8,4 @@ export {
   VerifyEmailPage,
 } from '@/features/auth/auth-pages'
 export { TurnstileField } from '@/features/auth/auth-shell'
-export { startOAuthAuthorization } from '@/features/auth/oauth'
+export { startOAuthAuthorization } from '@/features/auth/auth-flow'

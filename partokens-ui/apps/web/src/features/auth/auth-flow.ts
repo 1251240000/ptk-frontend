@@ -1,10 +1,10 @@
-import { exchangeOAuth, getOAuthState, type CurrentUser, type PartokensStatus } from '@partokens/api-client'
+import { exchangeOAuth, getOAuthState, type PartokensStatus } from '@partokens/api-client'
 import { isAppLocale, type AppLocale } from '@partokens/i18n'
-
-import { canonicalConsolePath } from '@/lib/routes'
 
 const oauthContextKey = 'partokens-auth-oauth-context'
 const legacyOAuthKeys = ['partokens-oauth-intent', 'partokens-oauth-locale', 'partokens-oauth-return'] as const
+const legacyOAuthStatePrefix = 'partokens-oauth-state:'
+const legacyOAuthBindStatePrefix = 'partokens-oauth-bind-state:'
 
 export type OAuthIntent = 'login' | 'bind'
 
@@ -24,34 +24,61 @@ function storageFor(windowLike: Window = window) {
   return windowLike.sessionStorage
 }
 
-export function readOAuthContext(storage: Storage = storageFor()): OAuthContext | null {
+export function readOAuthContext(provider?: string, storage: Storage = storageFor()): OAuthContext | null {
   const raw = storage.getItem(oauthContextKey)
-  if (!raw) return null
-  try {
-    const value = JSON.parse(raw) as Partial<OAuthContext>
-    if (
-      !isOAuthIntent(value.intent) ||
-      !isAppLocale(value.locale) ||
-      typeof value.provider !== 'string' ||
-      !value.provider ||
-      typeof value.state !== 'string' ||
-      !value.state ||
-      (value.returnTo !== undefined && typeof value.returnTo !== 'string')
-    ) return null
-    return value as OAuthContext
-  } catch {
-    return null
+  if (raw) {
+    try {
+      const value = JSON.parse(raw) as Partial<OAuthContext>
+      if (
+        isOAuthIntent(value.intent) &&
+        isAppLocale(value.locale) &&
+        typeof value.provider === 'string' &&
+        value.provider &&
+        typeof value.state === 'string' &&
+        value.state &&
+        (value.returnTo === undefined || typeof value.returnTo === 'string')
+      ) return value as OAuthContext
+    } catch {
+      // Fall through to the one-release legacy migration below.
+    }
   }
+
+  if (!provider) return null
+  const bindState = storage.getItem(`${legacyOAuthBindStatePrefix}${provider}`)
+  const loginState = storage.getItem(`${legacyOAuthStatePrefix}${provider}`)
+  const state = bindState || loginState
+  if (!state) return null
+  const storedLocale = storage.getItem('partokens-oauth-locale')
+  let preferredLocale: string | null = null
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage?.getItem === 'function') {
+      preferredLocale = window.localStorage.getItem('partokens-locale')
+    }
+  } catch { /* Storage may be disabled. */ }
+  const locale = isAppLocale(storedLocale || undefined)
+    ? storedLocale as AppLocale
+    : isAppLocale(preferredLocale || undefined) ? preferredLocale as AppLocale : 'zh-CN'
+  const returnTo = storage.getItem('partokens-oauth-return') || undefined
+  return { intent: bindState ? 'bind' : 'login', locale, provider, state, returnTo }
 }
 
-function writeOAuthContext(context: OAuthContext, storage: Storage = storageFor()) {
+export function writeOAuthContext(context: OAuthContext, storage: Storage = storageFor()) {
   storage.setItem(oauthContextKey, JSON.stringify(context))
 }
 
 export function clearOAuthContext(storage: Storage = storageFor()) {
   storage.removeItem(oauthContextKey)
+  for (const key of legacyOAuthKeys) storage.removeItem(key)
+  for (let index = storage.length - 1; index >= 0; index -= 1) {
+    const key = storage.key(index)
+    if (key?.startsWith(legacyOAuthStatePrefix) || key?.startsWith(legacyOAuthBindStatePrefix)) storage.removeItem(key)
+  }
   if (typeof window !== 'undefined' && storage === window.sessionStorage) {
-    for (const key of legacyOAuthKeys) window.localStorage.removeItem(key)
+    try {
+      if (typeof window.localStorage?.removeItem === 'function') {
+        for (const key of legacyOAuthKeys) window.localStorage.removeItem(key)
+      }
+    } catch { /* Storage may be disabled. */ }
   }
 }
 
@@ -77,14 +104,6 @@ export function requestedReturnPath(locale: AppLocale): string | null {
   return validatedReturnPath(locale, new URLSearchParams(window.location.search).get('redirect'))
 }
 
-export function authDestination(locale: AppLocale, user: CurrentUser, returnTo?: string | null) {
-  if (user.role >= 10) {
-    window.location.assign('/channels')
-    return
-  }
-  window.location.assign(validatedReturnPath(locale, returnTo) ?? canonicalConsolePath(locale, 'overview'))
-}
-
 export type AuthFailureKind = 'network' | 'rate-limit' | 'turnstile' | 'other'
 
 export function authFailureKind(error: unknown): AuthFailureKind {
@@ -104,11 +123,17 @@ export function authFailureKind(error: unknown): AuthFailureKind {
 }
 
 export function localizedAuthError(error: unknown, fallback: string, t: (key: string) => string) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return t('You appear to be offline. Check your connection and try again.')
   const kind = authFailureKind(error)
   if (kind === 'network') return t('Unable to reach the authentication service. Check your connection and try again.')
   if (kind === 'rate-limit') return t('Too many authentication attempts. Wait a moment and try again.')
   if (kind === 'turnstile') return t('Complete the security verification and try again.')
-  return fallback
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { status?: number; data?: { message?: string } } }).response
+    if (response?.status && response.status >= 500) return t('The authentication service is temporarily unavailable. Try again.')
+    if (response?.data?.message) return t(response.data.message)
+  }
+  return error instanceof Error && error.message ? t(error.message) : fallback
 }
 
 export async function startOAuthAuthorization(input: {

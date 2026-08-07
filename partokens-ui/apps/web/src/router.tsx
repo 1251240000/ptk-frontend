@@ -106,6 +106,9 @@ const walletComponent = lazyRouteComponent(() => import(/* webpackChunkName: "co
 const walletRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.wallet.segment, component: walletComponent, ...consoleRouteAsyncOptions })
 const profileComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-profile" */ '@/pages/profile-page'), 'ProfilePage')
 const profileRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.profile.segment, component: profileComponent, ...consoleRouteAsyncOptions })
+const profileSecurityRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'security', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'security' }, replace: true }) } })
+const profileConnectionsRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'connections', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'connections' }, replace: true }) } })
+const profileNotificationsRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'notifications', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'notifications' }, replace: true }) } })
 const playgroundComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-playground" */ '@/pages/workbench-pages'), 'PlaygroundPage')
 const playgroundRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.playground.segment, component: playgroundComponent, ...consoleRouteAsyncOptions })
 const playgroundDetailRoute = createRoute({ getParentRoute: () => consoleRoute, path: `${consoleRouteMap.playground.segment}/$chatId`, component: playgroundComponent, ...consoleRouteAsyncOptions })
@@ -120,6 +123,10 @@ const consoleCompatibilityAnalyticsRoute = createRoute({ getParentRoute: () => c
 const consoleCompatibilityKeysRoute = createRoute({ getParentRoute: () => consoleCompatibilityRoute, path: consoleRouteMap.keys.compatibilitySegment, beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('keys'), params: { locale: params.locale }, search: true, replace: true }) } })
 const consoleCompatibilityUsageLogsRoute = createRoute({ getParentRoute: () => consoleCompatibilityRoute, path: consoleRouteMap.usageLogs.compatibilitySegment, beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('usageLogs'), params: { locale: params.locale }, search: true, replace: true }) } })
 
+const legacyProfileSecurityRoute = createRoute({ getParentRoute: () => localeRoute, path: 'console-security', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'security' }, replace: true }) } })
+const legacyProfileConnectionsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'console-connections', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'connections' }, replace: true }) } })
+const legacyProfileNotificationsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'console-notifications', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'notifications' }, replace: true }) } })
+
 const oauthRoute = createRoute({ getParentRoute: () => rootRoute, path: 'oauth/$provider', component: oauthCallbackComponent })
 const technicalResetRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -132,9 +139,9 @@ const technicalResetRoute = createRoute({
   component: resetPasswordComponent,
 })
 
-const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, profileRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
+const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, profileRoute, profileSecurityRoute, profileConnectionsRoute, profileNotificationsRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
 const consoleCompatibilityTree = consoleCompatibilityRoute.addChildren([consoleCompatibilityIndexRoute, consoleCompatibilityOverviewRoute, consoleCompatibilityAnalyticsRoute, consoleCompatibilityKeysRoute, consoleCompatibilityUsageLogsRoute])
-const localeTree = localeRoute.addChildren([homeRoute, modelsRoute, docsRoute, aboutRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, verifyEmailRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree])
+const localeTree = localeRoute.addChildren([homeRoute, modelsRoute, docsRoute, aboutRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, verifyEmailRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree, legacyProfileSecurityRoute, legacyProfileConnectionsRoute, legacyProfileNotificationsRoute])
 const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })

@@ -14,7 +14,6 @@ import { useTranslation } from 'react-i18next'
 import {
   confirmPasswordReset,
   exchangeOAuth,
-  getSelf,
   login,
   loginTwoFactor,
   register,
@@ -28,6 +27,7 @@ import { canonicalConsolePath } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
 
 import { useAuthFlowStore } from './auth-flow-store'
+import { clearOAuthContext, readOAuthContext, validatedReturnPath } from './auth-flow'
 import {
   AccountSwitch,
   AuthField,
@@ -48,34 +48,29 @@ import {
 } from './auth-shell'
 import {
   cleanBackupCode,
-  clearOAuthBindContext,
-  clearOAuthLoginContext,
   formatBackupCode,
-  isOAuthBindCallback,
   maskEmail,
-  readOAuthLoginContext,
-  readRegistrationContext,
-  resolveAuthReturnPath,
-  saveRegistrationContext,
 } from './auth-utils'
+import {
+  readRegistrationContext,
+  registrationCooldown,
+  writeRegistrationContext,
+} from './registration-context'
 
-async function authDestination(locale: AppLocale, fallbackUser: CurrentUser, returnTo?: string | null): Promise<void> {
-  let user = fallbackUser
-  try {
-    const self = await getSelf()
-    if (self.success && self.data) user = self.data
-  } catch {
-    // The validated login bundle is sufficient when the follow-up read is temporarily unavailable.
-  }
-
+async function authDestination(
+  locale: AppLocale,
+  user: CurrentUser,
+  navigate: ReturnType<typeof useNavigate>,
+  returnTo?: string | null,
+): Promise<void> {
   if (user.role >= 10) {
     window.location.assign('/channels')
     return
   }
 
   const queryReturn = new URLSearchParams(window.location.search).get('redirect')
-  const safeReturn = resolveAuthReturnPath(returnTo || queryReturn, locale)
-  window.location.assign(safeReturn || canonicalConsolePath(locale, 'overview'))
+  const safeReturn = validatedReturnPath(locale, returnTo || queryReturn)
+  await navigate({ to: (safeReturn || canonicalConsolePath(locale, 'overview')) as never })
 }
 
 function StatusFailure(props: { retry: () => void }) {
@@ -114,7 +109,7 @@ export function SignInPage() {
         await navigate({ to: '/$locale/auth/otp', params: { locale }, search: true })
         return
       }
-      await authDestination(locale, result.data.user)
+      await authDestination(locale, result.data.user, navigate)
     } catch (cause) {
       setError(authErrorMessage(cause, t, t('Sign in failed')))
       setBusy(false)
@@ -155,7 +150,7 @@ export function SignUpPage() {
   const [error, setError] = useState('')
   const [turnstile, setTurnstile] = useState('')
   const [turnstileEpoch, setTurnstileEpoch] = useState(0)
-  const [cooldown, setCooldown] = useState(() => Math.max(0, Math.ceil((readRegistrationContext().sentAt + 60_000 - Date.now()) / 1000)))
+  const [cooldown, setCooldown] = useState(() => registrationCooldown(readRegistrationContext()))
   const emailVerification = Boolean(status.data?.data.email_verification)
   const turnstileRequired = Boolean(status.data?.data.turnstile_check)
   const registrationEnabled = status.data?.data.register_enabled !== false && status.data?.data.password_register_enabled !== false
@@ -178,7 +173,7 @@ export function SignUpPage() {
     try {
       const result = await sendEmailVerification({ email: fields.email.trim(), turnstile: turnstile || undefined })
       if (!result.success) throw new Error(result.message || t('Unable to send code'))
-      saveRegistrationContext(fields.email.trim())
+      writeRegistrationContext({ email: fields.email.trim(), sentAt: Date.now() })
       setMessage(t('Verification code sent. Check your inbox.'))
       setCooldown(60)
       if (turnstileRequired) {
@@ -281,13 +276,13 @@ export function VerifyEmailPage() {
   const registration = useAuthFlowStore((state) => state.registration)
   const updateRegistration = useAuthFlowStore((state) => state.updateRegistration)
   const context = readRegistrationContext()
-  const email = registration.email || context.email
+  const email = registration.email || context?.email || ''
   const [code, setCode] = useState(registration.verificationCode)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState(email ? t('Verification code sent. Check your inbox.') : '')
   const [turnstile, setTurnstile] = useState('')
-  const [cooldown, setCooldown] = useState(() => Math.max(0, Math.ceil((context.sentAt + 60_000 - Date.now()) / 1000)))
+  const [cooldown, setCooldown] = useState(() => registrationCooldown(context))
   const turnstileRequired = Boolean(status.data?.data.turnstile_check)
 
   useEffect(() => {
@@ -303,7 +298,7 @@ export function VerifyEmailPage() {
     try {
       const result = await sendEmailVerification({ email, turnstile: turnstile || undefined })
       if (!result.success) throw new Error(result.message || t('Unable to send code'))
-      saveRegistrationContext(email)
+      writeRegistrationContext({ email, sentAt: Date.now() })
       setMessage(t('Verification code sent. Check your inbox.'))
       setCooldown(60)
     } catch (cause) {
@@ -381,6 +376,7 @@ export function ForgotPasswordPage() {
 export function OtpPage() {
   const { t } = useTranslation()
   const locale = useAuthLocale()
+  const navigate = useNavigate()
   const pendingTwoFactor = useSessionStore((state) => state.pendingTwoFactor)
   const setPendingTwoFactor = useSessionStore((state) => state.setPendingTwoFactor)
   const [backup, setBackup] = useState(false)
@@ -408,7 +404,7 @@ export function OtpPage() {
       const submittedCode = backup ? cleanBackupCode(code) : code
       const result = await loginTwoFactor(submittedCode, pendingTwoFactor.flow_token)
       if (!result.success || !result.data) throw new Error(result.message || t('Verification failed'))
-      await authDestination(locale, result.data.user)
+      await authDestination(locale, result.data.user, navigate)
     } catch (cause) {
       setError(authErrorMessage(cause, t, t('Verification failed')))
       setBusy(false)
@@ -518,11 +514,12 @@ type OAuthView = 'loading' | 'ready' | 'binding' | 'error'
 
 export function OAuthCallbackPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const params = useParams({ strict: false }) as { provider?: string }
   const search = new URLSearchParams(useLocation({ select: (state) => state.searchStr }))
   const provider = params.provider || ''
-  const context = readOAuthLoginContext(provider)
-  const locale: AppLocale = isAppLocale(context.locale || undefined) ? context.locale as AppLocale : resolvePreferredLocale()
+  const context = readOAuthContext(provider)
+  const locale: AppLocale = isAppLocale(context?.locale) ? context.locale : resolvePreferredLocale()
   const [view, setView] = useState<OAuthView>('loading')
   const [error, setError] = useState('')
   const [user, setUser] = useState<CurrentUser | null>(null)
@@ -536,7 +533,10 @@ export function OAuthCallbackPage() {
     const providerError = search.get('error') || undefined
     const providerErrorDescription = search.get('error_description') || undefined
     const validProvider = /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(provider)
-    const binding = validProvider && isOAuthBindCallback(provider, state)
+    const binding = validProvider
+      && context?.intent === 'bind'
+      && context.provider === provider
+      && context.state === state
 
     if (!validProvider || !state || (!code && !providerError)) {
       setError(t('OAuth callback is incomplete.'))
@@ -549,17 +549,17 @@ export function OAuthCallbackPage() {
       if (!window.opener) {
         setError(t('OAuth callback is incomplete.'))
         setView('error')
-        clearOAuthBindContext(provider)
+        clearOAuthContext()
         return
       }
       setView('binding')
       window.opener.postMessage({ source: 'partokens-oauth-bind', provider, code, state, error: providerError, error_description: providerErrorDescription }, window.location.origin)
-      clearOAuthBindContext(provider)
+      clearOAuthContext()
       return
     }
 
-    if (context.state !== state) {
-      clearOAuthLoginContext(provider)
+    if (!context || context.intent !== 'login' || context.provider !== provider || context.state !== state) {
+      clearOAuthContext()
       setError(t('OAuth state is invalid or has expired.'))
       setView('error')
       return
@@ -575,19 +575,19 @@ export function OAuthCallbackPage() {
       .catch((cause) => {
         setError(authErrorMessage(cause, t, t('OAuth failed')))
         setView('error')
-        clearOAuthLoginContext(provider)
+        clearOAuthContext()
       })
-  }, [context.state, provider, search, t])
+  }, [context?.intent, context?.provider, context?.state, provider, search, t])
 
   useEffect(() => {
     if (view !== 'ready' || !user) return
     const timer = window.setTimeout(() => {
-      const returnTo = context.returnTo
-      clearOAuthLoginContext(provider)
-      void authDestination(locale, user, returnTo)
-    }, 420)
+      const returnTo = context?.returnTo
+      clearOAuthContext()
+      void authDestination(locale, user, navigate, returnTo)
+    }, 1200)
     return () => window.clearTimeout(timer)
-  }, [context.returnTo, locale, provider, user, view])
+  }, [context?.returnTo, locale, navigate, user, view])
 
   const ready = view === 'ready'
   return <AuthFrame screen="oauth-callback" locale={locale}>
