@@ -6,6 +6,7 @@ import {
   LoaderCircle,
   MessageSquare,
   Pencil,
+  Pin,
   Plus,
   RotateCcw,
   Search,
@@ -34,18 +35,69 @@ import { formatLocalBytes } from '@/lib/playground'
 
 export type PlaygroundTranslate = (key: string) => string
 
-export function PlaygroundMessageContent({ content }: { content: string }) {
+const playgroundMarkdownClassName =
+  'break-words text-sm leading-7 [&>*+*]:mt-5 [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:my-5 [&_blockquote]:border-s-2 [&_blockquote]:border-border [&_blockquote]:ps-3 [&_blockquote]:text-muted-foreground [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_h1]:mt-9 [&_h1]:mb-5 [&_h1]:border-b [&_h1]:border-border [&_h1]:pb-2.5 [&_h1]:text-xl [&_h1]:leading-9 [&_h1]:font-semibold [&_h1:first-child]:mt-0 [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:border-b [&_h2]:border-border/70 [&_h2]:pb-2 [&_h2]:text-lg [&_h2]:leading-8 [&_h2]:font-semibold [&_h2:first-child]:mt-0 [&_h3]:mt-7 [&_h3]:mb-3.5 [&_h3]:text-base [&_h3]:leading-7 [&_h3]:font-semibold [&_h3:first-child]:mt-0 [&_li]:ms-5 [&_li]:leading-7 [&_ol]:my-4 [&_ol]:list-decimal [&_p]:my-3 [&_p]:leading-7 [&_p:first-child]:mt-0 [&_pre]:my-6 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:bg-muted/50 [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_ul]:my-4 [&_ul]:list-disc'
+const streamingDots = ['.', '..', '...'] as const
+
+export function PlaygroundStreamingMessage({ label, className }: { label: string; className?: string }) {
+  const [dotIndex, setDotIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setDotIndex((index) => (index + 1) % streamingDots.length)
+    }, 450)
+    return () => window.clearInterval(interval)
+  }, [])
+
   return (
-    <div className="mt-2 break-words text-sm leading-6 [&>*+*]:mt-3 [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_blockquote]:border-s-2 [&_blockquote]:border-border [&_blockquote]:ps-3 [&_blockquote]:text-muted-foreground [&_code]:rounded-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_h1]:text-base [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_li]:ms-5 [&_ol]:list-decimal [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:bg-muted/50 [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:border-collapse [&_td]:border [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_ul]:list-disc">
+    <div className={`${className ?? 'mt-2'} text-sm leading-7 text-muted-foreground`} aria-label={label}>
+      <span>{label}</span>
+      <span aria-hidden className="inline-block w-[3ch] text-start">{streamingDots[dotIndex]}</span>
+    </div>
+  )
+}
+
+export function PlaygroundMessageContent({ content, className }: { content: string; className?: string }) {
+  return (
+    <div className={`${className ?? 'mt-2'} playground-markdown ${playgroundMarkdownClassName}`}>
       <ReactMarkdown
         skipHtml
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer noopener" />,
+          table: ({ node: _node, ...props }) => (
+            <div className="my-6 max-w-full overflow-x-auto rounded-md border border-border bg-background">
+              <table {...props} className="w-full min-w-max border-separate border-spacing-0 text-sm" />
+            </div>
+          ),
+          tbody: ({ node: _node, ...props }) => (
+            <tbody {...props} className="[&>tr:last-child>td]:border-b-0" />
+          ),
+          th: ({ node: _node, ...props }) => (
+            <th
+              {...props}
+              className="border-e border-b border-border bg-muted/70 px-3 py-2 text-start font-semibold leading-6 text-foreground last:border-e-0 dark:bg-muted/80"
+            />
+          ),
+          td: ({ node: _node, ...props }) => (
+            <td {...props} className="border-e border-b border-border px-3 py-2 align-top leading-6 text-foreground last:border-e-0" />
+          ),
         }}
       >
         {content}
       </ReactMarkdown>
+    </div>
+  )
+}
+
+export function PlaygroundMessageError({ message }: { message: string }) {
+  return (
+    <div
+      className="mt-2 inline-block max-w-full rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm leading-6 text-destructive"
+      data-playground-message-error
+      role="alert"
+    >
+      {message}
     </div>
   )
 }
@@ -144,7 +196,7 @@ export function ConversationRail({ conversations, currentId, query, busy, locale
             >
               <MessageSquare className="mt-0.5 size-4 text-muted-foreground" />
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium" title={conversation.title}>{conversation.title}</span>
+                <span className="flex min-w-0 items-center gap-1 truncate text-sm font-medium" title={conversation.title}><span className="truncate">{conversation.title}</span>{conversation.pinned ? <Pin className="size-3 shrink-0 text-muted-foreground" /> : null}</span>
                 <span className="block truncate text-xs text-muted-foreground">{new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(conversation.updatedAt)}</span>
               </span>
             </button>
@@ -210,7 +262,6 @@ export function ConversationRail({ conversations, currentId, query, busy, locale
           </span>
           <ArrowRight className="size-4 text-muted-foreground" />
         </button>
-        <p className="mt-2 flex gap-2 px-2 text-[0.6875rem] leading-4 text-muted-foreground"><ShieldCheck className="mt-0.5 size-3.5 shrink-0" />{t('Conversation history is stored only in this browser. Partokens does not store your conversation history.')}</p>
       </div>
     </div>
   )
@@ -295,6 +346,8 @@ export function PlaygroundLocalData({ conversations, bytes, browserStorage, busy
     { label: 'Browser storage used', value: browserStorage ? formatLocalBytes(browserStorage.usage, locale) : '—', icon: Database },
     { label: 'Browser storage limit', value: browserStorage?.quota ? formatLocalBytes(browserStorage.quota, locale) : '—', icon: Database },
   ]
+  const actionButtonClassName = 'h-8 min-h-8 gap-1.5 whitespace-nowrap px-2 [&_svg]:size-3.5'
+  const actionButtonStyle = { fontSize: 14, lineHeight: 1.15 }
 
   return (
     <div className="space-y-4">
@@ -302,10 +355,10 @@ export function PlaygroundLocalData({ conversations, bytes, browserStorage, busy
         {rows.map(({ label, value }) => <div className="flex justify-between gap-4 px-3 py-2.5 text-sm" key={label}><dt className="text-muted-foreground">{t(label)}</dt><dd className="break-all font-medium">{value}</dd></div>)}
       </dl>
       <div className="flex gap-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground"><ShieldCheck className="mt-0.5 size-4 shrink-0" /><p>{t('Conversation history is stored only in this browser. Partokens does not store your conversation history.')}</p></div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Button variant="outline" disabled={!conversations.length || importing} onClick={onExport}><Download />{t('Export conversations')}</Button>
-        <Button variant="outline" disabled={importing} onClick={onImport}>{importing ? <LoaderCircle className="animate-spin" /> : <Upload />}{t('Import conversations')}</Button>
-        <Button variant="destructive" disabled={!conversations.length || busy || importing} onClick={onClear}><Trash2 />{t('Clear all')}</Button>
+      <div className="grid grid-cols-3 gap-2">
+        <Button aria-label={t('Export conversations')} title={t('Export conversations')} style={actionButtonStyle} className={actionButtonClassName} variant="outline" disabled={!conversations.length || importing} onClick={onExport}><Download />{t('Export')}</Button>
+        <Button aria-label={t('Import conversations')} title={t('Import conversations')} style={actionButtonStyle} className={actionButtonClassName} variant="outline" disabled={importing} onClick={onImport}>{importing ? <LoaderCircle className="animate-spin" /> : <Upload />}{t('Import')}</Button>
+        <Button aria-label={t('Clear all')} title={t('Clear all')} style={actionButtonStyle} className={actionButtonClassName} variant="destructive" disabled={!conversations.length || busy || importing} onClick={onClear}><Trash2 />{t('Clear')}</Button>
       </div>
     </div>
   )

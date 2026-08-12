@@ -11,6 +11,7 @@ import {
   createPlaygroundExport,
   normalizeStoredConversation,
   parsePlaygroundImport,
+  playgroundRequestErrorDetail,
   resolvePlaygroundTitle,
 } from './playground'
 
@@ -82,5 +83,13 @@ describe('Playground contracts', () => {
 
     conversation.parameters.seed = 0
     expect(buildPlaygroundCompletionInput(conversation, [message])).toHaveProperty('seed', 0)
+  })
+
+  it('surfaces useful playground failure details without leaking obvious secrets', () => {
+    expect(playgroundRequestErrorDetail(new Error('Upstream fixture failed.'))).toBe('Upstream fixture failed.')
+    expect(playgroundRequestErrorDetail(new Error('The model request failed'))).toBeNull()
+    expect(playgroundRequestErrorDetail(new Error('Provider rejected api_key=sk-sensitive-value because quota is exhausted.'))).toBe(
+      'Provider rejected api_key=[redacted] because quota is exhausted.',
+    )
   })
 })

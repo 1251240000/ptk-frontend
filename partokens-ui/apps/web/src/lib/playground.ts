@@ -9,6 +9,24 @@ import {
   type PlaygroundParameters,
 } from '@/db'
 
+const genericPlaygroundErrors = [
+  'the model request failed',
+  'model request failed',
+  'request failed',
+  'network error',
+  'empty-response',
+  'the streaming response could not be parsed',
+  'the streaming response had no body',
+  'authentication required',
+]
+const playgroundSecretPatterns = [
+  /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
+  /\bsk-[A-Za-z0-9_-]{8,}/gi,
+  /\b(pk|rk|sess|fixture-access)-[A-Za-z0-9_-]{8,}/gi,
+  /\b(api[-_\s]?key|access[_-\s]?token|refresh[_-\s]?token|authorization|bearer|secret|password)\s*[:=]\s*["']?[^"'\s,;}]+/gi,
+  /"(api[-_\s]?key|access[_-\s]?token|refresh[_-\s]?token|authorization|bearer|secret|password)"\s*:\s*"[^"]+"/gi,
+]
+
 const parametersSchema = z.object({
   stream: z.boolean().optional(),
   temperature: z.number().finite().min(0).max(2).optional(),
@@ -34,6 +52,7 @@ const conversationSchema = z.object({
   updatedAt: z.number().finite().nonnegative(),
   model: z.string().max(300),
   group: z.string().max(200),
+  pinned: z.boolean().optional(),
   parameters: parametersSchema.optional(),
   messages: z.array(messageSchema).max(2_000),
 })
@@ -54,6 +73,7 @@ export function normalizePlaygroundParameters(input?: Partial<PlaygroundParamete
 export function normalizeStoredConversation(conversation: LocalConversation): LocalConversation {
   return {
     ...conversation,
+    pinned: Boolean(conversation.pinned),
     parameters: normalizePlaygroundParameters(conversation.parameters),
     schemaVersion: 2,
     messages: conversation.messages.map((message) => ({
@@ -74,6 +94,7 @@ export function createPlaygroundExport(conversations: LocalConversation[]): Play
       updatedAt: conversation.updatedAt,
       model: conversation.model,
       group: conversation.group,
+      pinned: Boolean(conversation.pinned),
       parameters: normalizePlaygroundParameters(conversation.parameters),
       messages: conversation.messages.map(({ role, content, reasoning, status, error, createdAt }) => ({
         role,
@@ -97,6 +118,7 @@ export function parsePlaygroundImport(input: unknown, ownerNamespace: string): L
     updatedAt: Date.now(),
     model: conversation.model,
     group: conversation.group || 'default',
+    pinned: Boolean(conversation.pinned),
     parameters: normalizePlaygroundParameters(conversation.parameters),
     schemaVersion: 2,
     messages: conversation.messages.map((message): LocalMessage => ({
@@ -157,4 +179,33 @@ export function playgroundRequestCategory(error: unknown): 'session' | 'quota' |
   if (code.includes('quota') || message.includes('quota') || message.includes('余额')) return 'quota'
   if (code.includes('model') || message.includes('model') || message.includes('模型')) return 'model'
   return 'other'
+}
+
+function sanitizePlaygroundErrorDetail(value: string): string {
+  let detail = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
+  for (const pattern of playgroundSecretPatterns) detail = detail.replace(pattern, (match) => {
+    const separator = match.match(/\s*[:=]\s*/)
+    if (separator?.index != null) return `${match.slice(0, separator.index)}${separator[0]}[redacted]`
+    if (match.startsWith('"')) return match.replace(/:\s*"[^"]+"/, ': "[redacted]"')
+    return '[redacted]'
+  })
+  return detail.length > 320 ? `${detail.slice(0, 317).trimEnd()}...` : detail
+}
+
+export function playgroundRequestErrorDetail(error: unknown): string | null {
+  const requestError = error as PlaygroundRequestError & {
+    response?: { data?: { message?: string; error?: { message?: string } } }
+  }
+  const candidates = [
+    requestError.response?.data?.error?.message,
+    requestError.response?.data?.message,
+    requestError.message,
+  ]
+  const raw = candidates.find((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0)
+  if (!raw) return null
+  const detail = sanitizePlaygroundErrorDetail(raw)
+  if (!detail) return null
+  const normalized = detail.toLowerCase()
+  if (genericPlaygroundErrors.some((message) => normalized === message || normalized.startsWith(`${message} with http`))) return null
+  return detail
 }

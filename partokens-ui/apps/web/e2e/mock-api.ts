@@ -57,7 +57,27 @@ type MockApiOptions = {
   statusResponses?: Array<{ status?: number; body: unknown }>
   tokenCreateOmitsData?: boolean
   userSetting?: Record<string, unknown>
+  tokens?: FixtureToken[]
+  playgroundFailure?: boolean
   onRequest?: (request: Request) => void
+}
+
+type FixtureToken = {
+  id: number
+  name: string
+  key: string
+  status: number
+  group: string
+  remain_quota: number
+  used_quota: number
+  unlimited_quota: boolean
+  expired_time: number
+  created_time: number
+  accessed_time: number
+  model_limits_enabled: boolean
+  model_limits: string
+  allow_ips: string
+  cross_group_retry: boolean
 }
 
 function envelope(data: unknown, extra: Record<string, unknown> = {}) {
@@ -82,12 +102,12 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
   let statusResponseIndex = 0
   let nextTokenId = 8
   let twoFactorEnabled = options.twoFactorEnabled ?? false
-  let tokens = [{
+  const defaultTokens: FixtureToken[] = [{
     id: 7,
     name: 'Studio fixture',
     key: 'ABCD**********WXYZ',
     status: 1,
-    group: 'default',
+    group: 'Image',
     remain_quota: 500_000,
     used_quota: 120_000,
     unlimited_quota: false,
@@ -115,6 +135,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     allow_ips: '',
     cross_group_retry: false,
   }]
+  let tokens: FixtureToken[] = [...(options.tokens || defaultTokens)]
 
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -222,7 +243,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       }
       await json(route, envelope([
         { model_name: 'gpt-4.1-mini', vendor_name: 'OpenAI', quota_type: 0, model_ratio: 1, completion_ratio: 1, enable_groups: ['default'], supported_endpoint_types: ['chat'] },
-        { model_name: 'gpt-image-1', vendor_name: 'OpenAI', quota_type: 1, model_price: 0.04, enable_groups: ['default'], supported_endpoint_types: ['images'] },
+        { model_name: 'gpt-image-1', vendor_name: 'OpenAI', quota_type: 1, model_price: 0.04, enable_groups: ['Image'], supported_endpoint_types: ['images'] },
       ]))
       return
     }
@@ -278,7 +299,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       return
     }
     if (path === '/api/user/models') {
-      await json(route, envelope(['gpt-4.1-mini', 'gpt-image-1']))
+      await json(route, envelope(url.searchParams.get('group') === 'Image' ? ['gpt-4.1-mini', 'gemini-3-pro-image-preview', 'gpt-image-1'] : ['gpt-4.1-mini']))
       return
     }
     if (path === '/api/user/self/groups') {
@@ -418,6 +439,15 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
 
   await page.route('**/pg/chat/completions', async (route) => {
     options.onRequest?.(route.request())
+    if (options.playgroundFailure) {
+      await json(route, {
+        error: {
+          code: 'fixture_upstream_failure',
+          message: 'Upstream fixture failed',
+        },
+      }, 500)
+      return
+    }
     await route.fulfill({
       status: 200,
       headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store' },
@@ -434,11 +464,19 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
 
   await page.route('**/v1/images/**', async (route) => {
     options.onRequest?.(route.request())
+    let count = 1
+    try {
+      const body = route.request().postDataJSON() as { n?: unknown }
+      const requested = Number(body.n)
+      if (Number.isInteger(requested)) count = Math.max(1, Math.min(requested, 10))
+    } catch {
+      // Image edits use multipart form data and default to one fixture result.
+    }
     await json(route, {
-      data: [{
+      data: Array.from({ length: count }, (_, index) => ({
         b64_json: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-        revised_prompt: 'A generated fixture image.',
-      }],
+        revised_prompt: `Generated fixture image ${index + 1}.`,
+      })),
     })
   })
 }
