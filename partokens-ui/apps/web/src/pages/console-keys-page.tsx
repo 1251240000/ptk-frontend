@@ -59,6 +59,7 @@ import {
   TableHeader,
   TableRow,
   Textarea,
+  toast,
   useSidebar,
 } from '@partokens/design-system/components'
 import {
@@ -581,7 +582,14 @@ function KeyEditor({
       await invalidate()
       onSaved(result)
     },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Unable to save key', t), { duration: 6000 })
+    },
   })
+
+  useEffect(() => {
+    if (detail.isError) toast.error(errorMessage(detail.error, 'Unable to load API key details.', t), { duration: 6000 })
+  }, [detail.error, detail.isError, t])
 
   const update = <K extends keyof EditorForm>(key: K, value: EditorForm[K]) => setForm((current) => ({ ...current, [key]: value }))
   const detailBlocked = token != null && (detail.isPending || detail.isError)
@@ -591,7 +599,6 @@ function KeyEditor({
   const fields = (
     <div className="grid gap-5">
       {token && detail.isPending ? <div aria-label={t('Loading API key details')} className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-20 w-full" /></div> : null}
-      {token && detail.isError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage(detail.error, 'Unable to load API key details.', t)}</div> : null}
       {!detailBlocked ? (
         <>
           <div className="grid gap-2">
@@ -667,7 +674,6 @@ function KeyEditor({
           </div>
         </>
       ) : null}
-      {save.isError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage(save.error, 'Unable to save key', t)}</div> : null}
     </div>
   )
 
@@ -805,6 +811,9 @@ export function ConsoleKeysPage() {
       setNotice(variables.nextStatus === 1 ? t('API key enabled.') : t('API key disabled.'))
       await invalidate()
     },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Unable to update key status', t), { duration: 6000 })
+    },
   })
   const remove = useMutation({
     mutationFn: (id: number) => projectEnvelope(() => deleteToken(id), () => undefined),
@@ -812,6 +821,9 @@ export function ConsoleKeysPage() {
       setDeleteTarget(null)
       setNotice(t('API key deleted.'))
       await invalidate()
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Unable to delete API key.', t), { duration: 6000 })
     },
   })
   const batchRemove = useMutation({
@@ -832,6 +844,9 @@ export function ConsoleKeysPage() {
       setNotice(deleted === requested ? t('Selected API keys deleted.') : t('The server deleted {{deleted}} of {{requested}} selected API keys.', { deleted, requested }))
       await invalidate()
     },
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Unable to delete selected API keys.', t), { duration: 6000 })
+    },
   })
   const reveal = useMutation({
     mutationFn: (id: number) => projectEnvelope(
@@ -843,6 +858,9 @@ export function ConsoleKeysPage() {
       },
     ),
     gcTime: 0,
+    onError: (error) => {
+      toast.error(errorMessage(error, 'Unable to reveal key', t), { duration: 6000 })
+    },
   })
 
   useEffect(() => {
@@ -984,7 +1002,6 @@ export function ConsoleKeysPage() {
           <DialogHeader><DialogTitle>{secret ? t('Key revealed') : t('Reveal full key?')}</DialogTitle><DialogDescription>{secret ? t('Close this window when you have stored the key securely.') : t('Anyone with this value can use your quota. Confirm that nobody else can see your screen.')}</DialogDescription></DialogHeader>
           {secret ? <div className="grid min-w-0 grid-cols-[1fr_auto] items-center gap-2 rounded-md border bg-muted/40 p-3"><code className="min-w-0 break-all font-mono text-xs">{secret}</code><Button variant="outline" size="icon" aria-label={t('Copy')} onClick={() => safeCopy(secret, setCopied)}>{copied ? <Check /> : <Copy />}</Button></div> : null}
           {secret ? <div className="flex gap-2 text-sm text-muted-foreground"><ShieldCheck className="mt-0.5 size-4 shrink-0" /><p>{t('Store it in a secret manager. Do not commit it to source control.')}</p></div> : null}
-          {reveal.isError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage(reveal.error, 'Unable to reveal key', t)}</div> : null}
           <DialogFooter><Button variant="outline" onClick={closeReveal}>{t('Close')}</Button>{!secret ? <Button disabled={reveal.isPending} onClick={() => revealTarget && reveal.mutate(revealTarget.id)}>{reveal.isPending ? <LoaderCircle className="animate-spin" /> : <Eye />}{reveal.isPending ? t('Loading') : t('Confirm reveal')}</Button> : null}</DialogFooter>
         </DialogContent>
       </Dialog>
@@ -992,7 +1009,6 @@ export function ConsoleKeysPage() {
       <Dialog open={statusTarget != null} onOpenChange={(open) => !open && !toggle.isPending && setStatusTarget(null)}>
         <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); returnFocus.current?.focus() }}>
           <DialogHeader><DialogTitle>{statusTarget?.status === 1 ? t('Disable this API key?') : t('Enable this API key?')}</DialogTitle><DialogDescription>{statusTarget?.status === 1 ? t('Requests using {{name}} will fail until the key is enabled again.', { name: statusTarget?.name || t('this key') }) : t('{{name}} will be allowed to make requests again if its quota and expiration permit it.', { name: statusTarget?.name || t('This key') })}</DialogDescription></DialogHeader>
-          {toggle.isError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage(toggle.error, 'Unable to update key status', t)}</div> : null}
           <DialogFooter><Button variant="outline" disabled={toggle.isPending} onClick={() => setStatusTarget(null)}>{t('Cancel')}</Button><Button disabled={toggle.isPending} onClick={() => statusTarget && toggle.mutate({ id: statusTarget.id, nextStatus: statusTarget.status === 1 ? 2 : 1 })}>{toggle.isPending ? <LoaderCircle className="animate-spin" /> : <ShieldCheck />}{statusTarget?.status === 1 ? t('Disable key') : t('Enable key')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1000,7 +1016,6 @@ export function ConsoleKeysPage() {
       <Dialog open={deleteTarget != null} onOpenChange={(open) => !open && !remove.isPending && setDeleteTarget(null)}>
         <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); returnFocus.current?.focus() }}>
           <DialogHeader><DialogTitle>{t('Delete this key?')}</DialogTitle><DialogDescription>{t('{{name}}. This action cannot be undone.', { name: deleteTarget?.name })}</DialogDescription></DialogHeader>
-          {remove.isError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage(remove.error, 'Unable to delete API key.', t)}</div> : null}
           <DialogFooter><Button variant="outline" disabled={remove.isPending} onClick={() => setDeleteTarget(null)}>{t('Cancel')}</Button><Button variant="destructive" disabled={remove.isPending} onClick={() => deleteTarget && remove.mutate(deleteTarget.id)}>{remove.isPending ? <LoaderCircle className="animate-spin" /> : <Trash2 />}{t('Delete')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1008,7 +1023,6 @@ export function ConsoleKeysPage() {
       <Dialog open={batchOpen} onOpenChange={(open) => !open && !batchRemove.isPending && setBatchOpen(false)}>
         <DialogContent onCloseAutoFocus={(event) => { event.preventDefault(); returnFocus.current?.focus() }}>
           <DialogHeader><DialogTitle>{t('Delete selected keys?')}</DialogTitle><DialogDescription>{t('{{count}} selected API keys will be permanently removed.', { count: selected.length })}</DialogDescription></DialogHeader>
-          {batchRemove.isError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage(batchRemove.error, 'Unable to delete selected API keys.', t)}</div> : null}
           <DialogFooter><Button variant="outline" disabled={batchRemove.isPending} onClick={() => setBatchOpen(false)}>{t('Cancel')}</Button><Button variant="destructive" disabled={batchRemove.isPending} onClick={() => batchRemove.mutate(selected)}>{batchRemove.isPending ? <LoaderCircle className="animate-spin" /> : <Trash2 />}{t('Delete selected')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,6 +1,6 @@
-import { AlertTriangle, Image as ImageIcon, RefreshCw, Upload, X } from 'lucide-react'
+import { AlertTriangle, Download, Image as ImageIcon, ImagePlus, RefreshCw, Upload, X } from 'lucide-react'
 
-import { Button, Skeleton } from '@partokens/design-system/components'
+import { Button, Skeleton, Tooltip, TooltipContent, TooltipTrigger } from '@partokens/design-system/components'
 
 export type StudioGenerationSnapshot = {
   prompt: string
@@ -10,9 +10,16 @@ export type StudioGenerationSnapshot = {
   count: number
 }
 
+export type StudioImageDimensions = {
+  width: number
+  height: number
+}
+
 export type StudioResultView = {
   id: string
   source: string
+  mimeType?: string
+  dimensions?: StudioImageDimensions
   revisedPrompt?: string
   retained: boolean
 }
@@ -36,6 +43,14 @@ export function studioSizeLabel(size: string, t: Translate): string {
   const match = /^(\d+)x(\d+)$/.exec(size)
   if (!match) return size
   return `${Number(match[1]) > Number(match[2]) ? t('Landscape') : t('Portrait')} · ${dimensions}`
+}
+
+export function studioImageDimensionsLabel(dimensions: StudioImageDimensions | undefined, t: Translate): string {
+  if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) return t('Size unavailable')
+  const orientation = dimensions.width === dimensions.height
+    ? t('Square')
+    : dimensions.width > dimensions.height ? t('Landscape') : t('Portrait')
+  return `${orientation} · ${dimensions.width} x ${dimensions.height}`
 }
 
 export function StudioEmpty({ cancelled, t }: { cancelled: boolean; t: Translate }) {
@@ -91,23 +106,62 @@ export function StudioResultGrid({
   results,
   settings,
   t,
+  onUseAsReference,
+  onImageDimensions,
 }: {
   results: StudioResultView[]
   settings: StudioGenerationSnapshot
   t: Translate
+  onUseAsReference: (result: StudioResultView, index: number) => void
+  onImageDimensions?: (resultId: string, dimensions: StudioImageDimensions) => void
 }) {
   return (
     <div className={`grid gap-3 ${results.length === 1 ? 'mx-auto max-w-2xl grid-cols-1' : 'grid-cols-1 min-[380px]:grid-cols-2'}`}>
       {results.map((result, index) => (
-        <figure key={result.id} className="min-w-0 overflow-hidden rounded-md border bg-background shadow-xs">
+        <figure key={result.id} className="group relative min-w-0 overflow-hidden rounded-md border bg-background shadow-xs">
           <img
             src={result.source}
             alt={`${settings.prompt}, ${t('Variation {{number}}', { number: index + 1 })}`}
-            className={`${aspectClass(settings.size)} block w-full object-cover`}
+            className={`${aspectClass(result.dimensions ? `${result.dimensions.width}x${result.dimensions.height}` : settings.size)} block w-full scroll-mt-20 object-cover`}
+            onLoad={(event) => {
+              const { naturalWidth, naturalHeight } = event.currentTarget
+              if (!result.dimensions && naturalWidth > 0 && naturalHeight > 0) onImageDimensions?.(result.id, { width: naturalWidth, height: naturalHeight })
+            }}
           />
+          <div className="absolute right-2 top-2 z-10 flex gap-1 rounded-md border bg-background/90 p-1 opacity-100 shadow-sm backdrop-blur transition-opacity sm:pointer-events-none sm:opacity-0 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="ghost" size="icon" className="size-8 scroll-mt-20">
+                  <a
+                    href={result.source}
+                    download={`partokens-image-${index + 1}.${result.mimeType?.split('/')[1]?.replace('jpeg', 'jpg') || 'png'}`}
+                    aria-label={t('Download image')}
+                  >
+                    <Download />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('Download image')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 scroll-mt-20"
+                  aria-label={t('Use as reference')}
+                  onClick={() => onUseAsReference(result, index)}
+                >
+                  <ImagePlus />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('Use as reference')}</TooltipContent>
+            </Tooltip>
+          </div>
           <figcaption className="flex min-w-0 items-center gap-2 border-t px-3 py-2.5 text-xs">
             <span className="truncate font-medium">{t('Variation {{number}}', { number: index + 1 })}</span>
-            <span className="ms-auto shrink-0 text-muted-foreground">{studioSizeLabel(settings.size, t)}</span>
+            <span className="ms-auto shrink-0 text-muted-foreground">{studioImageDimensionsLabel(result.dimensions, t)}</span>
           </figcaption>
         </figure>
       ))}

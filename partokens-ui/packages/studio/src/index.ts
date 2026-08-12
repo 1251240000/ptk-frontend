@@ -41,6 +41,9 @@ export type StudioGenerationRecord = {
   createdAt: number
   prompt: string
   model: string
+  size?: string
+  quality?: string
+  count?: number
   nodeIds: string[]
   status: 'completed' | 'cancelled' | 'failed'
   error?: string
@@ -92,6 +95,25 @@ export type StudioImageResult = {
   blob?: Blob
   remoteUrl?: string
   revisedPrompt?: string
+}
+
+export const studioGroup = 'Image'
+
+const minCustomImageDimension = 64
+const maxCustomImageDimension = 4096
+
+export function isValidStudioImageSize(value: string): boolean {
+  if (value === 'auto') return true
+  const match = /^(\d+)x(\d+)$/.exec(value.trim())
+  if (!match) return false
+  const width = Number(match[1])
+  const height = Number(match[2])
+  return Number.isSafeInteger(width)
+    && Number.isSafeInteger(height)
+    && width >= minCustomImageDimension
+    && height >= minCustomImageDimension
+    && width <= maxCustomImageDimension
+    && height <= maxCustomImageDimension
 }
 
 type StudioNodeBounds = Pick<StudioNode, 'x' | 'y' | 'width' | 'height'>
@@ -177,7 +199,7 @@ export function createStudioProject(
     viewport: { x: 0, y: 0, zoom: 1 },
     settings: {
       model: '',
-      group: 'default',
+      group: studioGroup,
       size: '1024x1024',
       quality: 'standard',
       background: 'auto',
@@ -212,7 +234,7 @@ export function studioModelCapabilities(model: string): StudioModelCapabilities 
       sizes: ['auto', '1024x1024', '1024x1536', '1536x1024'],
       qualities: ['auto', 'low', 'medium', 'high'],
       backgrounds: ['auto', 'opaque', 'transparent'],
-      maxCount: 4,
+      maxCount: 10,
       supportsEdit: true,
     }
   }
@@ -277,6 +299,7 @@ export async function generateStudioImages(
   if (!credential) throw new Error('Unlock an API key for this studio session')
   if (!input.prompt.trim()) throw new Error('Enter an image prompt')
   if (!input.model) throw new Error('Choose an image model')
+  if (!isValidStudioImageSize(input.size)) throw new Error('Enter a valid image size between 64x64 and 4096x4096')
 
   const capabilities = studioModelCapabilities(input.model)
   const count = Math.max(1, Math.min(Math.trunc(input.count), capabilities.maxCount))

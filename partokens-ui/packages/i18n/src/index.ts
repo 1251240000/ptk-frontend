@@ -981,7 +981,7 @@ for (const locale of locales) Object.assign(resources[locale].translation, phase
 const phaseFivePlaygroundTranslations: Record<AppLocale, Record<string, string>> = {
   'zh-CN': {
     'Local conversations': '本地对话', 'Search conversations': '搜索对话', 'Stored locally': '本地存储', 'New conversation': '新对话', 'Conversation name': '对话名称',
-    'Generation parameters': '生成参数', 'Local data': '本地数据', 'Delete this conversation from this browser?': '从此浏览器删除该对话？',
+    'Generation parameters': '生成参数', 'Local data': '本地记录', 'Delete this conversation from this browser?': '从此浏览器删除该对话？',
     'Clear all local conversations for this account?': '清空此账户在本浏览器中的全部对话？', 'Your session expired. Sign in again.': '登录会话已过期，请重新登录。',
     'Your balance or request quota is insufficient.': '余额或请求额度不足。', 'The selected model is unavailable for this account group.': '当前账户分组无法使用所选模型。',
     'Too many requests. Try again shortly.': '请求过于频繁，请稍后重试。', 'The model request failed.': '模型请求失败。', 'The model returned no response content.': '模型未返回响应内容。',
@@ -997,7 +997,7 @@ const phaseFivePlaygroundTranslations: Record<AppLocale, Record<string, string>>
   },
   'zh-TW': {
     'Local conversations': '本機對話', 'Search conversations': '搜尋對話', 'Stored locally': '儲存於本機', 'New conversation': '新對話', 'Conversation name': '對話名稱',
-    'Generation parameters': '生成參數', 'Local data': '本機資料', 'Delete this conversation from this browser?': '從此瀏覽器刪除這個對話？',
+    'Generation parameters': '生成參數', 'Local data': '本機記錄', 'Delete this conversation from this browser?': '從此瀏覽器刪除這個對話？',
     'Clear all local conversations for this account?': '清除此帳戶在本瀏覽器中的所有對話？', 'Your session expired. Sign in again.': '登入工作階段已過期，請重新登入。',
     'Your balance or request quota is insufficient.': '餘額或請求額度不足。', 'The selected model is unavailable for this account group.': '目前帳戶群組無法使用所選模型。',
     'Too many requests. Try again shortly.': '請求過於頻繁，請稍後再試。', 'The model request failed.': '模型請求失敗。', 'The model returned no response content.': '模型未傳回回應內容。',

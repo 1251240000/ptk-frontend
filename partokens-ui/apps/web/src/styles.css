@@ -796,6 +796,26 @@ tbody tr:last-child td {
 tbody tr:hover {
   background: var(--surface-muted);
 }
+.console-root .playground-markdown table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+}
+.console-root .playground-markdown th {
+  color: var(--foreground);
+  font-weight: 600;
+  text-align: start;
+}
+.console-root .playground-markdown th,
+.console-root .playground-markdown td {
+  height: auto;
+  padding: 0.5rem 0.75rem;
+  border-color: var(--border);
+  white-space: normal;
+}
+.console-root .playground-markdown tbody tr:hover {
+  background: transparent;
+}
 td code {
   font-size: 10px;
 }

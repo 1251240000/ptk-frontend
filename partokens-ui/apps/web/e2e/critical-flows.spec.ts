@@ -345,9 +345,9 @@ test('Playground streams a reply and restores the browser-local conversation aft
   await installMockApi(page)
   await page.goto('/en/console/playground')
 
-  await expect(page.getByText('Conversation history is stored only in this browser. Partokens does not store your conversation history.').first()).toBeVisible()
+  await expect(page.getByText('Conversation history is stored only in this browser. Partokens does not store your conversation history.')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Model and group.*gpt-4\.1-mini/ })).toBeVisible()
-  await page.getByPlaceholder('Message the selected model...').fill('Explain the fixture response.')
+  await page.getByPlaceholder('Enter a message').fill('Explain the fixture response.')
   await page.getByRole('button', { name: 'Send' }).click()
 
   await expect(page.getByText('This response arrived through a mocked SSE stream.')).toBeVisible()

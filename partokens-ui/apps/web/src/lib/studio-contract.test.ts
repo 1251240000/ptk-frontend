@@ -6,7 +6,9 @@ import {
   findStudioNodePosition,
   generateStudioImages,
   getStudioCredential,
+  isValidStudioImageSize,
   setStudioCredential,
+  studioGroup,
   studioModelCapabilities,
 } from '@partokens/studio'
 
@@ -24,10 +26,11 @@ describe('studio credential boundary', () => {
 describe('studio image transport', () => {
   it('uses the generation endpoint and bearer key without returning the key', async () => {
     setStudioCredential({ tokenId: 7, tokenName: 'Studio', key: 'sk-memory-only' })
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: [{ b64_json: 'AQID' }] }), {
+    const fetcherMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ data: [{ b64_json: 'AQID' }] }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-    })) as unknown as typeof fetch
+    }))
+    const fetcher = fetcherMock as unknown as typeof fetch
 
     const result = await generateStudioImages({
       model: 'gpt-image-1',
@@ -83,11 +86,42 @@ describe('studio image transport', () => {
       count: 1,
     }, undefined, fetcher)).rejects.toThrow('The image service could not complete this request.')
   })
+
+  it('passes supported custom dimensions and up to ten images through unchanged', async () => {
+    setStudioCredential({ tokenId: 10, tokenName: 'Studio custom', key: 'sk-custom-only' })
+    const fetcherMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ data: [{ b64_json: 'AQID' }] }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+    const fetcher = fetcherMock as unknown as typeof fetch
+
+    await generateStudioImages({
+      model: 'gpt-image-1',
+      prompt: 'A wide editorial image',
+      size: '1600x900',
+      quality: 'medium',
+      background: 'auto',
+      count: 10,
+    }, undefined, fetcher)
+
+    const request = fetcherMock.mock.calls[0]?.[1] as RequestInit
+    expect(JSON.parse(String(request.body))).toMatchObject({ size: '1600x900', n: 10 })
+  })
 })
 
 describe('studio model capabilities', () => {
   it('gates DALL-E 3 to one output and no edit flow', () => {
     expect(studioModelCapabilities('dall-e-3')).toMatchObject({ maxCount: 1, supportsEdit: false })
+  })
+
+  it('allows GPT Image requests to select up to ten outputs', () => {
+    expect(studioModelCapabilities('gpt-image-1').maxCount).toBe(10)
+  })
+
+  it('validates custom dimensions before a request is sent', () => {
+    expect(isValidStudioImageSize('1600x900')).toBe(true)
+    expect(isValidStudioImageSize('63x4096')).toBe(false)
+    expect(isValidStudioImageSize('custom')).toBe(false)
   })
 
   it('uses conservative defaults for models without a reviewed override', () => {
@@ -107,6 +141,7 @@ describe('studio project factory', () => {
 
     expect(project.title).toBe('未命名画布')
     expect(project.nodes[0]?.title).toBe('图片提示词')
+    expect(project.settings.group).toBe(studioGroup)
   })
 
   it('places new nodes outside existing node bounds', () => {

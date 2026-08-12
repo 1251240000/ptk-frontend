@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
-import { LoaderCircle, Sparkles } from 'lucide-react'
+import { LoaderCircle, Plus, Sparkles } from 'lucide-react'
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -8,6 +8,7 @@ import {
   getPricingCatalog,
   getTokens,
   getUserModels,
+  createToken,
   revealToken,
   type TokenSummary,
 } from '@partokens/api-client'
@@ -25,6 +26,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Input,
   Textarea,
   toast,
 } from '@partokens/design-system/components'
@@ -35,7 +37,9 @@ import {
   generateStudioImages,
   getStudioCredential,
   setStudioCredential,
+  studioGroup,
   studioModelCapabilities,
+  isValidStudioImageSize,
   type StudioAsset,
   type StudioNode,
   type StudioProject,
@@ -49,6 +53,7 @@ import {
   StudioResultGrid,
   studioSizeLabel,
   type StudioGenerationSnapshot,
+  type StudioImageDimensions,
   type StudioResultView,
 } from '@/features/studio/studio-ui'
 import { database, ownerNamespace } from '@/db'
@@ -65,6 +70,15 @@ function modelItems(value: unknown): string[] {
   return extractItems<string>(value).filter((item) => typeof item === 'string' && Boolean(item.trim()))
 }
 
+function looksLikeImageModel(model: string): boolean {
+  return /^(?:gpt-image|dall[-.]?e|imagen[-.]|flux(?:[.-]|$)|stable[-_ ]?diffusion|sdxl|wanx|jimeng|midjourney)/i.test(model)
+}
+
+function isImageGenerationEndpoint(endpoint: string): boolean {
+  const normalized = endpoint.trim().toLowerCase()
+  return normalized === 'image-generation' || normalized === 'images' || normalized.endsWith('/images/generations')
+}
+
 function tokenModels(token: TokenSummary): string[] {
   const value = token.model_limits || token.models || ''
   return value.split(',').map((item) => item.trim()).filter(Boolean)
@@ -76,6 +90,10 @@ function tokenCanUseModel(token: TokenSummary, model: string): boolean {
   if (!token.unlimited_quota && token.remain_quota !== undefined && token.remain_quota <= 0) return false
   const limits = tokenModels(token)
   return !token.model_limits_enabled || !limits.length || limits.includes(model)
+}
+
+function tokenCanUseStudio(token: TokenSummary, model: string): boolean {
+  return token.group === studioGroup && tokenCanUseModel(token, model)
 }
 
 function promptNode(project: StudioProject): StudioNode | undefined {
@@ -108,16 +126,31 @@ function normalizeInterruptedProject(project: StudioProject): StudioProject {
 
 async function validateReferenceImage(file: File): Promise<void> {
   if (!supportedReferenceTypes.has(file.type) || file.size <= 0) throw new Error('Unsupported reference image')
-  const url = URL.createObjectURL(file)
+  if (!await readImageDimensions(file)) throw new Error('Unreadable image')
+}
+
+async function readImageDimensions(source: Blob | string): Promise<StudioImageDimensions | undefined> {
+  const objectUrl = source instanceof Blob ? URL.createObjectURL(source) : undefined
+  const url = typeof source === 'string' ? source : objectUrl!
   try {
-    await new Promise<void>((resolve, reject) => {
+    return await new Promise<StudioImageDimensions | undefined>((resolve) => {
       const image = new window.Image()
-      image.onload = () => image.naturalWidth > 0 && image.naturalHeight > 0 ? resolve() : reject(new Error('Unreadable image'))
-      image.onerror = () => reject(new Error('Unreadable image'))
+      const finish = (dimensions?: StudioImageDimensions) => {
+        window.clearTimeout(timeout)
+        resolve(dimensions)
+      }
+      const timeout = window.setTimeout(() => finish(), 4000)
+      image.onload = () => {
+        const dimensions = image.naturalWidth > 0 && image.naturalHeight > 0
+          ? { width: image.naturalWidth, height: image.naturalHeight }
+          : undefined
+        finish(dimensions)
+      }
+      image.onerror = () => finish()
       image.src = url
     })
   } finally {
-    URL.revokeObjectURL(url)
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
   }
 }
 
@@ -133,6 +166,7 @@ export function StudioPage() {
   const [model, setModel] = useState('')
   const [quality, setQuality] = useState('standard')
   const [size, setSize] = useState('1024x1024')
+  const [customSizeMode, setCustomSizeMode] = useState(false)
   const [count, setCount] = useState(1)
   const [status, setStatus] = useState<StudioStatus>('loading')
   const [results, setResults] = useState<StudioResultView[]>([])
@@ -146,6 +180,10 @@ export function StudioPage() {
   const [selectedTokenId, setSelectedTokenId] = useState('')
   const [credentialBusy, setCredentialBusy] = useState(false)
   const [credentialError, setCredentialError] = useState('')
+  const [createKeyOpen, setCreateKeyOpen] = useState(false)
+  const [createKeyName, setCreateKeyName] = useState('Image Studio')
+  const [createKeyBusy, setCreateKeyBusy] = useState(false)
+  const [createKeyError, setCreateKeyError] = useState('')
   const [credentialRevision, setCredentialRevision] = useState(0)
   const projectRef = useRef<StudioProject | null>(null)
   const referenceInputRef = useRef<HTMLInputElement>(null)
@@ -155,10 +193,9 @@ export function StudioPage() {
   const hydratedRef = useRef(false)
   const loadRequestRef = useRef(0)
 
-  const group = project?.settings.group || user?.group || 'default'
   const modelsQuery = useQuery({
-    queryKey: ['user-models', group],
-    queryFn: ({ signal }) => getUserModels(group, signal),
+    queryKey: ['user-models', studioGroup],
+    queryFn: ({ signal }) => getUserModels(studioGroup, signal),
     enabled: Boolean(user),
     retry: false,
   })
@@ -172,26 +209,36 @@ export function StudioPage() {
     queryKey: ['studio-tokens'],
     queryFn: ({ signal }) => getTokens({ p: 1, size: 100 }, signal),
     enabled: Boolean(user),
+    refetchOnMount: 'always',
     retry: false,
   })
 
   const models = useMemo(() => {
     const available = modelItems(modelsQuery.data?.data)
     const imageHints = new Set((pricingQuery.data?.data || [])
-      .filter((item) => item.supported_endpoint_types?.some((type) => type.toLowerCase().includes('image')))
+      .filter((item) => item.supported_endpoint_types?.some(isImageGenerationEndpoint))
       .map((item) => item.model_name))
-    return [...available].sort((left, right) => Number(imageHints.has(right)) - Number(imageHints.has(left)) || left.localeCompare(right))
-  }, [modelsQuery.data, pricingQuery.data])
-  const activeTokens = useMemo(
-    () => extractItems<TokenSummary>(tokensQuery.data?.data).filter((token) => tokenCanUseModel(token, model)),
-    [model, tokensQuery.data],
+    const catalogHasImageEndpoints = pricingQuery.isSuccess && imageHints.size > 0
+    const imageModels = available.filter((item) => catalogHasImageEndpoints ? imageHints.has(item) : looksLikeImageModel(item))
+    return [...imageModels].sort((left, right) => left.localeCompare(right))
+  }, [modelsQuery.data, pricingQuery.data, pricingQuery.isSuccess])
+  const imageTokens = useMemo(
+    () => extractItems<TokenSummary>(tokensQuery.data?.data).filter((token) => token.group === studioGroup),
+    [tokensQuery.data],
   )
-  const selectedToken = activeTokens.find((token) => String(token.id) === selectedTokenId)
+  const activeTokens = useMemo(
+    () => imageTokens.filter((token) => tokenCanUseModel(token, model)),
+    [imageTokens, model],
+  )
+  const selectedToken = imageTokens.find((token) => String(token.id) === selectedTokenId)
+  const selectedTokenUsable = Boolean(selectedToken && tokenCanUseStudio(selectedToken, model))
   const capabilities = useMemo(() => studioModelCapabilities(model), [model])
   const activeCredential = getStudioCredential()
-  const credentialReady = Boolean(activeCredential && tokenCanUseModel(
-    extractItems<TokenSummary>(tokensQuery.data?.data).find((token) => token.id === activeCredential.tokenId)
-      || { id: activeCredential.tokenId, name: activeCredential.tokenName, status: 1, unlimited_quota: true },
+  const credentialToken = activeCredential
+    ? extractItems<TokenSummary>(tokensQuery.data?.data).find((token) => token.id === activeCredential.tokenId)
+    : undefined
+  const credentialReady = Boolean(activeCredential && tokenCanUseStudio(
+    credentialToken || { id: activeCredential.tokenId, name: activeCredential.tokenName, status: 1, unlimited_quota: true, group: studioGroup },
     model,
   ))
 
@@ -234,7 +281,13 @@ export function StudioPage() {
           stored = createStudioProject(namespace, t('Image studio'), t('Image prompt'))
           await database.studioProjects.add(stored)
         }
-        const normalized = normalizeInterruptedProject(stored)
+        const normalized = {
+          ...normalizeInterruptedProject({
+            ...stored,
+            history: Array.isArray(stored.history) ? stored.history : [],
+          }),
+          settings: { ...stored.settings, group: studioGroup },
+        }
         await database.studioProjects.put(normalized)
         return normalized
       })
@@ -249,13 +302,13 @@ export function StudioPage() {
       const nodes = currentResultNodes(next)
 
       revokeResultUrls()
-      const restoredResults = nodes.flatMap((node) => {
+      const restoredResults = (await Promise.all(nodes.map(async (node): Promise<StudioResultView | undefined> => {
         const asset = node.assetId ? ownedAssets.get(node.assetId) : undefined
-        if (!asset) return []
+        if (!asset) return undefined
         const sourceUrl = URL.createObjectURL(asset.blob)
         resultUrlsRef.current.push(sourceUrl)
-        return [{ id: node.id, source: sourceUrl, revisedPrompt: node.revisedPrompt, retained: true }]
-      })
+        return { id: node.id, source: sourceUrl, mimeType: asset.mimeType, dimensions: await readImageDimensions(asset.blob), revisedPrompt: node.revisedPrompt, retained: true }
+      }))).filter((result): result is StudioResultView => Boolean(result))
       setLocalReference(sourceAsset?.blob || null)
       projectRef.current = next
       setProjectState(next)
@@ -263,6 +316,7 @@ export function StudioPage() {
       setModel(next.settings.model)
       setQuality(next.settings.quality)
       setSize(next.settings.size)
+      setCustomSizeMode(false)
       setCount(next.settings.count)
       setResults(restoredResults)
       setResultSettings(restoredResults.length ? {
@@ -303,13 +357,17 @@ export function StudioPage() {
   }, [model, models, modelsQuery.isSuccess])
 
   useEffect(() => {
-    const nextSize = capabilities.sizes.includes(size) ? size : capabilities.sizes[0]!
+    const nextSize = customSizeMode
+      ? size
+      : capabilities.sizes.includes(size) || (size !== 'auto' && isValidStudioImageSize(size))
+        ? size
+        : capabilities.sizes[0]!
     const nextQuality = capabilities.qualities.includes(quality) ? quality : capabilities.qualities[0]!
     const nextCount = Math.max(1, Math.min(count, capabilities.maxCount))
     if (nextSize !== size) setSize(nextSize)
     if (nextQuality !== quality) setQuality(nextQuality)
     if (nextCount !== count) setCount(nextCount)
-  }, [capabilities, count, quality, size])
+  }, [capabilities, count, customSizeMode, quality, size])
 
   useEffect(() => {
     const current = projectRef.current
@@ -331,69 +389,142 @@ export function StudioPage() {
   }, [count, model, prompt, quality, size])
 
   useEffect(() => {
-    if (!unlockOpen || !activeTokens.length) return
+    if (!unlockOpen || !imageTokens.length) return
     const persisted = projectRef.current?.settings.tokenId
     const preferred = activeTokens.find((token) => token.id === persisted) || activeTokens[0]
-    if (!activeTokens.some((token) => String(token.id) === selectedTokenId)) setSelectedTokenId(String(preferred!.id))
-  }, [activeTokens, selectedTokenId, unlockOpen])
+      || imageTokens.find((token) => token.id === persisted) || imageTokens[0]
+    const selectionExists = imageTokens.some((token) => String(token.id) === selectedTokenId)
+    const selectionUsable = activeTokens.some((token) => String(token.id) === selectedTokenId)
+    if (!selectionExists || (activeTokens.length && !selectionUsable)) setSelectedTokenId(String(preferred!.id))
+  }, [activeTokens, imageTokens, selectedTokenId, unlockOpen])
+
+  const openCreateKey = () => {
+    setCreateKeyName('Image Studio')
+    setCreateKeyError('')
+    setCreateKeyOpen(true)
+  }
+
+  const createImageKey = async () => {
+    const name = createKeyName.trim()
+    if (name.length < 3) {
+      setCreateKeyError(t('Enter a name with at least 3 characters.'))
+      return
+    }
+    setCreateKeyBusy(true)
+    setCreateKeyError('')
+    try {
+      const response = await createToken({
+        name,
+        remain_quota: 0,
+        expired_time: -1,
+        unlimited_quota: true,
+        model_limits_enabled: Boolean(model),
+        model_limits: model,
+        allow_ips: '',
+        group: studioGroup,
+        cross_group_retry: false,
+      })
+      if (!response.success) throw new Error(response.message || t('Unable to create key'))
+      const refreshed = await tokensQuery.refetch()
+      const returnedId = response.data?.id
+      const refreshedTokens = extractItems<TokenSummary>(refreshed.data?.data)
+      const createdToken = refreshedTokens.find((token) => returnedId != null && token.id === returnedId && tokenCanUseStudio(token, model))
+        || refreshedTokens.find((token) => token.name === name && tokenCanUseStudio(token, model))
+      if (!createdToken) throw new Error(t('Unable to create key'))
+      setSelectedTokenId(String(createdToken.id))
+      setCreateKeyOpen(false)
+      toast.success(t('Dedicated studio key created'))
+    } catch (cause) {
+      setCreateKeyError(cause instanceof Error ? t(cause.message) : t('Unable to create key'))
+    } finally {
+      setCreateKeyBusy(false)
+    }
+  }
 
   const pickReference = () => {
     if (referenceInputRef.current) referenceInputRef.current.value = ''
     referenceInputRef.current?.click()
   }
 
+  const persistReference = async (file: File, successKey?: string) => {
+    const current = projectRef.current
+    if (!user || !current) return
+    const replacing = Boolean(referenceBlob)
+    const currentSourceNodes = current.nodes.filter((node) => node.type === 'source')
+    const currentAssetIds = currentSourceNodes.flatMap((node) => node.assetId ? [node.assetId] : [])
+    const prompt = promptNode(current)
+    const asset: StudioAsset = {
+      id: crypto.randomUUID(),
+      ownerNamespace: ownerNamespace(user.id),
+      projectId: current.id,
+      mimeType: file.type,
+      bytes: file.size,
+      blob: file,
+      createdAt: Date.now(),
+    }
+    const sourceNode: StudioNode = {
+      id: crypto.randomUUID(),
+      type: 'source',
+      title: file.name,
+      x: 0,
+      y: 0,
+      width: 240,
+      height: 210,
+      content: '',
+      assetId: asset.id,
+      status: 'ready',
+      createdAt: Date.now(),
+    }
+    const sourceIds = new Set(currentSourceNodes.map((node) => node.id))
+    const next: StudioProject = {
+      ...current,
+      nodes: [...current.nodes.filter((node) => !sourceIds.has(node.id)), sourceNode],
+      connections: [
+        ...current.connections.filter((connection) => !sourceIds.has(connection.fromNodeId) && !sourceIds.has(connection.toNodeId)),
+        ...(prompt ? [{ id: crypto.randomUUID(), fromNodeId: sourceNode.id, toNodeId: prompt.id }] : []),
+      ],
+      updatedAt: Date.now(),
+    }
+    await database.transaction('rw', database.studioProjects, database.studioAssets, async () => {
+      if (currentAssetIds.length) await database.studioAssets.bulkDelete(currentAssetIds)
+      await database.studioAssets.add(asset)
+      await database.studioProjects.put(next)
+    })
+    projectRef.current = next
+    setProjectState(next)
+    setLocalReference(file)
+    toast.success(t(successKey || (replacing ? 'Reference image replaced' : 'Reference image added')))
+  }
+
   const changeReference = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file || !user || !projectRef.current) return
-    const replacing = Boolean(referenceBlob)
     try {
       await validateReferenceImage(file)
-      const current = projectRef.current
-      const currentSourceNodes = current.nodes.filter((node) => node.type === 'source')
-      const currentAssetIds = currentSourceNodes.flatMap((node) => node.assetId ? [node.assetId] : [])
-      const prompt = promptNode(current)
-      const asset: StudioAsset = {
-        id: crypto.randomUUID(),
-        ownerNamespace: ownerNamespace(user.id),
-        projectId: current.id,
-        mimeType: file.type,
-        bytes: file.size,
-        blob: file,
-        createdAt: Date.now(),
-      }
-      const sourceNode: StudioNode = {
-        id: crypto.randomUUID(),
-        type: 'source',
-        title: file.name,
-        x: 0,
-        y: 0,
-        width: 240,
-        height: 210,
-        content: '',
-        assetId: asset.id,
-        status: 'ready',
-        createdAt: Date.now(),
-      }
-      const sourceIds = new Set(currentSourceNodes.map((node) => node.id))
-      const next: StudioProject = {
-        ...current,
-        nodes: [...current.nodes.filter((node) => !sourceIds.has(node.id)), sourceNode],
-        connections: [
-          ...current.connections.filter((connection) => !sourceIds.has(connection.fromNodeId) && !sourceIds.has(connection.toNodeId)),
-          ...(prompt ? [{ id: crypto.randomUUID(), fromNodeId: sourceNode.id, toNodeId: prompt.id }] : []),
-        ],
-        updatedAt: Date.now(),
-      }
-      await database.transaction('rw', database.studioProjects, database.studioAssets, async () => {
-        if (currentAssetIds.length) await database.studioAssets.bulkDelete(currentAssetIds)
-        await database.studioAssets.add(asset)
-        await database.studioProjects.put(next)
-      })
-      projectRef.current = next
-      setProjectState(next)
-      setLocalReference(file)
-      toast.success(t(replacing ? 'Reference image replaced' : 'Reference image added'))
+      await persistReference(file)
+    } catch {
+      toast.error(t('Unsupported or unreadable reference image'), { description: t('Choose a PNG, JPG, or WebP image.') })
+    }
+  }
+
+  const useResultAsReference = async (result: StudioResultView, index: number) => {
+    const current = projectRef.current
+    if (!current || !user) return
+    try {
+      const node = current.nodes.find((item) => item.id === result.id)
+      const asset = node?.assetId ? await database.studioAssets.get(node.assetId) : undefined
+      const blob = asset?.ownerNamespace === current.ownerNamespace
+        ? asset.blob
+        : await (async () => {
+          const response = await fetch(result.source)
+          if (!response.ok) throw new Error('Unable to load generated image')
+          return response.blob()
+        })()
+      const type = blob.type || result.mimeType || 'image/png'
+      const file = new File([blob], `partokens-reference-${index + 1}.${type.split('/')[1] || 'png'}`, { type })
+      await validateReferenceImage(file)
+      await persistReference(file)
     } catch {
       toast.error(t('Unsupported or unreadable reference image'), { description: t('Choose a PNG, JPG, or WebP image.') })
     }
@@ -478,7 +609,7 @@ export function StudioPage() {
             status: 'ready',
             createdAt: now,
           })
-          views.push({ id: nodeId, source, revisedPrompt: item.revisedPrompt, retained: true })
+          views.push({ id: nodeId, source, mimeType: item.blob.type || 'image/png', dimensions: await readImageDimensions(item.blob), revisedPrompt: item.revisedPrompt, retained: true })
         } else if (item.remoteUrl) {
           views.push({ id: nodeId, source: item.remoteUrl, revisedPrompt: item.revisedPrompt, retained: false })
         }
@@ -496,7 +627,17 @@ export function StudioPage() {
           ...(promptId ? nodes.map((node) => ({ id: crypto.randomUUID(), fromNodeId: promptId, toNodeId: node.id })) : []),
         ],
         settings: { ...current.settings, model, quality, size, count },
-        history: [{ id: crypto.randomUUID(), createdAt: now, prompt: cleanPrompt, model, nodeIds: nodes.map((node) => node.id), status: 'completed' }],
+        history: [...current.history, {
+          id: crypto.randomUUID(),
+          createdAt: now,
+          prompt: cleanPrompt,
+          model,
+          size,
+          quality,
+          count: generated.length,
+          nodeIds: nodes.map((node) => node.id),
+          status: 'completed' as const,
+        }].slice(-50),
         updatedAt: now,
       }
 
@@ -524,11 +665,34 @@ export function StudioPage() {
       if (controller.signal.aborted) {
         setCancelled(true)
         setStatus('idle')
+        await appendGenerationHistory({
+          id: crypto.randomUUID(),
+          createdAt: Date.now(),
+          prompt: cleanPrompt,
+          model,
+          size,
+          quality,
+          count,
+          nodeIds: [],
+          status: 'cancelled',
+        })
         toast.info(t('Generation cancelled'))
       } else {
         const message = cause instanceof Error ? t(cause.message) : t('The image service could not complete this request.')
         setError(message)
         setStatus('error')
+        await appendGenerationHistory({
+          id: crypto.randomUUID(),
+          createdAt: Date.now(),
+          prompt: cleanPrompt,
+          model,
+          size,
+          quality,
+          count,
+          nodeIds: [],
+          status: 'failed',
+          error: message,
+        })
         toast.error(t('Image generation failed'), { description: message })
       }
     } finally {
@@ -537,7 +701,7 @@ export function StudioPage() {
   }
 
   const requestGeneration = () => {
-    if (!prompt.trim() || !model) return
+    if (!prompt.trim() || !model || !isValidStudioImageSize(size)) return
     if (credentialReady) {
       void runGeneration()
       return
@@ -547,7 +711,7 @@ export function StudioPage() {
   }
 
   const unlockAndGenerate = async () => {
-    if (!selectedToken) return
+    if (!selectedToken || !tokenCanUseStudio(selectedToken, model)) return
     setCredentialBusy(true)
     setCredentialError('')
     try {
@@ -574,11 +738,28 @@ export function StudioPage() {
     }
   }
 
-  const cancel = () => abortRef.current?.abort()
+  const appendGenerationHistory = async (record: StudioProject['history'][number]) => {
+    const current = projectRef.current
+    if (!current) return
+    const next: StudioProject = {
+      ...current,
+      history: [...current.history, record].slice(-50),
+      updatedAt: Date.now(),
+    }
+    projectRef.current = next
+    setProjectState(next)
+    try {
+      await database.studioProjects.put(next)
+    } catch {
+      // Keep the in-memory history visible when browser storage is unavailable.
+    }
+  }
+
   const busy = status === 'loading'
-  const loadingLocal = !project && busy
   const tokenRestriction = selectedToken ? tokenModels(selectedToken) : []
-  void locale
+  const customSizeSelected = customSizeMode || (size !== 'auto' && !capabilities.sizes.includes(size))
+  const sizeValid = isValidStudioImageSize(size)
+  const [customWidth = '', customHeight = ''] = size.toLowerCase().split('x', 2)
   void credentialRevision
 
   return (
@@ -623,6 +804,7 @@ export function StudioPage() {
                   <SelectTrigger id="studio-model" className="w-full"><SelectValue placeholder={modelsQuery.isLoading ? t('Loading models') : t('Models unavailable')} /></SelectTrigger>
                   <SelectContent>{models.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
                 </Select>
+                {modelsQuery.isSuccess && !models.length ? <p className="text-xs text-destructive" role="alert">{t('Models unavailable')}</p> : null}
               </div>
 
               <div className="min-w-0 space-y-2">
@@ -636,16 +818,64 @@ export function StudioPage() {
 
             <div className="space-y-2">
               <Label htmlFor="studio-size">{t('Image size')}</Label>
-              <Select value={size} onValueChange={setSize} disabled={busy}>
+              <Select value={customSizeSelected ? 'custom' : size} onValueChange={(value) => {
+                if (value === 'custom') {
+                  setCustomSizeMode(true)
+                  setSize(size !== 'auto' && sizeValid ? size : '1024x1024')
+                } else {
+                  setCustomSizeMode(false)
+                  setSize(value)
+                }
+              }} disabled={busy}>
                 <SelectTrigger id="studio-size" className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>{capabilities.sizes.map((item) => <SelectItem key={item} value={item}>{studioSizeLabel(item, translate)}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {capabilities.sizes.map((item) => <SelectItem key={item} value={item}>{studioSizeLabel(item, translate)}</SelectItem>)}
+                  <SelectItem value="custom">{t('Custom size')}</SelectItem>
+                </SelectContent>
               </Select>
+              {customSizeSelected ? <>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor="studio-custom-width">{t('Width')}</Label>
+                    <Input
+                      id="studio-custom-width"
+                      type="number"
+                      min={64}
+                      max={4096}
+                      step={1}
+                      value={customWidth}
+                      onChange={(event) => setSize(`${event.target.value.replace(/\D/g, '')}x${customHeight}`)}
+                      placeholder="1024"
+                      inputMode="numeric"
+                      aria-invalid={!sizeValid}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <Label htmlFor="studio-custom-height">{t('Height')}</Label>
+                    <Input
+                      id="studio-custom-height"
+                      type="number"
+                      min={64}
+                      max={4096}
+                      step={1}
+                      value={customHeight}
+                      onChange={(event) => setSize(`${customWidth}x${event.target.value.replace(/\D/g, '')}`)}
+                      placeholder="1024"
+                      inputMode="numeric"
+                      aria-invalid={!sizeValid}
+                      disabled={busy}
+                    />
+                  </div>
+                </div>
+                {!sizeValid ? <p className="text-xs text-destructive">{t('Enter a valid image size between 64x64 and 4096x4096')}</p> : null}
+              </> : null}
             </div>
 
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">{t('Number of images')}</legend>
-              <div className="grid grid-cols-4 gap-2">
-                {Array.from({ length: Math.min(4, capabilities.maxCount) }, (_, index) => index + 1).map((value) => (
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: Math.min(10, capabilities.maxCount) }, (_, index) => index + 1).map((value) => (
                   <Button
                     key={value}
                     type="button"
@@ -661,12 +891,11 @@ export function StudioPage() {
               </div>
             </fieldset>
 
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-t pt-5">
-              <Button type="button" onClick={requestGeneration} disabled={busy || !prompt.trim() || !model}>
+            <div className="border-t pt-5">
+              <Button type="button" className="w-full" onClick={requestGeneration} disabled={busy || !prompt.trim() || !model || !sizeValid}>
                 {busy ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
                 {busy ? t('Generating...') : t('Generate')}
               </Button>
-              <Button type="button" variant="outline" onClick={cancel} disabled={!busy || loadingLocal}>{t('Cancel')}</Button>
             </div>
           </div>
         </section>
@@ -683,44 +912,74 @@ export function StudioPage() {
           {status === 'idle' ? <StudioEmpty cancelled={cancelled} t={translate} /> : null}
           {status === 'loading' ? <StudioLoading count={resultSettings?.count || 2} size={resultSettings?.size || size} t={translate} /> : null}
           {status === 'error' ? <StudioError message={error} onRetry={() => failureScope === 'generation' ? void runGeneration() : void loadProject()} t={translate} /> : null}
-          {status === 'success' && resultSettings ? <StudioResultGrid results={results} settings={resultSettings} t={translate} /> : null}
+          {status === 'success' && resultSettings ? <StudioResultGrid
+            results={results}
+            settings={resultSettings}
+            t={translate}
+            onUseAsReference={(result, index) => void useResultAsReference(result, index)}
+            onImageDimensions={(resultId, dimensions) => setResults((current) => current.map((result) => result.id === resultId ? { ...result, dimensions } : result))}
+          /> : null}
         </section>
       </div>
 
-      <Dialog open={unlockOpen} onOpenChange={(open) => { if (!credentialBusy) setUnlockOpen(open) }}>
+      <Dialog open={unlockOpen} onOpenChange={(open) => { if (!credentialBusy && !createKeyBusy) setUnlockOpen(open) }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('API key required')}</DialogTitle>
-            <DialogDescription>{t('Choose an active key to generate images. The full key stays in memory only for this Studio session.')}</DialogDescription>
+            <DialogTitle>{t(createKeyOpen ? 'Create dedicated key' : 'API key required')}</DialogTitle>
+            <DialogDescription>{t(createKeyOpen ? 'This key uses the account quota and is restricted to the selected image model.' : 'Choose an active key to generate images. The full key stays in memory only for this Studio session.')}</DialogDescription>
           </DialogHeader>
-          {tokensQuery.isError ? <p className="text-sm text-destructive" role="alert">{t('Unable to load API keys')}</p> : null}
-          {tokensQuery.isLoading ? <div className="flex min-h-20 items-center justify-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />{t('Loading')}</div> : null}
-          {tokensQuery.isSuccess && activeTokens.length ? <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="studio-token">{t('API key')}</Label>
-              <Select value={selectedTokenId} onValueChange={setSelectedTokenId} disabled={credentialBusy}>
-                <SelectTrigger id="studio-token" className="w-full"><SelectValue placeholder={t('Choose a key')} /></SelectTrigger>
-                <SelectContent>{activeTokens.map((token) => <SelectItem key={token.id} value={String(token.id)}>{token.name}</SelectItem>)}</SelectContent>
-              </Select>
+          {createKeyOpen ? (
+            <div className="space-y-5">
+              <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                <div className="flex items-center justify-between gap-3"><span className="text-muted-foreground">{t('Group')}</span><span className="font-medium">{studioGroup}</span></div>
+                <div className="mt-2 flex items-center justify-between gap-3"><span className="text-muted-foreground">{t('Model')}</span><span className="max-w-[65%] truncate font-medium" title={model}>{model}</span></div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="studio-create-key-name">{t('Name')}</Label>
+                <Input id="studio-create-key-name" autoFocus maxLength={50} value={createKeyName} onChange={(event) => { setCreateKeyName(event.target.value); setCreateKeyError('') }} />
+              </div>
+              {createKeyError ? <p className="text-sm text-destructive" role="alert">{createKeyError}</p> : null}
             </div>
-            {selectedToken ? <p className="text-xs text-muted-foreground">{tokenRestriction.length
-              ? t('This key is restricted to {{models}}.', { models: tokenRestriction.join(', ') })
-              : t('This key can use the models available to its group.')}</p> : null}
-            {referenceBlob ? <p className="text-xs text-muted-foreground">{t('The reference image is sent through Partokens to the selected model provider when you generate.')}</p> : null}
-            <p className="text-xs text-muted-foreground">{t('The server does not require password or 2FA confirmation when revealing the selected key.')}</p>
-          </div> : null}
-          {tokensQuery.isSuccess && !activeTokens.length ? <div className="space-y-3 text-sm text-muted-foreground">
-            <p>{t('No compatible active API keys')}</p>
-            <Button asChild variant="outline"><Link to={canonicalConsoleRoute('keys')} params={{ locale }}>{t('Open API keys')}</Link></Button>
-          </div> : null}
-          {credentialError ? <p className="text-sm text-destructive" role="alert">{credentialError}</p> : null}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setUnlockOpen(false)} disabled={credentialBusy}>{t('Cancel')}</Button>
-            <Button type="button" onClick={() => void unlockAndGenerate()} disabled={credentialBusy || !selectedToken}>
+          ) : (
+            <>
+              {tokensQuery.isError ? <p className="text-sm text-destructive" role="alert">{t('Unable to load API keys')}</p> : null}
+              {tokensQuery.isLoading || (tokensQuery.isFetching && !imageTokens.length) ? <div className="flex min-h-20 items-center justify-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />{t('Loading')}</div> : null}
+              {tokensQuery.isSuccess && imageTokens.length ? <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="studio-token">{t('API key')}</Label>
+                  <Select value={selectedTokenId} onValueChange={setSelectedTokenId} disabled={credentialBusy}>
+                    <SelectTrigger id="studio-token" className="w-full"><SelectValue placeholder={t('Choose a key')} /></SelectTrigger>
+                    <SelectContent>{imageTokens.map((token) => <SelectItem key={token.id} value={String(token.id)} disabled={!tokenCanUseStudio(token, model)}><span className="flex min-w-0 items-center gap-2"><span className="truncate">{token.name}</span><span className="shrink-0 text-xs text-muted-foreground">{studioGroup}</span></span></SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                {selectedToken ? <p className="text-xs text-muted-foreground">{tokenRestriction.length
+                  ? t('This key is restricted to {{models}}.', { models: tokenRestriction.join(', ') })
+                  : t('This key can use the models available to its group.')}</p> : null}
+                {referenceBlob ? <p className="text-xs text-muted-foreground">{t('The reference image is sent through Partokens to the selected model provider when you generate.')}</p> : null}
+                <p className="text-xs text-muted-foreground">{t('The server does not require password or 2FA confirmation when revealing the selected key.')}</p>
+                {!activeTokens.length ? <p className="text-sm text-destructive" role="alert">{t('No compatible active API keys')}</p> : null}
+              </div> : null}
+              {tokensQuery.isSuccess && !tokensQuery.isFetching && !imageTokens.length ? <div className="space-y-3 text-sm text-muted-foreground">
+                <p>{t('No compatible active API keys')}</p>
+                <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={openCreateKey}><Plus />{t('Create key')}</Button><Button asChild variant="ghost"><Link to={canonicalConsoleRoute('keys')} params={{ locale }}>{t('Open API keys')}</Link></Button></div>
+              </div> : null}
+              {credentialError ? <p className="text-sm text-destructive" role="alert">{credentialError}</p> : null}
+            </>
+          )}
+          {createKeyOpen ? <DialogFooter>
+            <>
+              <Button type="button" variant="outline" onClick={() => setCreateKeyOpen(false)} disabled={createKeyBusy}>{t('Cancel')}</Button>
+              <Button type="button" onClick={() => void createImageKey()} disabled={createKeyBusy || !createKeyName.trim() || !model}>
+                {createKeyBusy ? <LoaderCircle className="animate-spin" /> : <Plus />}
+                {createKeyBusy ? t('Creating...') : t('Create key')}
+              </Button>
+            </>
+          </DialogFooter> : imageTokens.length ? <DialogFooter>
+            <Button type="button" onClick={() => void unlockAndGenerate()} disabled={credentialBusy || !selectedTokenUsable}>
               {credentialBusy ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
-              {t('Unlock and generate')}
+              {t('Continue generating')}
             </Button>
-          </DialogFooter>
+          </DialogFooter> : null}
         </DialogContent>
       </Dialog>
     </>

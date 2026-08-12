@@ -40,6 +40,7 @@ export type LocalConversation = {
   updatedAt: number
   model: string
   group: string
+  pinned?: boolean
   parameters: PlaygroundParameters
   schemaVersion: number
   messages: LocalMessage[]
