@@ -20,6 +20,16 @@ export function formatQuota(value: number | undefined, locale: string, fractionD
   }).format(value / quotaPerUnit)
 }
 
+export function formatCurrency(value: number | undefined, locale: string, currency = 'USD'): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
 export function formatInteger(value: number | undefined, locale: string): string {
   if (value == null || !Number.isFinite(value)) return '—'
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)

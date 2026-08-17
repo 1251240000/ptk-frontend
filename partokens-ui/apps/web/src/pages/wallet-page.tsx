@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
-import { Check, CheckCircle2, CircleDollarSign, Copy, CreditCard, Gift, LoaderCircle, ReceiptText, RefreshCw, Share2, WalletCards } from 'lucide-react'
+import { AlertCircle, ArrowRightLeft, Check, CheckCircle2, CircleDollarSign, Copy, CreditCard, Gift, LoaderCircle, ReceiptText, RefreshCw, Share2, Star, WalletCards } from 'lucide-react'
 import { type FormEvent, type MouseEvent, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -51,12 +51,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
 } from '@partokens/design-system/components'
 import { isAppLocale } from '@partokens/i18n'
 
-import { AccountDataState, AccountFeedback, AccountPageHeader, AccountSectionHeading, PendingLabel } from '@/features/account/account-ui'
-import { extractItems, formatDate, formatInteger, formatQuota, quotaUnitsToDollars } from '@/lib/format'
-import { isConfiguredTopupAmount } from '@/lib/wallet'
+import { AccountDataState, AccountFeedback, AccountPageHeader, AccountSectionHeading } from '@/features/account/account-ui'
+import { extractItems, formatCurrency, formatDate, formatInteger, quotaUnitsToDollars } from '@/lib/format'
+import { isConfiguredTopupAmount, starterPlanId } from '@/lib/wallet'
 import { useSessionStore } from '@/stores/session'
 
 type TopupProvider = 'epay' | 'stripe' | 'creem' | 'waffo' | 'waffo-pancake'
@@ -185,7 +188,18 @@ function formatDuration(plan: SubscriptionPlan, t: (key: string) => string) {
 }
 
 function formatMoney(value: number, locale: string, currency = 'USD') {
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value)
+  return formatCurrency(value, locale, currency)
+}
+
+function formatWalletQuota(value: number | undefined, locale: string) {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return formatMoney(quotaUnitsToDollars(value), locale)
+}
+
+function formatCalculatedPayment(value: string | undefined, locale: string) {
+  if (!value) return null
+  const amount = Number(value)
+  return Number.isFinite(amount) ? formatMoney(amount, locale) : value
 }
 
 function timestampMilliseconds(value: number) {
@@ -254,8 +268,8 @@ function ActiveSubscriptionList({
               <Badge variant="outline" className="shrink-0">{daysLeft === 1 ? t('1 day left') : t('{{count}} days left', { count: daysLeft })}</Badge>
             </div>
             <dl className="mt-4 grid grid-cols-3 gap-4">
-              <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Total quota')}</dt><dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatQuota(total, locale)}</dd></div>
-              <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Remaining')}</dt><dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatQuota(remaining, locale)}</dd></div>
+              <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Total quota')}</dt><dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatWalletQuota(total, locale)}</dd></div>
+              <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Remaining')}</dt><dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatWalletQuota(remaining, locale)}</dd></div>
               <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Used')}</dt><dd className="mt-1 font-mono text-sm font-semibold tabular-nums">{usedPercent}%</dd></div>
             </dl>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={t('{{plan}} quota used', { plan: planName })} aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPercent}>
@@ -352,20 +366,22 @@ function PurchaseSummary({
       : `${intent.method.provider}:${intent.method.paymentMethod || ''}`
     : ''
   const paymentField = (
-    <div className="space-y-2 border-t p-3">
-      <Label htmlFor="purchase-payment-method">{t('Payment method')}</Label>
-      <Select
-        value={selectedId}
-        disabled={disabled || paymentOptions.length === 0}
-        onValueChange={(value) => {
-          const option = paymentOptions.find((item) => item.id === value)
-          if (option) onPayment(option)
-        }}
-      >
-        <SelectTrigger id="purchase-payment-method" className="w-full"><CreditCard /><SelectValue placeholder={t('No payment method available')} /></SelectTrigger>
-        <SelectContent>{paymentOptions.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}</SelectContent>
-      </Select>
-      {paymentOptions.length === 0 ? <p className="text-xs text-muted-foreground">{t('No payment method available')}</p> : null}
+    <div className="border-t p-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <Label htmlFor="purchase-payment-method" className="min-w-0">{t('Payment method')}</Label>
+        <Select
+          value={selectedId}
+          disabled={disabled || paymentOptions.length === 0}
+          onValueChange={(value) => {
+            const option = paymentOptions.find((item) => item.id === value)
+            if (option) onPayment(option)
+          }}
+        >
+          <SelectTrigger id="purchase-payment-method" className="ms-auto w-full max-w-64"><CreditCard /><SelectValue placeholder={t('No payment method available')} /></SelectTrigger>
+          <SelectContent>{paymentOptions.map((option) => <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+      {paymentOptions.length === 0 ? <p className="mt-2 text-end text-xs text-muted-foreground">{t('No payment method available')}</p> : null}
     </div>
   )
 
@@ -375,7 +391,7 @@ function PurchaseSummary({
         <dl className="divide-y">
           <div className="flex justify-between gap-4 p-3"><dt className="text-muted-foreground">{t('Plan')}</dt><dd className="text-end font-medium">{intent.plan.title}</dd></div>
           <div className="flex justify-between gap-4 p-3"><dt className="text-muted-foreground">{t('Validity')}</dt><dd className="text-end">{formatDuration(intent.plan, t)}</dd></div>
-          <div className="flex justify-between gap-4 p-3"><dt className="text-muted-foreground">{t('Included quota')}</dt><dd className="font-mono tabular-nums">{formatQuota(intent.plan.total_amount, locale)}</dd></div>
+          <div className="flex justify-between gap-4 p-3"><dt className="text-muted-foreground">{t('Included quota')}</dt><dd className="font-mono font-semibold tabular-nums">{formatWalletQuota(intent.plan.total_amount, locale)}</dd></div>
           <div className="flex justify-between gap-4 p-3"><dt className="text-muted-foreground">{t('Due today')}</dt><dd className="font-mono font-semibold tabular-nums">{formatMoney(intent.plan.price_amount, locale, intent.plan.currency || 'USD')}</dd></div>
         </dl>
         {paymentField}
@@ -510,6 +526,7 @@ export function WalletPage() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [redemption, setRedemption] = useState('')
+  const [redemptionError, setRedemptionError] = useState('')
   const [billingPage, setBillingPage] = useState(1)
   const [billingSearch, setBillingSearch] = useState('')
   const compactOverlay = useCompactOverlay()
@@ -530,6 +547,7 @@ export function WalletPage() {
   const planRecords = Array.isArray(plans.data?.data) ? plans.data.data : []
   const availablePlans = planRecords.map(({ plan }) => plan)
   const activeSubscriptions = subscriptions.data?.data?.subscriptions || []
+  const recommendedPlanId = starterPlanId(availablePlans, activeSubscriptions.length > 0)
   const billingRecords = extractItems<TopupRecord>(billing.data?.data)
   const billingTotal = Number(billing.data?.data?.total || 0)
   const billingPages = Math.max(1, Math.ceil(billingTotal / 10))
@@ -557,8 +575,8 @@ export function WalletPage() {
 
   const calculated = useQuery({
     queryKey: ['topup-calculation', calculationAmount, calculationMethod?.provider],
-    queryFn: () => calculateTopupAmount(calculationAmount!, calculationMethod!.provider as 'epay' | 'stripe' | 'waffo-pancake'),
-    enabled: calculationAmount != null && Boolean(calculationMethod && ['epay', 'stripe', 'waffo-pancake'].includes(calculationMethod.provider)),
+    queryFn: () => calculateTopupAmount(calculationAmount!, calculationMethod!.provider as 'epay' | 'stripe' | 'waffo' | 'waffo-pancake'),
+    enabled: calculationAmount != null && Boolean(calculationMethod && ['epay', 'stripe', 'waffo', 'waffo-pancake'].includes(calculationMethod.provider)),
     retry: false,
   })
 
@@ -611,13 +629,13 @@ export function WalletPage() {
       if (!response.success) throw new Error(response.message || t('Redemption failed'))
       return response
     },
-    onMutate: () => { setError(''); setNotice('') },
+    onMutate: () => { setError(''); setNotice(''); setRedemptionError('') },
     onSuccess: (response) => {
       setRedemption('')
-      setNotice(`${t('Redemption successful')}: ${formatQuota(response.data, locale)}`)
+      setNotice(`${t('Redemption successful')}: ${formatWalletQuota(response.data, locale)}`)
       void Promise.all([billing.refetch(), resolve()])
     },
-    onError: (cause) => setError(responseMessage(cause, t('Redemption failed'))),
+    onError: (cause) => setRedemptionError(responseMessage(cause, t('Redemption failed'))),
   })
 
   const transfer = useMutation({
@@ -643,9 +661,9 @@ export function WalletPage() {
     onError: (cause) => setError(responseMessage(cause, t('Unable to save preference'))),
   })
 
-  const calculationRequired = Boolean(calculationMethod && ['epay', 'stripe', 'waffo-pancake'].includes(calculationMethod.provider))
+  const calculationRequired = Boolean(calculationMethod && ['epay', 'stripe', 'waffo', 'waffo-pancake'].includes(calculationMethod.provider))
   const calculatedPayment = calculationRequired
-    ? calculated.data?.success && calculated.data.data ? calculated.data.data : null
+    ? calculated.data?.success ? formatCalculatedPayment(calculated.data.data, locale) : null
     : intent?.kind === 'topup' ? formatMoney(intent.amount * Number(info?.discount[String(intent.amount)] ?? 1), locale) : null
   const calculationUnavailable = calculationRequired && (calculated.isError || (!calculated.isLoading && !calculatedPayment))
   const affiliateLink = affiliate.data?.data
@@ -687,9 +705,9 @@ export function WalletPage() {
 
       <section aria-label={t('Account balance')} className="grid overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-4 lg:divide-x">
         {[
-          [t('Account balance'), formatQuota(user?.quota, locale), t('Balance'), WalletCards],
-          [t('Total usage'), formatQuota(user?.used_quota, locale), t('Usage billing preference'), CircleDollarSign],
-          [t('Pending rewards'), formatQuota(user?.aff_quota, locale), t('Affiliate rewards'), Gift],
+          [t('Account balance'), formatWalletQuota(user?.quota, locale), t('Balance'), WalletCards],
+          [t('Total usage'), formatWalletQuota(user?.used_quota, locale), t('Usage billing preference'), CircleDollarSign],
+          [t('Pending rewards'), formatWalletQuota(user?.aff_quota, locale), t('Affiliate rewards'), Gift],
           [t('Subscriptions'), formatInteger(activeSubscriptions.length, locale), t('Active'), ReceiptText],
         ].map(([label, value, detail, Icon], index) => {
           const MetricIcon = Icon as typeof WalletCards
@@ -709,6 +727,7 @@ export function WalletPage() {
             eyebrow={t('Subscriptions').toUpperCase()}
             title={t('Choose a plan')}
             description={t('Each subscription adds its own quota and validity period.')}
+            actionAlign="end"
             action={<Button type="button" variant="outline" size="sm" onClick={openActiveSubscriptions}><ReceiptText />{t('View active ({{count}})', { count: activeSubscriptions.length })}</Button>}
           />
           <AccountDataState
@@ -724,15 +743,17 @@ export function WalletPage() {
               {planRecords.map(({ plan }) => {
                 const activeCount = activeSubscriptions.filter(({ subscription }) => subscription.plan_id === plan.id).length
                 const available = subscriptionMethods(plan, info)
+                const recommended = plan.id === recommendedPlanId
                 return (
-                  <article key={plan.id} className="grid flex-1 grid-cols-3 items-center gap-4 p-4 md:grid-cols-[minmax(150px,1.2fr)_repeat(3,minmax(82px,0.65fr))_auto]">
+                  <article key={plan.id} aria-label={plan.title} className="grid flex-1 grid-cols-3 items-center gap-4 p-4 md:grid-cols-[minmax(150px,1.2fr)_repeat(3,minmax(82px,0.65fr))_auto]">
                     <div className="col-span-3 flex min-w-0 flex-wrap items-center gap-2 md:col-span-1">
                       <h3 className="text-sm font-semibold">{plan.title}</h3>
+                      {recommended ? <Badge variant="outline"><Star className="fill-warning-signal text-warning-signal" />{t('Starter recommendation')}</Badge> : null}
                       {activeCount > 0 ? <Badge variant="outline"><Check className="text-success" />{t('{{count}} active', { count: activeCount })}</Badge> : null}
                     </div>
-                    <div className="min-w-0"><p className="text-xs text-muted-foreground">{t('Price')}</p><p className="mt-1 font-mono text-sm font-semibold tabular-nums">{new Intl.NumberFormat(locale, { style: 'currency', currency: plan.currency || 'USD' }).format(plan.price_amount)}</p></div>
+                    <div className="min-w-0"><p className="text-xs text-muted-foreground">{t('Plan quota')}</p><p className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatWalletQuota(plan.total_amount, locale)}</p></div>
                     <div className="min-w-0"><p className="text-xs text-muted-foreground">{t('Validity')}</p><p className="mt-1 text-sm font-medium">{formatDuration(plan, t)}</p></div>
-                    <div className="min-w-0"><p className="text-xs text-muted-foreground">{t('Plan quota')}</p><p className="mt-1 font-mono text-sm font-medium tabular-nums">{formatQuota(plan.total_amount, locale)}</p></div>
+                    <div className="min-w-0"><p className="text-xs text-muted-foreground">{t('Price')}</p><p className="mt-1 font-mono text-sm font-semibold tabular-nums">{formatMoney(plan.price_amount, locale, plan.currency || 'USD')}</p></div>
                     <Button type="button" variant="outline" size="sm" className="col-span-3 w-full md:col-span-1 md:w-auto" disabled={purchase.isPending || available.length === 0} onClick={(event) => openSubscription(plan, event)}><CreditCard />{t('Subscribe')}</Button>
                   </article>
                 )
@@ -769,7 +790,7 @@ export function WalletPage() {
                     <button key={amount} type="button" role="radio" aria-checked={selected} aria-label={t('Amount {{amount}}, discount {{discount}}%, pay {{payment}}', { amount: formatMoney(amount, locale), discount: Math.round((1 - multiplier) * 100), payment: formatMoney(amount * multiplier, locale) })} className={`grid w-full flex-1 grid-cols-[repeat(3,minmax(0,1fr))_auto] items-center gap-3 px-4 py-3 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${selected ? 'bg-accent' : 'hover:bg-accent/60'}`} onClick={() => setSelectedAmount(amount)}>
                       <span className="min-w-0"><span className="block text-xs text-muted-foreground">{t('Amount')}</span><span className="mt-1 block font-mono text-sm font-semibold tabular-nums">{formatMoney(amount, locale)}</span></span>
                       <span className="min-w-0"><span className="block text-xs text-muted-foreground">{t('Discount')}</span><span className="mt-1 block text-sm font-medium">{Math.round((1 - multiplier) * 100)}%</span></span>
-                      <span className="min-w-0"><span className="block text-xs text-muted-foreground">{t('Pay')}</span><span className="mt-1 block font-mono text-sm font-medium tabular-nums">{formatMoney(amount * multiplier, locale)}</span></span>
+                      <span className="min-w-0"><span className="block text-xs text-muted-foreground">{t('Pay')}</span><span className="mt-1 block font-mono text-sm font-semibold tabular-nums">{formatMoney(amount * multiplier, locale)}</span></span>
                       <CheckCircle2 className={selected ? 'size-4 text-success' : 'size-4 invisible'} />
                     </button>
                   )
@@ -778,28 +799,69 @@ export function WalletPage() {
             </fieldset>
           </AccountDataState>
           <div className="mt-auto border-t bg-muted/15 p-4">
-            <Button type="button" className="w-full" disabled={selectedAmount == null || purchase.isPending} onClick={openTopup}><CreditCard />{t('Review top-up')}</Button>
+            <Button type="button" className="w-full" disabled={selectedAmount == null || purchase.isPending} onClick={openTopup}><CreditCard />{t('Top up now')}</Button>
           </div>
         </section>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="overflow-hidden rounded-lg border">
-          <AccountSectionHeading eyebrow={t('Redemption').toUpperCase()} title={t('Redeem a code')} icon={Gift} />
+        <section className="flex h-full flex-col overflow-hidden rounded-lg border">
+          <AccountSectionHeading eyebrow={t('Redemption').toUpperCase()} title={t('Redeem a code')} />
           {info?.enable_redemption === false ? <div className="flex min-h-32 items-center p-4 text-sm text-muted-foreground">{t('Redemption is unavailable')}</div> : (
-            <form className="flex min-h-32 flex-col gap-3 p-4" onSubmit={(event: FormEvent) => { event.preventDefault(); redeem.mutate() }}>
-              <div className="space-y-2"><Label htmlFor="redemption-code">{t('Redemption code')}</Label><Input id="redemption-code" value={redemption} onChange={(event) => setRedemption(event.target.value)} autoComplete="off" required /></div>
-              <Button type="submit" variant="outline" className="mt-auto w-full sm:w-auto sm:self-end" disabled={!redemption.trim() || redeem.isPending}><PendingLabel pending={redeem.isPending} pendingText={t('Saving')}>{t('Redeem')}</PendingLabel></Button>
+            <form className="flex min-h-32 flex-1 flex-col gap-3 p-4" onSubmit={(event: FormEvent) => { event.preventDefault(); redeem.mutate() }}>
+              <div className="space-y-2">
+                <Label htmlFor="redemption-code">{t('Redemption code')}</Label>
+                <Input
+                  id="redemption-code"
+                  value={redemption}
+                  disabled={redeem.isPending}
+                  aria-invalid={Boolean(redemptionError)}
+                  aria-describedby="redemption-guidance"
+                  autoComplete="off"
+                  placeholder="PT-XXXX-XXXX"
+                  required
+                  onChange={(event) => { setRedemption(event.target.value); setRedemptionError('') }}
+                />
+                {redemptionError
+                  ? <p id="redemption-guidance" role="alert" className="flex items-center gap-2 text-xs text-destructive"><AlertCircle className="size-4" />{redemptionError}</p>
+                  : <p id="redemption-guidance" className="text-xs text-muted-foreground">{t('Codes are applied directly to your account balance.')}</p>}
+              </div>
+              <Button type="submit" variant="outline" className="mt-auto w-full sm:w-auto sm:self-start" disabled={!redemption.trim() || redeem.isPending}>
+                {redeem.isPending ? <LoaderCircle className="animate-spin" /> : <CircleDollarSign />}
+                {redeem.isPending ? t('Redeeming...') : t('Redeem code')}
+              </Button>
             </form>
           )}
         </section>
 
-        <section className="overflow-hidden rounded-lg border">
+        <section className="flex h-full flex-col overflow-hidden rounded-lg border">
           <AccountSectionHeading eyebrow={t('Referrals').toUpperCase()} title={t('Affiliate rewards')} icon={Share2} />
-          <div className="grid grid-cols-3 divide-x border-b">
-            {[[t('Pending rewards'), formatQuota(user?.aff_quota, locale)], [t('Total earned'), formatQuota(user?.aff_history_quota, locale)], [t('Invites'), formatInteger(user?.aff_count, locale)]].map(([label, value]) => <div key={label} className="min-w-0 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums">{value}</p></div>)}
+          <div className="grid grid-cols-3 divide-x">
+            <div className="min-w-0 p-3">
+              <div className="flex min-w-0 items-center justify-between gap-1">
+                <p className="min-w-0 text-xs text-muted-foreground">{t('Pending rewards')}</p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" className="-me-1 -mt-1 size-8 shrink-0" disabled={!user?.aff_quota || transfer.isPending} aria-label={t('Transfer to balance')} onClick={() => { if (window.confirm(t('Transfer all pending rewards to balance?'))) transfer.mutate() }}>
+                      {transfer.isPending ? <LoaderCircle className="animate-spin" /> : <ArrowRightLeft />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Transfer to balance')}</TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums">{formatWalletQuota(user?.aff_quota, locale)}</p>
+            </div>
+            {[[t('Total earned'), formatWalletQuota(user?.aff_history_quota, locale)], [t('Invites'), formatInteger(user?.aff_count, locale)]].map(([label, value]) => <div key={label} className="min-w-0 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums">{value}</p></div>)}
           </div>
-          <div className="space-y-3 p-4"><Label>{t('Referral link')}</Label><div className="flex min-w-0 items-center rounded-md border bg-muted/20"><code className="min-w-0 flex-1 truncate px-3 py-2 text-xs">{affiliateLink || '—'}</code><Button type="button" variant="ghost" size="icon" className="shrink-0" disabled={!affiliateLink} aria-label={t('Copy')} onClick={() => void navigator.clipboard.writeText(affiliateLink)}><Copy /></Button></div><Button type="button" variant="outline" className="w-full sm:w-auto" disabled={!user?.aff_quota || transfer.isPending} onClick={() => { if (window.confirm(t('Transfer all pending rewards to balance?'))) transfer.mutate() }}>{t('Transfer to balance')}</Button></div>
+          <div className="mt-auto border-t p-4">
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1 space-y-2"><Label htmlFor="referral-link">{t('Referral link')}</Label><Input id="referral-link" value={affiliateLink || '—'} readOnly className="min-w-0 font-mono text-xs" /></div>
+              <Tooltip>
+                <TooltipTrigger asChild><Button type="button" variant="outline" size="icon" className="shrink-0" disabled={!affiliateLink} aria-label={t('Copy')} onClick={() => void navigator.clipboard.writeText(affiliateLink)}><Copy /></Button></TooltipTrigger>
+                <TooltipContent>{t('Copy')}</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </section>
       </div>
 
@@ -807,7 +869,7 @@ export function WalletPage() {
         <AccountSectionHeading eyebrow={t('History').toUpperCase()} title={t('Billing history')} icon={ReceiptText} action={<Button type="button" variant="outline" size="icon" aria-label={t('Refresh')} disabled={billing.isFetching} onClick={() => void billing.refetch()}><RefreshCw className={billing.isFetching ? 'animate-spin' : ''} /></Button>} />
         <div className="border-b p-4"><Label htmlFor="billing-search" className="sr-only">{t('Search order number')}</Label><Input id="billing-search" className="max-w-sm" value={billingSearch} onChange={(event) => { setBillingSearch(event.target.value); setBillingPage(1) }} placeholder={t('Search order number')} /></div>
         <AccountDataState loading={billing.isLoading} error={billing.isError && !billing.data ? t('Interface data unavailable') : null} empty={!billing.isLoading && billingRecords.length === 0} emptyTitle={t('No billing history')} emptyDescription={t('Completed top-ups and payments will appear here.')} retryLabel={t('Retry')} onRetry={() => void billing.refetch()}>
-          <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>{t('Order')}</TableHead><TableHead>{t('Time')}</TableHead><TableHead>{t('Payment method')}</TableHead><TableHead>{t('Amount')}</TableHead><TableHead>{t('Paid')}</TableHead><TableHead>{t('Status')}</TableHead></TableRow></TableHeader><TableBody>{billingRecords.map((record) => <TableRow key={record.id}><TableCell><code className="break-all text-xs">{record.trade_no}</code></TableCell><TableCell className="whitespace-nowrap">{formatDate(record.create_time, locale)}</TableCell><TableCell>{record.payment_method || '—'}</TableCell><TableCell className="font-mono tabular-nums">{new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(Number(record.amount || 0))}</TableCell><TableCell className="font-mono tabular-nums">{new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(Number(record.money || 0))}</TableCell><TableCell><Badge variant="outline">{record.status === 'success' ? <Check className="text-success" /> : null}{t(record.status)}</Badge></TableCell></TableRow>)}</TableBody></Table></div>
+          <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>{t('Order')}</TableHead><TableHead>{t('Time')}</TableHead><TableHead>{t('Payment method')}</TableHead><TableHead>{t('Amount')}</TableHead><TableHead>{t('Paid')}</TableHead><TableHead>{t('Status')}</TableHead></TableRow></TableHeader><TableBody>{billingRecords.map((record) => <TableRow key={record.id}><TableCell><code className="break-all text-xs">{record.trade_no}</code></TableCell><TableCell className="whitespace-nowrap">{formatDate(record.create_time, locale)}</TableCell><TableCell>{record.payment_method || '—'}</TableCell><TableCell className="font-mono font-semibold tabular-nums">{formatMoney(Number(record.amount || 0), locale)}</TableCell><TableCell className="font-mono font-semibold tabular-nums">{formatMoney(Number(record.money || 0), locale)}</TableCell><TableCell><Badge variant="outline">{record.status === 'success' ? <Check className="text-success" /> : null}{t(record.status)}</Badge></TableCell></TableRow>)}</TableBody></Table></div>
           <footer className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><span className="text-xs text-muted-foreground">{t('Page')} {billingPage} / {billingPages}</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={billingPage <= 1} onClick={() => setBillingPage((page) => page - 1)}>{t('Previous')}</Button><Button type="button" variant="outline" size="sm" disabled={billingPage >= billingPages} onClick={() => setBillingPage((page) => page + 1)}>{t('Next')}</Button></div></footer>
         </AccountDataState>
       </section>

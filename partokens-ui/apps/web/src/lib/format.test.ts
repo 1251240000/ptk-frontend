@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { extractItems, formatQuota, maskKey, maskTrace, quotaDollarsToUnits, quotaUnitsToDollars } from './format'
+import { extractItems, formatCurrency, formatQuota, maskKey, maskTrace, quotaDollarsToUnits, quotaUnitsToDollars } from './format'
 
 describe('format helpers', () => {
   it('normalizes supported list envelopes', () => {
@@ -12,6 +12,12 @@ describe('format helpers', () => {
   it('formats backend quota units without fabricating missing values', () => {
     expect(formatQuota(500_000, 'en')).toBe('$1.00')
     expect(formatQuota(undefined, 'en')).toBe('—')
+  })
+
+  it('omits insignificant currency zeroes while preserving meaningful precision', () => {
+    expect(formatCurrency(20, 'en')).toBe('$20')
+    expect(formatCurrency(20.5, 'en')).toBe('$20.5')
+    expect(formatCurrency(20.25, 'en')).toBe('$20.25')
   })
 
   it('masks long keys', () => {

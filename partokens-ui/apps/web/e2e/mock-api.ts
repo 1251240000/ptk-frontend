@@ -54,6 +54,7 @@ type MockApiOptions = {
   twoFactorEnabled?: boolean
   passkeyEnabled?: boolean
   pricingRequiresAuth?: boolean
+  activeSubscriptions?: boolean
   statusResponses?: Array<{ status?: number; body: unknown }>
   tokenCreateOmitsData?: boolean
   userSetting?: Record<string, unknown>
@@ -320,7 +321,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (path === '/api/user/amount') {
       const amount = Number((request.postDataJSON() as { amount?: number } | null)?.amount || 0)
-      await json(route, envelope(`$${(amount * (amount === 50 ? 0.9 : 1)).toFixed(2)}`))
+      await json(route, { message: 'success', data: (amount * (amount === 50 ? 0.9 : 1)).toFixed(2) })
       return
     }
     if (path === '/api/user/pay') {
@@ -337,7 +338,8 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (path === '/api/subscription/self') {
       const subscription = { subscription: { id: 31, plan_id: 4, status: 'active', source: 'balance', start_time: 1_721_520_000, end_time: 1_724_112_000, amount_total: 2_500_000, amount_used: 400_000 } }
-      await json(route, envelope({ billing_preference: 'subscription_first', subscriptions: [subscription], all_subscriptions: [subscription] }))
+      const activeSubscriptions = options.activeSubscriptions === false ? [] : [subscription]
+      await json(route, envelope({ billing_preference: 'subscription_first', subscriptions: activeSubscriptions, all_subscriptions: activeSubscriptions }))
       return
     }
     if (path === '/api/user/aff') {

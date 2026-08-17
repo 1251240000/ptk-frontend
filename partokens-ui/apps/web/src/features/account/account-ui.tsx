@@ -21,13 +21,17 @@ export function AccountSectionHeading({
   description,
   icon: Icon,
   action,
+  actionAlign = 'center',
 }: {
   eyebrow: string
   title: string
   description?: string
   icon?: LucideIcon
   action?: ReactNode
+  actionAlign?: 'center' | 'end'
 }) {
+  const actionClassName = actionAlign === 'end' ? 'shrink-0 sm:self-end' : 'shrink-0 sm:self-center'
+
   return (
     <header className="flex min-w-0 flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex min-w-0 items-start gap-3">
@@ -38,7 +42,7 @@ export function AccountSectionHeading({
           {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
         </div>
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className={actionClassName}>{action}</div> : null}
     </header>
   )
 }

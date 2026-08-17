@@ -306,6 +306,22 @@ describe('New API adapter contracts', () => {
     ])
   })
 
+  it('normalizes the message-only payment amount envelope returned by production', async () => {
+    api.defaults.adapter = async (config) => ({
+      config,
+      data: { message: 'success', data: '45.00' },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    })
+
+    await expect(calculateTopupAmount(50, 'epay')).resolves.toEqual({
+      success: true,
+      message: 'success',
+      data: '45.00',
+    })
+  })
+
   it('keeps fixed top-up and subscription actions on their user routes', async () => {
     await calculateTopupAmount(20, 'stripe')
     await requestTopupPayment({ provider: 'waffo', amount: 20, pay_method_index: 1 })

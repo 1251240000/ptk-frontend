@@ -738,6 +738,14 @@ function parseMutationEnvelope<T>(input: unknown): ApiEnvelope<T> {
   return parseEnvelope<T>(input)
 }
 
+function parseMessageEnvelope<T>(input: unknown): ApiEnvelope<T> {
+  if (input && typeof input === 'object' && !('success' in input)) {
+    const record = input as Record<string, unknown>
+    return parseEnvelope<T>({ ...record, success: record.message === 'success' })
+  }
+  return parseEnvelope<T>(input)
+}
+
 export async function getStatus(): Promise<ApiEnvelope<PartokensStatus>> {
   return getStatusWithSignal()
 }
@@ -1205,14 +1213,16 @@ export async function updateUserLanguage(language: string): Promise<ApiEnvelope<
   return parseEnvelope(response.data)
 }
 
-export async function calculateTopupAmount(amount: number, provider: 'epay' | 'stripe' | 'waffo-pancake'): Promise<ApiEnvelope<string>> {
+export async function calculateTopupAmount(amount: number, provider: 'epay' | 'stripe' | 'waffo' | 'waffo-pancake'): Promise<ApiEnvelope<string>> {
   const path = provider === 'stripe'
     ? '/api/user/stripe/amount'
+    : provider === 'waffo'
+      ? '/api/user/waffo/amount'
     : provider === 'waffo-pancake'
       ? '/api/user/waffo-pancake/amount'
       : '/api/user/amount'
   const response = await api.post(path, { amount })
-  return parseEnvelope<string>(response.data)
+  return parseMessageEnvelope<string>(response.data)
 }
 
 export async function requestTopupPayment(input: {
