@@ -134,7 +134,7 @@ function WalletPage({ locale, notify }: Pick<ConsoleAccountPrototypeProps, 'loca
     <div className="r34-wallet-actions">
       <section className="r33-section r34-section">
         <SectionHeading eyebrow="REDEEM" title={t('Redeem a code')} aside={<CircleDollarSign size={18} />} />
-        <form className="r34-inline-form" onSubmit={(event) => { event.preventDefault(); if (!redemption.trim()) return; setRedemption(''); notify(t('Redemption successful')) }}><label className="pt-field"><span>{t('Redemption code')}</span><span className="pt-field-control"><input value={redemption} onChange={(event) => setRedemption(event.target.value)} placeholder="PT-XXXX-XXXX" /></span></label><button type="submit" className="pt-button" data-variant="secondary" disabled={!redemption.trim()}>{t('Redeem')}</button></form>
+        <form className="r34-inline-form" onSubmit={(event) => { event.preventDefault(); if (!redemption.trim()) return; setRedemption(''); notify(t('Redemption successful')) }}><span className="pt-field-control"><input value={redemption} aria-label={t('Redemption code')} onChange={(event) => setRedemption(event.target.value)} placeholder="xxxxxxxx" /></span><button type="submit" className="pt-button" data-variant="secondary" disabled={!redemption.trim()}>{t('Redeem')}</button></form>
       </section>
       <section className="r33-section r34-section">
         <SectionHeading eyebrow="REWARDS" title={t('Affiliate rewards')} aside={<Gift size={18} />} />

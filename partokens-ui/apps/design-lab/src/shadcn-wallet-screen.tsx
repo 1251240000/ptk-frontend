@@ -454,15 +454,15 @@ function RedemptionSection({
       <SectionHeading eyebrow='REDEMPTION' title='Redeem a code' />
       <form className='flex flex-1 flex-col gap-3 p-4' onSubmit={(event) => { event.preventDefault(); onSubmit() }}>
         <div className='space-y-2'>
-          <Label htmlFor='redemption-code'>Redemption code</Label>
           <Input
             id='redemption-code'
             value={code}
             disabled={busy}
             aria-invalid={Boolean(error)}
+            aria-label='Redemption code'
             aria-describedby={error ? 'redemption-error' : undefined}
             autoComplete='off'
-            placeholder='PT-XXXX-XXXX'
+            placeholder='xxxxxxxx'
             onChange={(event) => onCode(event.target.value)}
           />
           {error ? <p id='redemption-error' role='alert' className='flex items-center gap-2 text-xs text-destructive'><AlertCircle className='size-4' />{error}</p> : <p className='text-xs text-muted-foreground'>Codes are applied directly to your account balance.</p>}

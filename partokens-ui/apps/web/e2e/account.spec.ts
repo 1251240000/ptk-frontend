@@ -101,7 +101,11 @@ test('Wallet renders only configured amounts and server-backed billing data', as
   await expect(page.getByText('$25.00')).toHaveCount(0)
   await expect(page.getByText('Starter recommendation')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Transfer to balance' })).toBeVisible()
-  await expect(page.getByPlaceholder('PT-XXXX-XXXX')).toBeVisible()
+  await expect(page.getByPlaceholder('xxxxxxxx')).toBeVisible()
+  const rewardCells = page.getByRole('heading', { name: 'Affiliate rewards' }).locator('xpath=ancestor::section[1]').locator('> div.grid > div')
+  await expect(rewardCells).toHaveCount(3)
+  const rewardHeights = await rewardCells.evaluateAll((cells) => cells.map((cell) => Math.round(cell.getBoundingClientRect().height)))
+  expect(new Set(rewardHeights).size).toBe(1)
 
   const activeTrigger = page.getByRole('button', { name: 'View active (1)' })
   await activeTrigger.click()

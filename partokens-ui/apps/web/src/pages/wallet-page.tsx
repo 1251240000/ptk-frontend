@@ -810,15 +810,15 @@ export function WalletPage() {
           {info?.enable_redemption === false ? <div className="flex min-h-32 items-center p-4 text-sm text-muted-foreground">{t('Redemption is unavailable')}</div> : (
             <form className="flex min-h-32 flex-1 flex-col gap-3 p-4" onSubmit={(event: FormEvent) => { event.preventDefault(); redeem.mutate() }}>
               <div className="space-y-2">
-                <Label htmlFor="redemption-code">{t('Redemption code')}</Label>
                 <Input
                   id="redemption-code"
                   value={redemption}
                   disabled={redeem.isPending}
                   aria-invalid={Boolean(redemptionError)}
+                  aria-label={t('Redemption code')}
                   aria-describedby="redemption-guidance"
                   autoComplete="off"
-                  placeholder="PT-XXXX-XXXX"
+                  placeholder="xxxxxxxx"
                   required
                   onChange={(event) => { setRedemption(event.target.value); setRedemptionError('') }}
                 />
@@ -837,21 +837,32 @@ export function WalletPage() {
         <section className="flex h-full flex-col overflow-hidden rounded-lg border">
           <AccountSectionHeading eyebrow={t('Referrals').toUpperCase()} title={t('Affiliate rewards')} icon={Share2} />
           <div className="grid grid-cols-3 divide-x">
-            <div className="min-w-0 p-3">
-              <div className="flex min-w-0 items-center justify-between gap-1">
-                <p className="min-w-0 text-xs text-muted-foreground">{t('Pending rewards')}</p>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button type="button" variant="ghost" size="icon" className="-me-1 -mt-1 size-8 shrink-0" disabled={!user?.aff_quota || transfer.isPending} aria-label={t('Transfer to balance')} onClick={() => { if (window.confirm(t('Transfer all pending rewards to balance?'))) transfer.mutate() }}>
-                      {transfer.isPending ? <LoaderCircle className="animate-spin" /> : <ArrowRightLeft />}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{t('Transfer to balance')}</TooltipContent>
-                </Tooltip>
+            {[
+              {
+                label: t('Pending rewards'),
+                value: formatWalletQuota(user?.aff_quota, locale),
+                action: (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0" disabled={!user?.aff_quota || transfer.isPending} aria-label={t('Transfer to balance')} onClick={() => { if (window.confirm(t('Transfer all pending rewards to balance?'))) transfer.mutate() }}>
+                        {transfer.isPending ? <LoaderCircle className="animate-spin" /> : <ArrowRightLeft />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('Transfer to balance')}</TooltipContent>
+                  </Tooltip>
+                ),
+              },
+              { label: t('Total earned'), value: formatWalletQuota(user?.aff_history_quota, locale) },
+              { label: t('Invites'), value: formatInteger(user?.aff_count, locale) },
+            ].map(({ label, value, action }) => (
+              <div key={label} className="relative min-h-14 min-w-0 px-3 py-2">
+                <div className={action ? 'min-w-0 pe-8' : 'min-w-0'}>
+                  <p className="min-w-0 text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums">{value}</p>
+                </div>
+                {action ? <div className="absolute end-2 top-2">{action}</div> : null}
               </div>
-              <p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums">{formatWalletQuota(user?.aff_quota, locale)}</p>
-            </div>
-            {[[t('Total earned'), formatWalletQuota(user?.aff_history_quota, locale)], [t('Invites'), formatInteger(user?.aff_count, locale)]].map(([label, value]) => <div key={label} className="min-w-0 p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 break-words font-mono text-sm font-semibold tabular-nums">{value}</p></div>)}
+            ))}
           </div>
           <div className="mt-auto border-t p-4">
             <div className="flex items-end gap-2">
