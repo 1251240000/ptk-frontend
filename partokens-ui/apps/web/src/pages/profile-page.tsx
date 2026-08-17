@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { QRCodeSVG } from 'qrcode.react'
-import { BellRing, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, ExternalLink, Fingerprint, Globe2, KeyRound, Link2, LoaderCircle, LockKeyhole, Mail, MonitorCheck, Radio, RefreshCw, Save, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { BellRing, Check, Copy, ExternalLink, Fingerprint, Globe2, KeyRound, Link2, LockKeyhole, Mail, MonitorCheck, Radio, RefreshCw, Save, ShieldCheck, Trash2, UserRound, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -16,12 +16,10 @@ import {
   finishPasskeyRegistration,
   finishPasskeyVerification,
   getAccessToken,
-  getCheckinStatus,
   getOAuthBindings,
   getPasskeyStatus,
   getStatus,
   getTwoFactorStatus,
-  performCheckin,
   regenerateBackupCodes,
   sendEmailVerification,
   setupTwoFactor,
@@ -43,16 +41,16 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  toast,
 } from '@partokens/design-system/components'
 import { isAppLocale, localeLabels, locales, type AppLocale } from '@partokens/i18n'
 
 import { Modal } from '@/components/modal'
-import { AccountDataState, AccountFeedback, AccountPageHeader, AccountSectionHeading, PendingLabel } from '@/features/account/account-ui'
+import { AccountDataState, AccountPageHeader, AccountSectionHeading, PendingLabel } from '@/features/account/account-ui'
 import { resolveProfileTask, type ProfileTask } from '@/lib/account-routes'
 import { quotaDollarsToUnits, quotaUnitsToDollars } from '@/lib/format'
 import { buildAssertionResult, buildRegistrationResult, isPasskeySupported, prepareCredentialCreationOptions, prepareCredentialRequestOptions } from '@/lib/passkey'
@@ -102,17 +100,6 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
-function monthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-}
-
-function monthDays(date: Date) {
-  const first = new Date(date.getFullYear(), date.getMonth(), 1)
-  const count = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
-  const prefix = (first.getDay() + 6) % 7
-  return [...Array.from({ length: prefix }, () => null), ...Array.from({ length: count }, (_, index) => index + 1)]
-}
-
 async function registerBrowserPasskey() {
   if (!isPasskeySupported()) throw new Error('Passkey is not supported in this browser')
   const begin = await beginPasskeyRegistration()
@@ -147,22 +134,20 @@ export function ProfilePage() {
   const client = useQueryClient()
   const settings = useMemo(() => parseSettings(user?.setting || user?.settings), [user?.setting, user?.settings])
   const [tab, setTab] = useState<ProfileTab>(profileTabFromLocation)
-  const [message, setMessage] = useState(new URLSearchParams(window.location.search).get('binding') === 'success' ? t('Account connected') : '')
-  const [error, setError] = useState('')
   const [displayName, setDisplayName] = useState(user?.display_name || '')
   const [email, setEmail] = useState('')
   const [emailCode, setEmailCode] = useState('')
   const [emailCooldown, setEmailCooldown] = useState(0)
   const [emailTurnstile, setEmailTurnstile] = useState('')
-  const [month, setMonth] = useState(() => new Date())
-  const [checkinTurnstile, setCheckinTurnstile] = useState('')
   const [accessToken, setAccessToken] = useState('')
   const [confirmAccessToken, setConfirmAccessToken] = useState(false)
   const [twoFactorSetup, setTwoFactorSetup] = useState<TwoFactorSetup | null>(null)
+  const [twoFactorAction, setTwoFactorAction] = useState<'regenerate' | 'disable' | null>(null)
   const [twoFactorCode, setTwoFactorCode] = useState('')
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [securityAction, setSecurityAction] = useState<SecurityAction>(null)
   const [securityCode, setSecurityCode] = useState('')
+  const [passwordDialog, setPasswordDialog] = useState(false)
   const [connectionIntent, setConnectionIntent] = useState<ConnectionIntent | null>(null)
   const [connectionPending, setConnectionPending] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState(false)
@@ -170,7 +155,6 @@ export function ProfilePage() {
   const [deletePassword, setDeletePassword] = useState('')
   const [originalPassword, setOriginalPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [language, setLanguage] = useState<AppLocale>(isAppLocale(settings.language) ? settings.language : locale)
   const [notifyType, setNotifyType] = useState(settings.notify_type || 'email')
   const [warningQuota, setWarningQuota] = useState(quotaUnitsToDollars(settings.quota_warning_threshold || 500_000))
@@ -185,17 +169,24 @@ export function ProfilePage() {
   const storedGotifyToken = typeof settings.gotify_token === 'string' && !isRedactedSecret(settings.gotify_token) ? settings.gotify_token : ''
   const [gotifyToken, setGotifyToken] = useState('')
   const [gotifyPriority, setGotifyPriority] = useState(settings.gotify_priority ?? 5)
-  const [acceptUnsetRatio, setAcceptUnsetRatio] = useState(settings.accept_unset_model_ratio_model || false)
-  const [recordIpLog, setRecordIpLog] = useState(settings.record_ip_log || false)
 
   const status = useQuery({ queryKey: ['status'], queryFn: getStatus, staleTime: 60_000 })
   const oauthBindings = useQuery({ queryKey: ['oauth-bindings'], queryFn: getOAuthBindings, retry: false })
   const twoFactor = useQuery({ queryKey: ['two-factor-status'], queryFn: getTwoFactorStatus, retry: false })
   const passkey = useQuery({ queryKey: ['passkey-status'], queryFn: getPasskeyStatus, retry: false })
-  const checkin = useQuery({ queryKey: ['checkin', monthKey(month)], queryFn: ({ signal }) => getCheckinStatus(monthKey(month), signal), retry: false })
-  const turnstileRequired = Boolean(status.data?.data.turnstile_check)
+  const statusData = status.data?.data
+  const twoFactorData = twoFactor.data?.data
+  const passkeyData = passkey.data?.data
+  const turnstileRequired = Boolean(statusData?.turnstile_check)
 
   useEffect(() => setDisplayName(user?.display_name || ''), [user?.display_name])
+  useEffect(() => {
+    const target = new URL(window.location.href)
+    if (target.searchParams.get('binding') !== 'success') return
+    toast.success(t('Account connected'), { id: 'profile-account-connected', duration: 6000 })
+    target.searchParams.delete('binding')
+    window.history.replaceState(window.history.state, '', target)
+  }, [t])
   useEffect(() => {
     const syncTab = () => setTab(profileTabFromLocation())
     window.addEventListener('popstate', syncTab)
@@ -217,10 +208,14 @@ export function ProfilePage() {
     setAccessToken('')
     setConfirmAccessToken(false)
     setTwoFactorSetup(null)
+    setTwoFactorAction(null)
     setTwoFactorCode('')
     setBackupCodes([])
     setSecurityAction(null)
     setSecurityCode('')
+    setPasswordDialog(false)
+    setOriginalPassword('')
+    setNewPassword('')
     setDeleteConfirmation(false)
     setDeletePhrase('')
     setDeletePassword('')
@@ -229,6 +224,7 @@ export function ProfilePage() {
     setAccessToken('')
     setConfirmAccessToken(false)
     setTwoFactorSetup(null)
+    setTwoFactorAction(null)
     setBackupCodes([])
     setSecurityAction(null)
   }, [revision])
@@ -238,9 +234,8 @@ export function ProfilePage() {
     return () => window.clearInterval(timer)
   }, [emailCooldown])
 
-  const resetFeedback = () => { setMessage(''); setError('') }
-  const success = (value: string) => { setError(''); setMessage(value) }
-  const failure = (cause: unknown, fallback: string) => { setMessage(''); setError(t(errorMessage(cause, fallback))) }
+  const success = (value: string) => toast.success(value, { duration: 6000 })
+  const failure = (cause: unknown, fallback: string) => toast.error(t(errorMessage(cause, fallback)), { duration: 6000 })
 
   const saveProfile = useMutation({
     mutationFn: async () => {
@@ -251,7 +246,6 @@ export function ProfilePage() {
         if (!languageResponse.success) throw new Error(languageResponse.message || t('Unable to save language'))
       }
     },
-    onMutate: resetFeedback,
     onSuccess: () => {
       if (user) setUser({ ...user, display_name: displayName.trim(), setting: JSON.stringify({ ...settings, language }) })
       success(t('Profile updated'))
@@ -265,7 +259,6 @@ export function ProfilePage() {
       const response = await sendEmailVerification({ email: email.trim(), turnstile: emailTurnstile || undefined })
       if (!response.success) throw new Error(response.message || t('Unable to send code'))
     },
-    onMutate: resetFeedback,
     onSuccess: () => { setEmailCooldown(60); success(t('Verification code sent')) },
     onError: (cause) => failure(cause, t('Unable to send code')),
   })
@@ -275,20 +268,8 @@ export function ProfilePage() {
       const response = await bindEmail(email.trim(), emailCode.trim())
       if (!response.success) throw new Error(response.message || t('Unable to bind email'))
     },
-    onMutate: resetFeedback,
     onSuccess: () => { setEmail(''); setEmailCode(''); success(t('Email connected')); void client.invalidateQueries({ queryKey: ['self'] }) },
     onError: (cause) => failure(cause, t('Unable to bind email')),
-  })
-
-  const checkinMutation = useMutation({
-    mutationFn: async () => {
-      const response = await performCheckin(checkinTurnstile || undefined)
-      if (!response.success) throw new Error(response.message || t('Check-in failed'))
-      return response.data.quota_awarded
-    },
-    onMutate: resetFeedback,
-    onSuccess: (quota) => { success(`${t('Checked in')}: ${quotaUnitsToDollars(quota).toFixed(2)} USD`); void checkin.refetch() },
-    onError: (cause) => failure(cause, t('Check-in failed')),
   })
 
   const accessTokenMutation = useMutation({
@@ -297,8 +278,7 @@ export function ProfilePage() {
       if (!response.success || !response.data) throw new Error(response.message || t('Unable to generate access token'))
       return response.data
     },
-    onMutate: resetFeedback,
-    onSuccess: (token) => { setAccessToken(token); setConfirmAccessToken(false) },
+    onSuccess: (token) => setAccessToken(token),
     onError: (cause) => failure(cause, t('Unable to generate access token')),
   })
 
@@ -308,7 +288,6 @@ export function ProfilePage() {
       if (!response.success) throw new Error(response.message || t('Unable to set up 2FA'))
       return response.data
     },
-    onMutate: resetFeedback,
     onSuccess: (data) => { setTwoFactorSetup(data); setBackupCodes(data.backup_codes); setTwoFactorCode('') },
     onError: (cause) => failure(cause, t('Unable to set up 2FA')),
   })
@@ -318,7 +297,7 @@ export function ProfilePage() {
       const response = await enableTwoFactor(twoFactorCode.trim())
       if (!response.success) throw new Error(response.message || t('Unable to enable 2FA'))
     },
-    onSuccess: () => { setTwoFactorSetup(null); setTwoFactorCode(''); success(t('2FA enabled')); void twoFactor.refetch() },
+    onSuccess: () => { setTwoFactorSetup(null); setTwoFactorAction(null); setTwoFactorCode(''); success(t('2FA enabled')); void twoFactor.refetch() },
     onError: (cause) => failure(cause, t('Unable to enable 2FA')),
   })
 
@@ -327,33 +306,32 @@ export function ProfilePage() {
       const response = await disableTwoFactor(twoFactorCode.trim())
       if (!response.success) throw new Error(response.message || t('Unable to disable 2FA'))
     },
-    onMutate: resetFeedback,
-    onSuccess: () => { setTwoFactorCode(''); success(t('2FA disabled')); void twoFactor.refetch() },
+    onSuccess: () => { setTwoFactorAction(null); setTwoFactorCode(''); success(t('2FA disabled')); void twoFactor.refetch() },
     onError: (cause) => failure(cause, t('Unable to disable 2FA')),
   })
 
   const backupMutation = useMutation({
     mutationFn: async () => {
+      if (!/^\d{6}$/.test(twoFactorCode.trim())) throw new Error(t('Enter a 6-digit authenticator code.'))
       const response = await regenerateBackupCodes(twoFactorCode.trim())
       if (!response.success) throw new Error(response.message || t('Unable to regenerate backup codes'))
       return response.data.backup_codes
     },
-    onMutate: resetFeedback,
-    onSuccess: (codes) => { setBackupCodes(codes); setTwoFactorCode(''); success(t('Backup codes regenerated')); void twoFactor.refetch() },
+    onSuccess: (codes) => { setTwoFactorAction(null); setBackupCodes(codes); setTwoFactorCode(''); success(t('Backup codes regenerated')); void twoFactor.refetch() },
     onError: (cause) => failure(cause, t('Unable to regenerate backup codes')),
   })
 
   const passkeyMutation = useMutation({
     mutationFn: async (action: Exclude<SecurityAction, null>) => {
       if (action === 'register-passkey') {
-        if (twoFactor.data?.data.enabled) {
+        if (twoFactorData?.enabled) {
           const verified = await verifySensitiveAction('2fa', securityCode.trim())
           if (!verified.success) throw new Error(verified.message || t('Security verification failed'))
         }
         await registerBrowserPasskey()
         return t('Passkey registered')
       }
-      if (twoFactor.data?.data.enabled) {
+      if (twoFactorData?.enabled) {
         const verified = await verifySensitiveAction('2fa', securityCode.trim())
         if (!verified.success) throw new Error(verified.message || t('Security verification failed'))
       } else {
@@ -363,7 +341,6 @@ export function ProfilePage() {
       if (!removed.success) throw new Error(removed.message || t('Unable to delete Passkey'))
       return t('Passkey deleted')
     },
-    onMutate: resetFeedback,
     onSuccess: (value) => { setSecurityAction(null); setSecurityCode(''); success(value); void passkey.refetch() },
     onError: (cause) => failure(cause, t('Passkey operation failed')),
   })
@@ -371,14 +348,21 @@ export function ProfilePage() {
   const savePassword = useMutation({
     mutationFn: async () => {
       if (newPassword.length < 8) throw new Error(t('Password must contain at least 8 characters'))
-      if (newPassword !== confirmPassword) throw new Error(t('Passwords do not match'))
       const response = await updateProfile({ original_password: originalPassword, password: newPassword })
       if (!response.success) throw new Error(response.message || t('Unable to change password'))
     },
-    onMutate: resetFeedback,
-    onSuccess: () => { setOriginalPassword(''); setNewPassword(''); setConfirmPassword(''); success(t('Password updated')) },
+    onSuccess: () => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword(''); success(t('Password updated')) },
     onError: (cause) => failure(cause, t('Unable to change password')),
   })
+
+  const copyAccessToken = async () => {
+    try {
+      await navigator.clipboard.writeText(accessToken)
+      toast.success(t('Access token copied.'), { id: 'profile-access-token-copied', duration: 6000 })
+    } catch {
+      toast.error(t('Unable to copy access token.'), { id: 'profile-access-token-copy-failed', duration: 6000 })
+    }
+  }
 
   const savePreferences = useMutation({
     mutationFn: async () => {
@@ -398,8 +382,6 @@ export function ProfilePage() {
         bark_url: barkUrl.trim(),
         gotify_url: gotifyUrl.trim(),
         gotify_priority: gotifyPriority,
-        accept_unset_model_ratio_model: acceptUnsetRatio,
-        record_ip_log: recordIpLog,
         ...(notifyType === 'webhook' && (webhookSecret || storedWebhookSecret) ? { webhook_secret: webhookSecret || storedWebhookSecret } : {}),
         ...(notifyType === 'gotify' && (gotifyToken || storedGotifyToken) ? { gotify_token: gotifyToken || storedGotifyToken } : {}),
       }
@@ -407,7 +389,6 @@ export function ProfilePage() {
       if (!response.success) throw new Error(response.message || t('Unable to save preferences'))
       return payload
     },
-    onMutate: resetFeedback,
     onSuccess: (payload) => {
       if (user) setUser({ ...user, setting: JSON.stringify({ ...settings, ...payload, language }) })
       setWebhookSecret('')
@@ -422,13 +403,12 @@ export function ProfilePage() {
       const response = await deleteAccount(deletePassword)
       if (!response.success) throw new Error(response.message || t('Unable to delete account'))
     },
-    onMutate: resetFeedback,
     onSuccess: async () => { await signOut(); window.location.assign(`/${locale}/`) },
     onError: (cause) => failure(cause, t('Unable to delete account')),
   })
 
   const customBindings = oauthBindings.data?.data || []
-  const customProviders = status.data?.data.custom_oauth_providers || []
+  const customProviders = statusData?.custom_oauth_providers || []
   const configuredProviderIds = new Set(customProviders.map((provider) => String(provider.id)))
   const connectionProviders: ConnectionProvider[] = [
     {
@@ -436,7 +416,7 @@ export function ProfilePage() {
       label: 'GitHub',
       provider: 'github',
       connected: Boolean(user?.github_id),
-      enabled: status.data?.data.github_oauth !== false && Boolean(status.data?.data.github_client_id),
+      enabled: statusData?.github_oauth !== false && Boolean(statusData?.github_client_id),
       detail: user?.github_id ? t('Connected') : t('Available to connect'),
     },
     {
@@ -444,15 +424,15 @@ export function ProfilePage() {
       label: 'LinuxDO',
       provider: 'linuxdo',
       connected: Boolean(user?.linux_do_id),
-      enabled: status.data?.data.linuxdo_oauth !== false && Boolean(status.data?.data.linuxdo_client_id),
+      enabled: statusData?.linuxdo_oauth !== false && Boolean(statusData?.linuxdo_client_id),
       detail: user?.linux_do_id ? t('Connected') : t('Available to connect'),
     },
-    ...(status.data?.data.oidc_client_id ? [{
+    ...(statusData?.oidc_client_id ? [{
       key: 'oidc',
       label: 'OIDC',
       provider: 'oidc',
       connected: Boolean(user?.oidc_id),
-      enabled: status.data.data.oidc_enabled !== false,
+      enabled: statusData.oidc_enabled !== false,
       detail: user?.oidc_id ? t('Connected') : t('Available to connect'),
     }] : []),
     ...customProviders.map((provider) => {
@@ -477,16 +457,11 @@ export function ProfilePage() {
       providerId: binding.provider_id,
     })),
   ]
-  const checkedDates = new Set(checkin.data?.data.stats.records.map((record) => record.checkin_date) || [])
-  const today = new Date()
-  const weekdayLabels = useMemo(() => Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(new Date(2024, 0, index + 1))), [locale])
-
   const startBinding = async (provider: string) => {
-    if (!status.data?.data) return
-    resetFeedback()
+    if (!statusData) return
     setConnectionPending(true)
     try {
-      await startOAuthAuthorization({ provider, status: status.data.data, locale, intent: 'bind' })
+      await startOAuthAuthorization({ provider, status: statusData, locale, intent: 'bind' })
       await oauthBindings.refetch()
       setConnectionIntent(null)
       success(t('Account connected'))
@@ -500,7 +475,6 @@ export function ProfilePage() {
       const response = await unbindOAuth(providerId)
       if (!response.success) throw new Error(response.message || t('Unable to disconnect account'))
     },
-    onMutate: resetFeedback,
     onSuccess: () => { setConnectionIntent(null); success(t('Account disconnected')); void oauthBindings.refetch() },
     onError: (cause) => failure(cause, t('Unable to disconnect account')),
   })
@@ -518,6 +492,7 @@ export function ProfilePage() {
   const profileDirty = displayName.trim() !== (user?.display_name || '') || language !== locale
   const securityLoading = twoFactor.isLoading || passkey.isLoading
   const securityError = twoFactor.isError || passkey.isError
+  const authenticatorCodeValid = /^\d{6}$/.test(twoFactorCode.trim())
   const notificationDirty = notifyType !== (settings.notify_type || 'email')
     || quotaDollarsToUnits(warningQuota) !== Number(settings.quota_warning_threshold || 500_000)
     || notificationEmail.trim() !== (settings.notification_email || '')
@@ -525,20 +500,16 @@ export function ProfilePage() {
     || barkUrl.trim() !== (settings.bark_url || '')
     || gotifyUrl.trim() !== (settings.gotify_url || '')
     || gotifyPriority !== (settings.gotify_priority ?? 5)
-    || acceptUnsetRatio !== Boolean(settings.accept_unset_model_ratio_model)
-    || recordIpLog !== Boolean(settings.record_ip_log)
     || Boolean(webhookSecret)
     || Boolean(gotifyToken)
 
   return (
     <div className="space-y-6" data-account-page="profile">
       <AccountPageHeader title={t('Profile')} description={t('Manage account details, connected services, preferences, and security.')} />
-      {message ? <AccountFeedback kind="success">{message}</AccountFeedback> : null}
-      {error ? <AccountFeedback kind="error">{error}</AccountFeedback> : null}
 
       <Tabs value={tab} onValueChange={(value) => selectTab(value as ProfileTab)} className="min-w-0 space-y-5">
         <div>
-          <TabsList className="grid h-auto w-full grid-cols-2 sm:inline-flex sm:h-10 sm:w-auto">
+          <TabsList className="analytics-segmented grid h-auto w-full grid-cols-2 sm:inline-flex sm:h-10 sm:w-auto">
             <TabsTrigger value="profile"><UserRound />{t('Profile')}</TabsTrigger>
             <TabsTrigger value="security"><ShieldCheck />{t('Security')}</TabsTrigger>
             <TabsTrigger value="connections"><Link2 />{t('Connections')}</TabsTrigger>
@@ -551,41 +522,27 @@ export function ProfilePage() {
           <form className="overflow-hidden rounded-lg border" onSubmit={(event) => { event.preventDefault(); saveProfile.mutate() }}>
             <AccountSectionHeading eyebrow={t('Identity').toUpperCase()} title={t('Account profile')} description={t('Update the supported identity and interface fields for this account.')} icon={UserRound} />
             <fieldset className="grid gap-4 p-4 sm:grid-cols-2" disabled={saveProfile.isPending}>
-              <div className="space-y-2 sm:col-span-2"><Label htmlFor="profile-display-name">{t('Display name')}</Label><Input id="profile-display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" /></div>
               <div className="space-y-2"><Label htmlFor="profile-username">{t('Username')}</Label><Input id="profile-username" value={user?.username || ''} disabled /><p className="text-xs text-muted-foreground">{t('Username is managed by Partokens and cannot be changed here.')}</p></div>
               <div className="space-y-2"><Label htmlFor="profile-email">{t('Email')}</Label><Input id="profile-email" value={user?.email || t('Not bound')} disabled /><p className="text-xs text-muted-foreground">{t('Manage email verification from Connections.')}</p></div>
-              <div className="space-y-2 sm:col-span-2"><Label htmlFor="profile-language">{t('Interface language')}</Label><Select value={language} disabled={saveProfile.isPending} onValueChange={(value) => setLanguage(value as AppLocale)}><SelectTrigger id="profile-language" className="w-full sm:max-w-[calc(50%-0.5rem)]"><Globe2 /><SelectValue /></SelectTrigger><SelectContent>{locales.map((item) => <SelectItem key={item} value={item}>{localeLabels[item]}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label htmlFor="profile-display-name">{t('Display name')}</Label><Input id="profile-display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} autoComplete="name" /></div>
+              <div className="space-y-2"><Label htmlFor="profile-language">{t('Interface language')}</Label><Select value={language} disabled={saveProfile.isPending} onValueChange={(value) => setLanguage(value as AppLocale)}><SelectTrigger id="profile-language" className="w-full"><Globe2 /><SelectValue /></SelectTrigger><SelectContent>{locales.map((item) => <SelectItem key={item} value={item}>{localeLabels[item]}</SelectItem>)}</SelectContent></Select></div>
             </fieldset>
             <footer className="flex flex-col gap-3 border-t bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{profileDirty ? t('Unsaved changes are ready to save.') : t('Profile is up to date.')}</p><Button type="submit" className="w-full sm:w-auto" disabled={!profileDirty || saveProfile.isPending}><Save /><PendingLabel pending={saveProfile.isPending} pendingText={t('Saving')}>{t('Save profile')}</PendingLabel></Button></footer>
           </form>
-          <section className="overflow-hidden rounded-lg border">
-            <AccountSectionHeading eyebrow={t('Daily credit').toUpperCase()} title={t('Daily check-in')} description={t('Review this month and claim the available daily credit.')} icon={CalendarDays} />
-            <AccountDataState loading={checkin.isLoading} error={checkin.isError && !checkin.data ? t('Interface data unavailable') : null} empty={false} emptyTitle={t('Daily check-in')} retryLabel={t('Retry')} onRetry={() => void checkin.refetch()}>
-              {checkin.data?.data.enabled === false ? <div className="flex min-h-40 items-center p-4 text-sm text-muted-foreground">{t('Check-in is unavailable')}</div> : (
-                <div className="space-y-4 p-4">
-                  <div className="flex items-center justify-between gap-3"><Button type="button" variant="outline" size="icon" aria-label={t('Previous month')} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft /></Button><strong className="text-sm">{new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(month)}</strong><Button type="button" variant="outline" size="icon" aria-label={t('Next month')} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight /></Button></div>
-                  <div className="grid grid-cols-7 gap-1" aria-label={new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(month)}>{weekdayLabels.map((day, index) => <span key={`${day}:${index}`} className="py-1 text-center text-xs text-muted-foreground">{day}</span>)}{monthDays(month).map((day, index) => { const key = day ? `${monthKey(month)}-${String(day).padStart(2, '0')}` : ''; const isToday = day === today.getDate() && month.getMonth() === today.getMonth() && month.getFullYear() === today.getFullYear(); const checked = checkedDates.has(key); return <span key={`${day}:${index}`} className={`flex aspect-square min-w-0 items-center justify-center gap-0.5 rounded-sm text-xs ${checked ? 'bg-success/15 text-foreground' : day ? 'bg-muted/55' : ''} ${isToday ? 'ring-1 ring-primary' : ''}`}>{day || ''}{checked ? <Check className="size-2.5 text-success" /> : null}</span> })}</div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>{t('This month')}: {checkin.data?.data.stats.checkin_count || 0}</span><span>{t('Total earned')}: {quotaUnitsToDollars(checkin.data?.data.stats.total_quota || 0).toFixed(2)} USD</span></div>
-                  {turnstileRequired && !checkin.data?.data.stats.checked_in_today ? <TurnstileField siteKey={status.data?.data.turnstile_site_key} onToken={setCheckinTurnstile} /> : null}
-                  <Button type="button" className="w-full" disabled={checkinMutation.isPending || checkin.data?.data.stats.checked_in_today || (turnstileRequired && !checkinTurnstile)} onClick={() => checkinMutation.mutate()}>{checkin.data?.data.stats.checked_in_today ? <Check /> : <CalendarDays />}<PendingLabel pending={checkinMutation.isPending} pendingText={t('Saving')}>{checkin.data?.data.stats.checked_in_today ? t('Checked in today') : t('Check in')}</PendingLabel></Button>
-                </div>
-              )}
-            </AccountDataState>
+          <section className="overflow-hidden rounded-lg border" aria-label={t('Account Trust')}>
+            <AccountSectionHeading eyebrow={t('Account Trust').toUpperCase()} title={t('Account status')} description={t('Identity, session, and API access signals for this account.')} icon={ShieldCheck} />
+            <div className="divide-y">
+              {[
+                [t('Email'), user?.email ? t('Verified') : t('Not bound'), user?.email || t('Add a recovery email in Connections.'), Mail],
+                [t('Current session'), session?.current ? t('Current') : t('Unavailable'), session?.login_method || t('Secure browser session'), MonitorCheck],
+                [t('API access'), user?.status === 0 ? t('Disabled') : t('Active'), user?.group || t('Account API enabled'), KeyRound],
+              ].map(([label, value, detail, Icon]) => {
+                const StatusIcon = Icon as typeof Mail
+                return <div key={String(label)} className="flex min-w-0 items-start gap-3 p-4"><StatusIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="text-sm font-medium">{label as string}</p><p className="mt-1 break-words text-xs text-muted-foreground">{detail as string}</p></div><Badge variant="outline" className="shrink-0">{value === t('Verified') || value === t('Current') || value === t('Active') ? <Check className="text-success" /> : null}{value as string}</Badge></div>
+              })}
+            </div>
           </section>
         </div>
-        <section className="overflow-hidden rounded-lg border" aria-label={t('Account Trust')}>
-          <AccountSectionHeading eyebrow={t('Account Trust').toUpperCase()} title={t('Account status')} description={t('Identity, session, and API access signals for this account.')} icon={ShieldCheck} />
-          <div className="grid divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {[
-              [t('Email'), user?.email ? t('Verified') : t('Not bound'), user?.email || t('Add a recovery email in Connections.'), Mail],
-              [t('Current session'), session?.current ? t('Current') : t('Unavailable'), session?.login_method || t('Secure browser session'), MonitorCheck],
-              [t('API access'), user?.status === 0 ? t('Disabled') : t('Active'), user?.group || t('Account API enabled'), KeyRound],
-            ].map(([label, value, detail, Icon]) => {
-              const StatusIcon = Icon as typeof Mail
-              return <div key={String(label)} className="flex min-w-0 items-start gap-3 p-4"><StatusIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><p className="text-sm font-medium">{label as string}</p><p className="mt-1 break-words text-xs text-muted-foreground">{detail as string}</p></div><Badge variant="outline" className="shrink-0">{value === t('Verified') || value === t('Current') || value === t('Active') ? <Check className="text-success" /> : null}{value as string}</Badge></div>
-            })}
-          </div>
-        </section>
       </TabsContent>
 
       <TabsContent value="connections" className="mt-0">
@@ -607,7 +564,7 @@ export function ProfilePage() {
                 </div>
               )}
             </div>
-            {!user?.email && turnstileRequired ? <div className="p-4"><TurnstileField siteKey={status.data?.data.turnstile_site_key} onToken={setEmailTurnstile} /></div> : null}
+            {!user?.email && turnstileRequired ? <div className="p-4"><TurnstileField siteKey={statusData?.turnstile_site_key} onToken={setEmailTurnstile} /></div> : null}
             {connectionProviders.map(({ key, label, provider, connected, enabled, detail, providerId }) => (
               <article aria-label={label} className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" key={key}>
                 <div className="flex min-w-0 items-start gap-3">
@@ -628,20 +585,16 @@ export function ProfilePage() {
           <section className="overflow-hidden rounded-lg border">
             <AccountSectionHeading eyebrow={t('Sign-in and recovery').toUpperCase()} title={t('Account security')} description={t('Manage the sign-in methods used to protect this account.')} icon={ShieldCheck} />
             <div className="divide-y">
-              <form className="p-4" onSubmit={(event: FormEvent) => { event.preventDefault(); savePassword.mutate() }}>
-                <div className="flex min-w-0 items-start gap-3"><KeyRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div><Label>{t('Change password')}</Label><p className="mt-1 text-xs text-muted-foreground">{t('Use the current password before choosing a new one.')}</p></div></div>
-                <div className="mt-4 grid gap-3 lg:grid-cols-3"><div className="space-y-2"><Label htmlFor="current-password">{t('Current password')}</Label><Input id="current-password" type="password" autoComplete="current-password" value={originalPassword} disabled={savePassword.isPending} onChange={(event) => setOriginalPassword(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor="new-password">{t('New password')}</Label><Input id="new-password" type="password" autoComplete="new-password" value={newPassword} disabled={savePassword.isPending} onChange={(event) => setNewPassword(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor="confirm-password">{t('Confirm password')}</Label><Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} disabled={savePassword.isPending} onChange={(event) => setConfirmPassword(event.target.value)} required /></div></div>
-                <div className="mt-3 flex justify-end"><Button type="submit" disabled={savePassword.isPending || !originalPassword || !newPassword || !confirmPassword}><PendingLabel pending={savePassword.isPending} pendingText={t('Saving')}>{t('Update password')}</PendingLabel></Button></div>
-              </form>
+              <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="flex min-w-0 items-start gap-3"><KeyRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div><Label>{t('Change password')}</Label><p className="mt-1 text-xs text-muted-foreground">{t('Use the current password before choosing a new one.')}</p></div></div><Button type="button" variant="outline" onClick={() => setPasswordDialog(true)}><KeyRound />{t('Change password')}</Button></div>
 
-              <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,.7fr)] lg:items-center">
-                <div className="flex min-w-0 items-start gap-3"><LockKeyhole className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Label>{t('Two-factor authentication')}</Label><Badge variant="outline">{twoFactor.data?.data.enabled ? <Check className="text-success" /> : null}{twoFactor.data?.data.enabled ? t('Enabled') : t('Disabled')}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t('Use an authenticator app and backup codes to protect account access.')}</p></div></div>
-                {twoFactor.data?.data.enabled ? <div className="space-y-2"><Label htmlFor="two-factor-code">{t('Authenticator or backup code')}</Label><Input id="two-factor-code" value={twoFactorCode} disabled={backupMutation.isPending || disableTwoFactorMutation.isPending} onChange={(event) => setTwoFactorCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" /><p className="text-xs text-muted-foreground">{t('Backup codes remaining')}: {twoFactor.data.data.backup_codes_remaining ?? 0}</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" disabled={!twoFactorCode || backupMutation.isPending} onClick={() => backupMutation.mutate()}><RefreshCw />{t('Regenerate backup codes')}</Button><Button type="button" variant="outline" size="sm" className="text-destructive" disabled={!twoFactorCode || disableTwoFactorMutation.isPending} onClick={() => disableTwoFactorMutation.mutate()}>{t('Disable 2FA')}</Button></div></div> : <Button type="button" variant="outline" className="w-full lg:w-auto lg:justify-self-end" disabled={setupTwoFactorMutation.isPending} onClick={() => setupTwoFactorMutation.mutate()}><ShieldCheck /><PendingLabel pending={setupTwoFactorMutation.isPending} pendingText={t('Saving')}>{t('Set up 2FA')}</PendingLabel></Button>}
+              <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="flex min-w-0 items-start gap-3"><LockKeyhole className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Label>{t('Two-factor authentication')}</Label><Badge variant="outline">{twoFactorData?.enabled ? <Check className="text-success" /> : null}{twoFactorData?.enabled ? t('Enabled') : t('Disabled')}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t('Use an authenticator app and backup codes to protect account access.')}</p></div></div>
+                {twoFactorData?.enabled ? <div className="flex flex-wrap gap-2 sm:justify-end"><Button type="button" variant="outline" disabled={backupMutation.isPending || disableTwoFactorMutation.isPending} onClick={() => { setTwoFactorCode(''); setTwoFactorAction('regenerate') }}><RefreshCw />{t('Regenerate backup codes')}</Button><Button type="button" variant="outline" className="text-destructive" disabled={backupMutation.isPending || disableTwoFactorMutation.isPending} onClick={() => { setTwoFactorCode(''); setTwoFactorAction('disable') }}>{t('Disable 2FA')}</Button></div> : <Button type="button" variant="outline" disabled={setupTwoFactorMutation.isPending} onClick={() => setupTwoFactorMutation.mutate()}><ShieldCheck /><PendingLabel pending={setupTwoFactorMutation.isPending} pendingText={t('Saving')}>{t('Set up 2FA')}</PendingLabel></Button>}
               </div>
 
-              <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="flex min-w-0 items-start gap-3"><Fingerprint className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Label>{t('Passkey')}</Label><Badge variant="outline">{passkey.data?.data.enabled ? <Check className="text-success" /> : null}{passkey.data?.data.enabled ? t('Enabled') : t('Disabled')}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t('Use your device biometrics or security key for phishing-resistant verification.')}</p>{passkey.data?.data.last_used_at ? <p className="mt-1 text-xs text-muted-foreground">{t('Last used')}: {passkey.data.data.last_used_at}</p> : null}</div></div>{passkey.data?.data.enabled ? <Button type="button" variant="outline" className="text-destructive" onClick={() => setSecurityAction('delete-passkey')}><Trash2 />{t('Delete Passkey')}</Button> : <Button type="button" variant="outline" disabled={!isPasskeySupported()} onClick={() => twoFactor.data?.data.enabled ? setSecurityAction('register-passkey') : passkeyMutation.mutate('register-passkey')}><Fingerprint />{t('Register Passkey')}</Button>}</div>
+              <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="flex min-w-0 items-start gap-3"><Fingerprint className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Label>{t('Passkey')}</Label><Badge variant="outline">{passkeyData?.enabled ? <Check className="text-success" /> : null}{passkeyData?.enabled ? t('Enabled') : t('Disabled')}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{t('Use your device biometrics or security key for phishing-resistant verification.')}</p>{passkeyData?.last_used_at ? <p className="mt-1 text-xs text-muted-foreground">{t('Last used')}: {passkeyData.last_used_at}</p> : null}</div></div>{passkeyData?.enabled ? <Button type="button" variant="outline" className="text-destructive" onClick={() => setSecurityAction('delete-passkey')}><Trash2 />{t('Delete Passkey')}</Button> : <Button type="button" variant="outline" disabled={!isPasskeySupported()} onClick={() => setSecurityAction('register-passkey')}><Fingerprint />{t('Register Passkey')}</Button>}</div>
 
-              <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="flex min-w-0 items-start gap-3"><KeyRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><Label>{t('System access token')}</Label><p className="mt-1 text-xs text-muted-foreground">{t('This token grants access to account-level system APIs. Generate it only when required.')}</p>{accessToken ? <div className="mt-3 flex min-w-0 items-center rounded-md border bg-muted/20"><code className="min-w-0 flex-1 truncate px-3 py-2 text-xs">{accessToken}</code><Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label={t('Copy')} onClick={() => void navigator.clipboard.writeText(accessToken)}><Copy /></Button></div> : null}</div></div><Button type="button" variant="outline" onClick={() => setConfirmAccessToken(true)}>{accessToken ? t('Regenerate token') : t('Generate token')}</Button></div>
+              <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><div className="flex min-w-0 items-start gap-3"><KeyRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><Label>{t('System access token')}</Label><p className="mt-1 text-xs text-muted-foreground">{t('This token grants access to account-level system APIs. Generate it only when required.')}</p></div></div><Button type="button" variant="outline" onClick={() => { setAccessToken(''); setConfirmAccessToken(true) }}>{t('Generate token')}</Button></div>
 
               <div className="flex min-w-0 items-start gap-3 p-4"><MonitorCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><Label>{t('Current session')}</Label><p className="mt-1 text-xs text-muted-foreground">{session?.login_method || t('Secure browser session')}</p></div><Badge variant="outline" className="shrink-0"><Check className="text-success" />{t('Current')}</Badge></div>
             </div>
@@ -654,7 +607,7 @@ export function ProfilePage() {
 
       <TabsContent value="notifications" className="mt-0">
         <form className="overflow-hidden rounded-lg border" onSubmit={(event) => { event.preventDefault(); savePreferences.mutate() }}>
-          <AccountSectionHeading eyebrow={t('Notifications').toUpperCase()} title={t('Notifications and behavior')} description={t('Choose an alert channel and control private request metadata.')} icon={BellRing} />
+          <AccountSectionHeading eyebrow={t('Notifications').toUpperCase()} title={t('Notifications and behavior')} description={t('Choose an alert channel and balance warning threshold.')} icon={BellRing} />
           <div className="divide-y">
             <div className="grid gap-4 p-4 sm:grid-cols-[14rem_minmax(0,1fr)]">
               <div className="space-y-2"><Label htmlFor="notification-method">{t('Notification method')}</Label><Select value={notifyType} disabled={savePreferences.isPending} onValueChange={setNotifyType}><SelectTrigger id="notification-method" className="w-full"><Radio /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="email">Email</SelectItem><SelectItem value="webhook">Webhook</SelectItem><SelectItem value="bark">Bark</SelectItem><SelectItem value="gotify">Gotify</SelectItem></SelectContent></Select></div>
@@ -664,8 +617,6 @@ export function ProfilePage() {
               {notifyType === 'gotify' ? <div className="grid gap-4 sm:grid-cols-3"><div className="space-y-2 sm:col-span-2"><Label htmlFor="gotify-url">{t('Gotify server URL')}</Label><Input id="gotify-url" type="url" value={gotifyUrl} disabled={savePreferences.isPending} onChange={(event) => setGotifyUrl(event.target.value)} /></div><div className="space-y-2"><Label htmlFor="gotify-priority">{t('Message priority')}</Label><Input id="gotify-priority" type="number" min="0" max="10" value={gotifyPriority} disabled={savePreferences.isPending} onChange={(event) => setGotifyPriority(Number(event.target.value))} /></div><div className="space-y-2 sm:col-span-3"><Label htmlFor="gotify-token">{t('Gotify application token')}</Label><Input id="gotify-token" type="password" value={gotifyToken} disabled={savePreferences.isPending} placeholder={gotifyTokenConfigured ? t('Configured') : ''} onChange={(event) => setGotifyToken(event.target.value)} /></div></div> : null}
             </div>
             <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)] sm:items-center"><div className="flex min-w-0 items-start gap-3"><BellRing className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div><Label htmlFor="balance-warning">{t('Balance warning in USD')}</Label><p className="mt-1 text-xs text-muted-foreground">{t('Notify when the available balance reaches this amount.')}</p></div></div><Input id="balance-warning" type="number" min="0.01" step="0.01" value={warningQuota} disabled={savePreferences.isPending} onChange={(event) => setWarningQuota(Number(event.target.value))} /></div>
-            <div className="flex min-w-0 items-start gap-4 p-4"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><Label htmlFor="allow-unpriced">{t('Allow models without configured pricing')}</Label><p className="mt-1 text-xs text-muted-foreground">{t('Requests may use models whose price has not been set')}</p></div><Switch id="allow-unpriced" checked={acceptUnsetRatio} disabled={savePreferences.isPending} onCheckedChange={setAcceptUnsetRatio} /></div>
-            <div className="flex min-w-0 items-start gap-4 p-4"><Radio className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><Label htmlFor="record-request-ip">{t('Record request IP in logs')}</Label><p className="mt-1 text-xs text-muted-foreground">{t('Store source IP addresses in your private usage logs')}</p></div><Switch id="record-request-ip" checked={recordIpLog} disabled={savePreferences.isPending} onCheckedChange={setRecordIpLog} /></div>
           </div>
           <footer className="flex flex-col gap-3 border-t bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{notificationDirty ? t('Unsaved notification changes.') : t('Notification preferences are up to date.')}</p><Button type="submit" className="w-full sm:w-auto" disabled={!notificationDirty || savePreferences.isPending}><Save /><PendingLabel pending={savePreferences.isPending} pendingText={t('Saving')}>{t('Save preferences')}</PendingLabel></Button></footer>
         </form>
@@ -680,6 +631,19 @@ export function ProfilePage() {
           <p className="mt-2 text-sm text-muted-foreground">{connectionIntent.kind === 'connect' ? t('A provider window will open to complete this account connection.') : t('Disconnecting removes this sign-in provider from the account.')}</p>
           <div className={`mt-4 flex items-start gap-3 rounded-md border p-3 ${connectionIntent.kind === 'disconnect' ? 'border-destructive/30 bg-destructive/5' : 'bg-muted/30'}`}>{connectionIntent.kind === 'disconnect' ? <Trash2 className="mt-0.5 size-4 shrink-0 text-destructive" /> : <Link2 className="mt-0.5 size-4 shrink-0" />}<p className="min-w-0 break-words text-sm font-medium">{connectionIntent.label}</p></div>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={connectionPending || disconnectBinding.isPending} onClick={() => setConnectionIntent(null)}>{t('Cancel')}</Button><Button type="button" variant={connectionIntent.kind === 'disconnect' ? 'destructive' : 'default'} disabled={connectionPending || disconnectBinding.isPending} onClick={() => connectionIntent.kind === 'connect' ? void startBinding(connectionIntent.provider) : disconnectBinding.mutate(connectionIntent.providerId)}>{connectionIntent.kind === 'disconnect' ? <Trash2 /> : <ExternalLink />}<PendingLabel pending={connectionPending || disconnectBinding.isPending} pendingText={t('Saving')}>{connectionIntent.kind === 'connect' ? t('Connect') : t('Disconnect')}</PendingLabel></Button></div>
+        </Modal>
+      ) : null}
+      {passwordDialog ? (
+        <Modal className="relative max-h-[90svh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border bg-background p-5 text-foreground shadow-xl" backdropClassName="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4" label={t('Change password')} onClose={savePassword.isPending ? undefined : () => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword('') }}>
+          <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} disabled={savePassword.isPending} onClick={() => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword('') }}><X /></Button>
+          <p className="pe-10 text-xs font-medium text-muted-foreground">{t('Account security').toUpperCase()}</p>
+          <h2 className="mt-1 pe-10 text-lg font-semibold">{t('Change password')}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{t('Use the current password before choosing a new one.')}</p>
+          <form onSubmit={(event) => { event.preventDefault(); savePassword.mutate() }}>
+            <div className="mt-4 space-y-2"><Label htmlFor="current-password">{t('Current password')}</Label><Input id="current-password" data-modal-initial-focus type="password" autoComplete="current-password" value={originalPassword} disabled={savePassword.isPending} onChange={(event) => setOriginalPassword(event.target.value)} required /></div>
+            <div className="mt-4 space-y-2"><Label htmlFor="new-password">{t('New password')}</Label><Input id="new-password" type="password" autoComplete="new-password" value={newPassword} disabled={savePassword.isPending} onChange={(event) => setNewPassword(event.target.value)} required /></div>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={savePassword.isPending} onClick={() => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword('') }}>{t('Cancel')}</Button><Button type="submit" disabled={savePassword.isPending || !originalPassword || !newPassword}><KeyRound /><PendingLabel pending={savePassword.isPending} pendingText={t('Saving')}>{t('Update password')}</PendingLabel></Button></div>
+          </form>
         </Modal>
       ) : null}
       {twoFactorSetup ? (
@@ -702,7 +666,17 @@ export function ProfilePage() {
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={enableTwoFactorMutation.isPending} onClick={() => setTwoFactorSetup(null)}>{t('Close')}</Button><Button type="button" disabled={!twoFactorCode || enableTwoFactorMutation.isPending} onClick={() => enableTwoFactorMutation.mutate()}><ShieldCheck /><PendingLabel pending={enableTwoFactorMutation.isPending} pendingText={t('Saving')}>{t('Enable 2FA')}</PendingLabel></Button></div>
         </Modal>
       ) : null}
-      {backupCodes.length && !twoFactorSetup && twoFactor.data?.data.enabled ? (
+      {twoFactorAction ? (
+        <Modal className="relative max-h-[90svh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border bg-background p-5 text-foreground shadow-xl" backdropClassName="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4" label={twoFactorAction === 'regenerate' ? t('Regenerate backup codes') : t('Disable 2FA')} onClose={backupMutation.isPending || disableTwoFactorMutation.isPending ? undefined : () => { setTwoFactorAction(null); setTwoFactorCode('') }}>
+          <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} disabled={backupMutation.isPending || disableTwoFactorMutation.isPending} onClick={() => { setTwoFactorAction(null); setTwoFactorCode('') }}><X /></Button>
+          <p className="pe-10 text-xs font-medium text-muted-foreground">{t('Security verification').toUpperCase()}</p>
+          <h2 className="mt-1 pe-10 text-lg font-semibold">{twoFactorAction === 'regenerate' ? t('Regenerate backup codes') : t('Disable 2FA')}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{twoFactorAction === 'regenerate' ? t('Enter the 6-digit code from your authenticator app. Backup codes cannot be used here.') : t('Use an authenticator app and backup codes to protect account access.')}</p>
+          <div className="mt-4 space-y-2"><Label htmlFor="two-factor-code">{twoFactorAction === 'regenerate' ? t('Authenticator code') : t('Authenticator or backup code')}</Label><Input id="two-factor-code" data-modal-initial-focus value={twoFactorCode} disabled={backupMutation.isPending || disableTwoFactorMutation.isPending} onChange={(event) => setTwoFactorCode(twoFactorAction === 'regenerate' ? event.target.value.replace(/\D/g, '').slice(0, 6) : event.target.value)} inputMode={twoFactorAction === 'regenerate' ? 'numeric' : 'text'} pattern={twoFactorAction === 'regenerate' ? '\\d{6}' : undefined} maxLength={twoFactorAction === 'regenerate' ? 6 : undefined} autoComplete="one-time-code" /><p className="text-xs text-muted-foreground">{t('Backup codes remaining')}: {twoFactorData?.backup_codes_remaining ?? 0}</p></div>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={backupMutation.isPending || disableTwoFactorMutation.isPending} onClick={() => { setTwoFactorAction(null); setTwoFactorCode('') }}>{t('Cancel')}</Button><Button type="button" variant={twoFactorAction === 'disable' ? 'destructive' : 'default'} disabled={(twoFactorAction === 'regenerate' ? !authenticatorCodeValid : !twoFactorCode.trim()) || backupMutation.isPending || disableTwoFactorMutation.isPending} onClick={() => twoFactorAction === 'regenerate' ? backupMutation.mutate() : disableTwoFactorMutation.mutate()}>{twoFactorAction === 'regenerate' ? <RefreshCw /> : <ShieldCheck />}<PendingLabel pending={backupMutation.isPending || disableTwoFactorMutation.isPending} pendingText={t('Saving')}>{twoFactorAction === 'regenerate' ? t('Regenerate backup codes') : t('Disable 2FA')}</PendingLabel></Button></div>
+        </Modal>
+      ) : null}
+      {backupCodes.length && !twoFactorSetup && twoFactorData?.enabled ? (
         <Modal className="relative max-h-[90svh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border bg-background p-5 text-foreground shadow-xl" backdropClassName="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4" label={t('New backup codes')} onClose={() => setBackupCodes([])}>
           <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} onClick={() => setBackupCodes([])}><X /></Button>
           <p className="pe-10 text-xs font-medium text-muted-foreground">{t('Backup codes').toUpperCase()}</p>
@@ -717,17 +691,16 @@ export function ProfilePage() {
           <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} disabled={passkeyMutation.isPending} onClick={() => setSecurityAction(null)}><X /></Button>
           <p className="pe-10 text-xs font-medium text-muted-foreground">{t('Security verification').toUpperCase()}</p>
           <h2 className="mt-1 pe-10 text-lg font-semibold">{securityAction === 'delete-passkey' ? t('Delete Passkey') : t('Register Passkey')}</h2>
-          {twoFactor.data?.data.enabled ? <div className="mt-4 space-y-2"><Label htmlFor="security-verification-code">{t('Authenticator or backup code')}</Label><Input id="security-verification-code" data-modal-initial-focus value={securityCode} disabled={passkeyMutation.isPending} onChange={(event) => setSecurityCode(event.target.value)} autoComplete="one-time-code" /></div> : <p className="mt-2 text-sm text-muted-foreground">{t('Your device will ask you to verify the existing Passkey.')}</p>}
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={passkeyMutation.isPending} onClick={() => setSecurityAction(null)}>{t('Cancel')}</Button><Button type="button" variant={securityAction === 'delete-passkey' ? 'destructive' : 'default'} disabled={passkeyMutation.isPending || (Boolean(twoFactor.data?.data.enabled) && !securityCode)} onClick={() => passkeyMutation.mutate(securityAction)}><Fingerprint /><PendingLabel pending={passkeyMutation.isPending} pendingText={t('Saving')}>{t('Verify and continue')}</PendingLabel></Button></div>
+          {twoFactorData?.enabled ? <div className="mt-4 space-y-2"><Label htmlFor="security-verification-code">{t('Authenticator or backup code')}</Label><Input id="security-verification-code" data-modal-initial-focus value={securityCode} disabled={passkeyMutation.isPending} onChange={(event) => setSecurityCode(event.target.value)} autoComplete="one-time-code" /></div> : <p className="mt-2 text-sm text-muted-foreground">{securityAction === 'delete-passkey' ? t('Your device will ask you to verify the existing Passkey.') : t('Use your device biometrics or security key for phishing-resistant verification.')}</p>}
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={passkeyMutation.isPending} onClick={() => setSecurityAction(null)}>{t('Cancel')}</Button><Button type="button" variant={securityAction === 'delete-passkey' ? 'destructive' : 'default'} disabled={passkeyMutation.isPending || (Boolean(twoFactorData?.enabled) && !securityCode)} onClick={() => passkeyMutation.mutate(securityAction)}><Fingerprint /><PendingLabel pending={passkeyMutation.isPending} pendingText={t('Saving')}>{t('Verify and continue')}</PendingLabel></Button></div>
         </Modal>
       ) : null}
       {confirmAccessToken ? (
-        <Modal className="relative max-h-[90svh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border bg-background p-5 text-foreground shadow-xl" backdropClassName="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4" label={accessToken ? t('Regenerate access token?') : t('Generate access token?')} onClose={accessTokenMutation.isPending ? undefined : () => setConfirmAccessToken(false)}>
-          <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} disabled={accessTokenMutation.isPending} onClick={() => setConfirmAccessToken(false)}><X /></Button>
+        <Modal className="relative max-h-[90svh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border bg-background p-5 text-foreground shadow-xl" backdropClassName="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4" label={accessToken ? t('System access token') : t('Generate access token?')} onClose={accessTokenMutation.isPending ? undefined : () => { setConfirmAccessToken(false); setAccessToken('') }}>
+          <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} disabled={accessTokenMutation.isPending} onClick={() => { setConfirmAccessToken(false); setAccessToken('') }}><X /></Button>
           <p className="pe-10 text-xs font-medium text-muted-foreground">{t('Confirm system credential').toUpperCase()}</p>
-          <h2 className="mt-1 pe-10 text-lg font-semibold">{accessToken ? t('Regenerate access token?') : t('Generate access token?')}</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{t('Generating a new token invalidates the previous value. The full token is shown only in this window.')}</p>
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={accessTokenMutation.isPending} onClick={() => setConfirmAccessToken(false)}>{t('Cancel')}</Button><Button type="button" disabled={accessTokenMutation.isPending} onClick={() => accessTokenMutation.mutate()}><PendingLabel pending={accessTokenMutation.isPending} pendingText={t('Saving')}>{t('Confirm')}</PendingLabel></Button></div>
+          <h2 className="mt-1 pe-10 text-lg font-semibold">{accessToken ? t('System access token') : t('Generate access token?')}</h2>
+          {accessToken ? <><p className="mt-2 text-sm text-muted-foreground">{t('The full token is shown only in this window.')}</p><div className="mt-4 flex min-w-0 items-center rounded-md border bg-muted/20"><code className="min-w-0 flex-1 break-all px-3 py-2 text-xs">{accessToken}</code><Button type="button" variant="ghost" size="icon" className="shrink-0" aria-label={t('Copy')} onClick={() => void copyAccessToken()}><Copy /></Button></div><div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => void copyAccessToken()}><Copy />{t('Copy')}</Button><Button type="button" onClick={() => { setConfirmAccessToken(false); setAccessToken('') }}>{t('Done')}</Button></div></> : <><p className="mt-2 text-sm text-muted-foreground">{t('Generating a new token invalidates the previous value. The full token is shown only in this window.')}</p><div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={accessTokenMutation.isPending} onClick={() => setConfirmAccessToken(false)}>{t('Cancel')}</Button><Button type="button" disabled={accessTokenMutation.isPending} onClick={() => accessTokenMutation.mutate()}><PendingLabel pending={accessTokenMutation.isPending} pendingText={t('Saving')}>{t('Confirm')}</PendingLabel></Button></div></>}
         </Modal>
       ) : null}
       {deleteConfirmation ? (
