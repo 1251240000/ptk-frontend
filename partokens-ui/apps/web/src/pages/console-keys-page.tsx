@@ -3,8 +3,8 @@ import { useParams } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
 import {
   AlertTriangle,
+  CalendarDays,
   Check,
-  ChevronDown,
   Copy,
   Ellipsis,
   Eye,
@@ -14,7 +14,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Settings2,
   ShieldCheck,
   Trash2,
 } from 'lucide-react'
@@ -24,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Badge,
   Button,
+  Calendar,
   Checkbox,
   Dialog,
   DialogContent,
@@ -39,9 +39,13 @@ import {
   DropdownMenuTrigger,
   Input,
   Label,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
   Sheet,
@@ -51,14 +55,15 @@ import {
   SheetHeader,
   SheetTitle,
   Skeleton,
-  Switch,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-  Textarea,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   toast,
   useSidebar,
 } from '@partokens/design-system/components'
@@ -69,7 +74,6 @@ import {
   getToken,
   getTokens,
   getUserGroupsWithSignal,
-  getUserModels,
   revealToken,
   searchTokens,
   updateToken,
@@ -119,6 +123,11 @@ type KeyListResult = {
   invalidCount: number
   reportedTotal: number
   truncated: boolean
+}
+
+type GroupOption = {
+  name: string
+  ratio?: number | string
 }
 
 class KeyContractError extends ConsoleContractError {
@@ -176,6 +185,10 @@ function safeTimestamp(value: unknown, allowNever = false): number | undefined {
 function maskedCredential(value: unknown): string | null {
   if (typeof value !== 'string' || value.length > 64 || sensitiveShape(value)) return null
   return /^[A-Za-z0-9._-]{0,32}\*{3,}[A-Za-z0-9._-]{0,16}$/.test(value) ? value : null
+}
+
+function withApiKeyPrefix(value: string): string {
+  return value.startsWith('sk-') ? value : `sk-${value}`
 }
 
 function safeModelLimits(value: unknown): string | undefined {
@@ -306,12 +319,30 @@ async function fetchKeys(keyword: string, signal?: AbortSignal): Promise<KeyList
   }
 }
 
-function safeStringList(input: unknown): string[] {
-  const source = Array.isArray(input) ? input : sourceObject(input) ? Object.keys(input as Record<string, unknown>) : null
-  if (!source) throw new KeyContractError('The supporting options response is incomplete.')
-  const values = source.map((value) => safeLabel(value, 120)).filter((value): value is string => Boolean(value))
-  if (source.length > 0 && values.length === 0) throw new KeyContractError('The supporting options response has no safe labels.')
-  return [...new Set(values)].slice(0, 500)
+function safeGroupOptions(input: unknown): GroupOption[] {
+  const source = sourceObject(input)
+  const entries = Array.isArray(input)
+    ? input.map((name) => [name, undefined] as const)
+    : source
+      ? Object.entries(source)
+      : null
+  if (!entries) throw new KeyContractError('The supporting options response is incomplete.')
+
+  const groups = new Map<string, GroupOption>()
+  for (const [rawName, rawGroup] of entries) {
+    const name = safeLabel(rawName, 64)
+    if (!name || groups.has(name)) continue
+    const rawRatio = sourceObject(rawGroup)?.ratio
+    const numericRatio = nonNegativeNumber(rawRatio)
+    const stringRatio = safeLabel(rawRatio, 32)
+    groups.set(name, {
+      name,
+      ...(numericRatio != null ? { ratio: numericRatio } : stringRatio ? { ratio: stringRatio } : {}),
+    })
+    if (groups.size >= 500) break
+  }
+  if (entries.length > 0 && groups.size === 0) throw new KeyContractError('The supporting options response has no safe labels.')
+  return [...groups.values()]
 }
 
 function projectSearch(value: string): { blocked: boolean; value: string } {
@@ -336,9 +367,18 @@ function StatusBadge({ status }: { status?: number }) {
   return <Badge variant="secondary">{statusLabel(status, t)}</Badge>
 }
 
-function PermissionBadge() {
+function GroupValue({ group, ratio }: { group?: string; ratio?: number | string }) {
   const { t } = useTranslation()
-  return <Badge variant="outline" title={t('The token API does not expose permission levels.')}>{t('Unavailable')}</Badge>
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="truncate" title={group || undefined}>{group || '—'}</span>
+      {ratio != null ? (
+        <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground">
+          {typeof ratio === 'number' ? `${ratio}x ${t('Ratio')}` : `${t('Automatic')} ${t('Ratio')}`}
+        </Badge>
+      ) : null}
+    </div>
+  )
 }
 
 function StatePanel({ kind, message, onRetry, onClear }: { kind: 'error' | 'empty' | 'contract'; message: string; onRetry?: () => void; onClear?: () => void }) {
@@ -374,19 +414,51 @@ function ListSkeleton() {
 type EditorForm = {
   name: string
   group: string
+  expiration: '1' | '7' | '30' | 'never' | 'custom'
   expiresAt: string
-  unlimited: boolean
   quota: string
   models: string[]
   allowIps: string
   crossGroupRetry: boolean
 }
 
-function toDateTimeInput(timestamp?: number) {
+type EditorErrors = {
+  name?: string
+  group?: string
+  quota?: string
+  expiry?: string
+}
+
+function toDateInput(timestamp?: number) {
   if (!timestamp || timestamp < 0) return ''
   const date = new Date(timestamp * 1000)
-  const offset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function parseDateInput(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return undefined
+  const year = Number(match[1])
+  const month = Number(match[2]) - 1
+  const day = Number(match[3])
+  const date = new Date(year, month, day, 12)
+  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day ? date : undefined
+}
+
+function dateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function expirationAtEndOfDay(value: string): number {
+  const date = parseDateInput(value)
+  if (!date) return Number.NaN
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999).getTime()
 }
 
 function formatKeyDate(timestamp: number | undefined, locale: AppLocale): string {
@@ -394,13 +466,20 @@ function formatKeyDate(timestamp: number | undefined, locale: AppLocale): string
   return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: '2-digit' }).format(new Date(timestamp * 1000))
 }
 
+function formatCustomExpiration(value: string, locale: AppLocale): string | null {
+  const date = parseDateInput(value)
+  return date ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date) : null
+}
+
 function defaultEditorForm(token: KeyRecord | null, defaultGroup: string): EditorForm {
+  const group = token?.group || defaultGroup
+  const quota = token?.unlimitedQuota ? 0 : quotaUnitsToDollars(token?.remainQuota)
   return {
     name: token?.name || '',
-    group: token?.group || defaultGroup || 'default',
-    expiresAt: toDateTimeInput(token?.expiredTime),
-    unlimited: token?.unlimitedQuota ?? false,
-    quota: String(quotaUnitsToDollars(token?.remainQuota)),
+    group: group && group !== 'default' ? group : '',
+    expiration: token == null || token.expiredTime === -1 ? 'never' : 'custom',
+    expiresAt: toDateInput(token?.expiredTime),
+    quota: quota === 0 ? '' : String(quota),
     models: token?.modelLimits ? token.modelLimits.split(',').filter(Boolean) : [],
     allowIps: token?.allowIps || '',
     crossGroupRetry: token?.crossGroupRetry ?? false,
@@ -473,7 +552,7 @@ function AdaptiveEditorSurface({
 
   return (
     <Dialog open onOpenChange={changeOpen}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl" onCloseAutoFocus={closeAutoFocus}>
+      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-visible sm:max-w-xl" onCloseAutoFocus={closeAutoFocus}>
         <form className="grid gap-5" noValidate onSubmit={onSubmit}>
           <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
           {children}
@@ -487,22 +566,30 @@ function AdaptiveEditorSurface({
 function KeyEditor({
   token,
   defaultGroup,
+  groups,
+  groupsUnavailable,
   returnFocus,
   onClose,
   onSaved,
 }: {
   token: KeyRecord | null
   defaultGroup: string
+  groups: GroupOption[]
+  groupsUnavailable: boolean
   returnFocus: RefObject<HTMLElement | null>
   onClose: () => void
   onSaved: (result: { created: boolean; id?: number; name: string }) => void
 }) {
   const { t } = useTranslation()
+  const locale = usePageLocale()
   const { isMobile } = useSidebar()
   const client = useQueryClient()
   const [form, setForm] = useState(() => defaultEditorForm(token, defaultGroup))
-  const [errors, setErrors] = useState<{ name?: string; quota?: string; expiry?: string; ips?: string }>({})
-  const [advanced, setAdvanced] = useState(false)
+  const [errors, setErrors] = useState<EditorErrors>({})
+  const [customExpiryOpen, setCustomExpiryOpen] = useState(false)
+  const customExpiryRequested = useRef(false)
+  const customExpiryOpening = useRef(false)
+  const editorFieldsRef = useRef<HTMLDivElement>(null)
   const seeded = useRef(token == null)
 
   const detail = useQuery({
@@ -525,18 +612,7 @@ function KeyEditor({
     seeded.current = true
   }, [defaultGroup, detail.data])
 
-  const groups = useQuery({
-    queryKey: consoleQueryKeys.apiKeys.groups(),
-    queryFn: ({ signal }) => projectEnvelope(() => getUserGroupsWithSignal(signal), safeStringList),
-    retry: false,
-  })
-  const models = useQuery({
-    queryKey: consoleQueryKeys.apiKeys.models(form.group),
-    queryFn: ({ signal }) => projectEnvelope(() => getUserModels(form.group, signal), safeStringList),
-    retry: false,
-  })
-  const groupOptions = useMemo(() => [...new Set([form.group, ...(groups.data || [])])].filter(Boolean), [form.group, groups.data])
-  const modelOptions = useMemo(() => [...new Set([...form.models, ...(models.data || [])])], [form.models, models.data])
+  const groupOptions = useMemo(() => [...new Set([form.group, ...groups.map((group) => group.name)])].filter((group) => group && group !== 'default'), [form.group, groups])
 
   const invalidate = async () => {
     await invalidateConsoleQueries(client, consoleQueryKeys.apiKeys.all, consoleQueryKeys.overview.tokens())
@@ -546,26 +622,32 @@ function KeyEditor({
     mutationFn: async () => {
       const nextErrors: typeof errors = {}
       const name = form.name.trim()
-      const quota = Number(form.quota)
-      const expiry = form.expiresAt ? new Date(form.expiresAt).getTime() : -1
-      const safeIps = safeIpAllowlist(form.allowIps)
+      const quota = form.quota.trim() === '' ? 0 : Number(form.quota)
+      const customExpiry = form.expiration === 'custom' ? expirationAtEndOfDay(form.expiresAt) : -1
       if (!name) nextErrors.name = t('Name is required')
       else if (name.length > 50) nextErrors.name = t('Use 50 characters or fewer.')
       else if (!safeLabel(name, 50)) nextErrors.name = t('Enter a name without credentials, URLs, or control characters.')
-      if (!form.unlimited && (!Number.isFinite(quota) || quota < 0 || quota > 10_000_000)) nextErrors.quota = t('Quota must be between $0 and $10,000,000.')
-      if (form.expiresAt && !Number.isFinite(expiry)) nextErrors.expiry = t('Enter a valid expiration date.')
-      if (safeIps == null) nextErrors.ips = t('Use only IP addresses or CIDR ranges, one per line.')
+      if (!form.group || form.group === 'default') nextErrors.group = t('Select a group')
+      if (!Number.isFinite(quota) || quota < 0 || quota > 10_000_000) nextErrors.quota = t('Quota must be between $0 and $10,000,000.')
+      if (form.expiration === 'custom' && (!form.expiresAt || !Number.isFinite(customExpiry))) nextErrors.expiry = t('Enter a valid expiration date.')
       setErrors(nextErrors)
       if (Object.keys(nextErrors).length) throw new KeyContractError('Fix the highlighted fields before saving.')
 
+      const presetDays = form.expiration === 'never' || form.expiration === 'custom' ? 0 : Number(form.expiration)
+      const expiredTime = form.expiration === 'never'
+        ? -1
+        : form.expiration === 'custom'
+          ? Math.floor(customExpiry / 1000)
+          : Math.floor(Date.now() / 1000) + presetDays * 86_400
+      const unlimitedQuota = quota === 0
       const payload: TokenInput = {
         name,
-        remain_quota: form.unlimited ? 0 : quotaDollarsToUnits(quota),
-        expired_time: form.expiresAt ? Math.floor(expiry / 1000) : -1,
-        unlimited_quota: form.unlimited,
+        remain_quota: unlimitedQuota ? 0 : quotaDollarsToUnits(quota),
+        expired_time: expiredTime,
+        unlimited_quota: unlimitedQuota,
         model_limits_enabled: form.models.length > 0,
         model_limits: form.models.join(','),
-        allow_ips: safeIps || '',
+        allow_ips: form.allowIps,
         group: form.group,
         cross_group_retry: form.group === 'auto' && form.crossGroupRetry,
       }
@@ -592,12 +674,45 @@ function KeyEditor({
   }, [detail.error, detail.isError, t])
 
   const update = <K extends keyof EditorForm>(key: K, value: EditorForm[K]) => setForm((current) => ({ ...current, [key]: value }))
+  const requestCustomExpiryCalendar = () => {
+    customExpiryRequested.current = true
+  }
+  const openCustomExpiryCalendar = () => {
+    customExpiryOpening.current = true
+    setCustomExpiryOpen(true)
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => { customExpiryOpening.current = false })
+    })
+  }
+  const changeCustomExpiryOpen = (open: boolean) => {
+    if (!open && customExpiryOpening.current) return
+    setCustomExpiryOpen(open)
+  }
+  const finishExpirationMenuClose = (event: Event) => {
+    if (!customExpiryRequested.current) return
+    event.preventDefault()
+    customExpiryRequested.current = false
+    window.setTimeout(openCustomExpiryCalendar, 0)
+  }
+  const selectExpiration = (value: string) => {
+    setErrors((current) => ({ ...current, expiry: undefined }))
+    if (value === 'custom') {
+      requestCustomExpiryCalendar()
+      return
+    }
+    setCustomExpiryOpen(false)
+    update('expiration', value as EditorForm['expiration'])
+  }
+  const selectedCustomDate = parseDateInput(form.expiresAt)
+  const today = new Date()
+  const calendarStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const calendarEnd = new Date(today.getFullYear() + 10, 11, 31)
   const detailBlocked = token != null && (detail.isPending || detail.isError)
   const title = token ? t('Edit API key') : t('Create API key')
   const description = token ? t('Create and inspect scoped credentials. Full keys are never shown by default.') : t('Configure access, expiration, and a spending limit.')
 
   const fields = (
-    <div className="grid gap-5">
+    <div ref={editorFieldsRef} className="grid gap-5">
       {token && detail.isPending ? <div aria-label={t('Loading API key details')} className="space-y-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-20 w-full" /></div> : null}
       {!detailBlocked ? (
         <>
@@ -608,69 +723,86 @@ function KeyEditor({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="console-key-permissions">{t('Permissions')}</Label>
-            <Select value="unavailable" disabled>
-              <SelectTrigger id="console-key-permissions" className="w-full" aria-label={t('Permissions unavailable')}><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="unavailable">{t('Unavailable')}</SelectItem></SelectContent>
+            <Label htmlFor="console-key-group">{t('Group')}</Label>
+            <Select value={form.group} onValueChange={(value) => { update('group', value); setErrors((current) => ({ ...current, group: undefined })) }}>
+              <SelectTrigger id="console-key-group" className="w-full" aria-invalid={Boolean(errors.group)}><SelectValue placeholder={t('Select a group')} /></SelectTrigger>
+              <SelectContent className="border-border bg-popover shadow-lg">{groupOptions.map((group) => <SelectItem key={group} value={group} className="min-h-9">{group}</SelectItem>)}</SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">{t('Access levels are not exposed by the token API.')}</p>
+            {errors.group ? <p className="text-xs text-destructive">{errors.group}</p> : null}
+            {groupsUnavailable ? <p role="status" className="text-xs text-muted-foreground">{t('Group options are unavailable; the current value is preserved.')}</p> : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="console-key-expiry">{t('Expires')}</Label>
-              <Input id="console-key-expiry" type="datetime-local" value={form.expiresAt} aria-invalid={Boolean(errors.expiry)} onChange={(event) => { update('expiresAt', event.target.value); setErrors((current) => ({ ...current, expiry: undefined })) }} />
-              {errors.expiry ? <p className="text-xs text-destructive">{errors.expiry}</p> : null}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="console-key-quota">{t('Quota (USD)')}</Label>
-              <Input id="console-key-quota" type="number" min="0" max="10000000" step="0.01" disabled={form.unlimited} value={form.quota} aria-invalid={Boolean(errors.quota)} onChange={(event) => { update('quota', event.target.value); setErrors((current) => ({ ...current, quota: undefined })) }} />
+            <div className="grid content-start gap-2">
+              <Label htmlFor="console-key-quota">{t('Quota limit')}</Label>
+              <Input
+                id="console-key-quota"
+                type="number"
+                min="0"
+                max="10000000"
+                step="0.01"
+                placeholder={t('Unlimited')}
+                value={form.quota}
+                aria-invalid={Boolean(errors.quota)}
+                onBlur={() => { if (Number(form.quota) === 0) update('quota', '') }}
+                onChange={(event) => { update('quota', event.target.value); setErrors((current) => ({ ...current, quota: undefined })) }}
+              />
               {errors.quota ? <p className="text-xs text-destructive">{errors.quota}</p> : null}
             </div>
-          </div>
 
-          <div className="border-t pt-1">
-            <Button type="button" variant="ghost" className="w-full justify-between px-0 hover:bg-transparent" aria-expanded={advanced} onClick={() => setAdvanced((value) => !value)}>
-              <span className="flex items-center gap-2"><Settings2 />{t('Advanced settings')}</span>
-              <ChevronDown className={advanced ? 'rotate-180 transition-transform' : 'transition-transform'} />
-            </Button>
-            {advanced ? (
-              <div className="grid gap-5 pt-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="console-key-group">{t('Group')}</Label>
-                    <Select value={form.group} onValueChange={(value) => update('group', value)}>
-                      <SelectTrigger id="console-key-group" className="w-full"><SelectValue /></SelectTrigger>
-                      <SelectContent>{groupOptions.map((group) => <SelectItem key={group} value={group}>{group}</SelectItem>)}</SelectContent>
+            <div className="grid content-start gap-2">
+              <Label htmlFor="console-key-expiration">{t('Expiration time')}</Label>
+              <Popover open={customExpiryOpen} onOpenChange={changeCustomExpiryOpen}>
+                <PopoverAnchor asChild>
+                  <div>
+                    <Select value={form.expiration} onValueChange={selectExpiration}>
+                      <SelectTrigger id="console-key-expiration" className="w-full bg-background dark:bg-input/30" aria-invalid={Boolean(errors.expiry)}>
+                        <SelectValue>{form.expiration === 'custom' ? <><CalendarDays />{formatCustomExpiration(form.expiresAt, locale) || t('Custom time')}</> : undefined}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent className="border-border bg-popover shadow-lg" onCloseAutoFocus={finishExpirationMenuClose}>
+                        <SelectItem value="never" className="min-h-9">{t('No expiration')}</SelectItem>
+                        <SelectItem value="1" className="min-h-9">{t('1 day')}</SelectItem>
+                        <SelectItem value="7" className="min-h-9">{t('7 days')}</SelectItem>
+                        <SelectItem value="30" className="min-h-9">{t('30 days')}</SelectItem>
+                        <SelectSeparator />
+                        <SelectItem value="custom" className="min-h-9" onPointerDownCapture={requestCustomExpiryCalendar} onKeyDownCapture={(event) => { if (event.key === 'Enter' || event.key === ' ') requestCustomExpiryCalendar() }}><CalendarDays />{t('Custom time')}</SelectItem>
+                      </SelectContent>
                     </Select>
-                    {groups.isError ? <p role="status" className="text-xs text-muted-foreground">{t('Group options are unavailable; the current value is preserved.')}</p> : null}
                   </div>
-                  <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2">
-                    <div><Label htmlFor="console-key-unlimited">{t('Unlimited quota')}</Label><p className="text-xs text-muted-foreground">{t('No spending limit')}</p></div>
-                    <Switch id="console-key-unlimited" checked={form.unlimited} onCheckedChange={(checked) => update('unlimited', checked)} />
+                </PopoverAnchor>
+                <PopoverContent
+                  container={editorFieldsRef.current}
+                  className="w-auto max-w-[calc(100vw-2rem)] p-0"
+                  aria-label={t('Custom time')}
+                  onEscapeKeyDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    setCustomExpiryOpen(false)
+                  }}
+                >
+                  <div data-custom-expiration-calendar>
+                    <Calendar
+                      mode="single"
+                      required
+                      captionLayout="dropdown"
+                      localeCode={locale}
+                      selected={selectedCustomDate}
+                      defaultMonth={selectedCustomDate || calendarStart}
+                      startMonth={calendarStart}
+                      endMonth={calendarEnd}
+                      disabled={{ before: calendarStart }}
+                      onSelect={(date) => {
+                        if (!date) return
+                        setForm((current) => ({ ...current, expiresAt: dateInputValue(date), expiration: 'custom' }))
+                        setErrors((current) => ({ ...current, expiry: undefined }))
+                        setCustomExpiryOpen(false)
+                      }}
+                    />
                   </div>
-                </div>
-
-                <div className="grid gap-3">
-                  <div><p className="text-sm font-medium">{t('Allowed models')}</p><p className="text-xs text-muted-foreground">{t('Limit models and source addresses')}</p></div>
-                  {models.isPending ? <Skeleton className="h-16 w-full" /> : modelOptions.length ? (
-                    <div className="grid max-h-32 gap-2 overflow-y-auto sm:grid-cols-2">
-                      {modelOptions.map((model) => <label key={model} className="flex min-w-0 items-center gap-2 text-sm"><Checkbox checked={form.models.includes(model)} onCheckedChange={(checked) => update('models', checked ? [...form.models, model] : form.models.filter((value) => value !== model))} /><span className="truncate">{model}</span></label>)}
-                    </div>
-                  ) : <p className="text-xs text-muted-foreground">{t('No model restrictions available')}</p>}
-                  {models.isError ? <p role="status" className="text-xs text-muted-foreground">{t('Model options are unavailable; existing restrictions are preserved.')}</p> : null}
-                  {form.models.length ? <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={() => update('models', [])}>{t('Allow all')}</Button> : null}
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="console-key-ips">{t('IP allowlist')}</Label>
-                  <Textarea id="console-key-ips" rows={3} value={form.allowIps} placeholder={t('One IP or CIDR per line; leave empty to allow all')} aria-invalid={Boolean(errors.ips)} onChange={(event) => { update('allowIps', event.target.value); setErrors((current) => ({ ...current, ips: undefined })) }} />
-                  {errors.ips ? <p className="text-xs text-destructive">{errors.ips}</p> : null}
-                </div>
-
-                {form.group === 'auto' ? <div className="flex items-center justify-between gap-4"><Label htmlFor="console-key-cross-retry">{t('Cross-group retry')}</Label><Switch id="console-key-cross-retry" checked={form.crossGroupRetry} onCheckedChange={(checked) => update('crossGroupRetry', checked)} /></div> : null}
-              </div>
-            ) : null}
+                </PopoverContent>
+              </Popover>
+              {errors.expiry ? <p className="text-xs text-destructive">{errors.expiry}</p> : null}
+            </div>
           </div>
         </>
       ) : null}
@@ -722,7 +854,6 @@ function KeyActions({
       <DropdownMenuTrigger asChild><Button ref={trigger} variant="ghost" size="icon" className="size-8" aria-label={`${t('Actions')} ${apiKey.name}`}><Ellipsis /></Button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuLabel>{t('API key')}</DropdownMenuLabel>
-        <DropdownMenuItem disabled={!apiKey.maskedKey} onSelect={() => apiKey.maskedKey && void navigator.clipboard.writeText(apiKey.maskedKey)}><Copy />{t('Copy prefix')}</DropdownMenuItem>
         <DropdownMenuItem disabled={busy || !apiKey.editable} onSelect={() => defer(onEdit)}><Pencil />{t('Edit')}</DropdownMenuItem>
         <DropdownMenuItem disabled={busy} onSelect={() => defer(onReveal)}><Eye />{t('Reveal')}</DropdownMenuItem>
         <DropdownMenuItem disabled={busy || apiKey.status == null || (apiKey.status !== 1 && apiKey.status !== 2)} onSelect={() => defer(onToggle)}><ShieldCheck />{apiKey.status === 1 ? t('Disable') : t('Enable')}</DropdownMenuItem>
@@ -731,6 +862,44 @@ function KeyActions({
         <DropdownMenuItem disabled={busy} variant="destructive" onSelect={() => defer(onDelete)}><Trash2 />{t('Delete')}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+function KeyValue({ apiKey }: { apiKey: KeyRecord }) {
+  const { t } = useTranslation()
+  const copy = useMutation({
+    mutationFn: () => projectEnvelope(
+      () => revealToken(apiKey.id),
+      async (data) => {
+        const key = sourceObject(data)?.key
+        if (typeof key !== 'string' || key.length < 8 || key.length > 512 || /[\u0000-\u001f\u007f]/.test(key)) throw new KeyContractError('The reveal response did not include a valid key.')
+        await navigator.clipboard.writeText(withApiKeyPrefix(key))
+      },
+    ),
+    onSuccess: () => toast.success(t('API key copied.')),
+    onError: (error) => toast.error(errorMessage(error, 'Unable to copy key', t), { duration: 6000 }),
+  })
+
+  return (
+    <div className="flex min-w-0 items-center gap-1">
+      <code className="min-w-0 truncate font-mono text-xs text-muted-foreground">{apiKey.maskedKey ? withApiKeyPrefix(apiKey.maskedKey) : t('Unavailable')}</code>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label={`${t('Copy key')} ${apiKey.name}`}
+            disabled={copy.isPending}
+            onClick={() => copy.mutate()}
+          >
+            {copy.isPending ? <LoaderCircle className="animate-spin" /> : <Copy />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('Copy key')}</TooltipContent>
+      </Tooltip>
+    </div>
   )
 }
 
@@ -784,12 +953,17 @@ export function ConsoleKeysPage() {
   }, [search])
 
   const list = useQuery({ queryKey: consoleQueryKeys.apiKeys.list(keyword), queryFn: ({ signal }) => fetchKeys(keyword, signal), retry: false })
+  const groups = useQuery({
+    queryKey: consoleQueryKeys.apiKeys.groups(),
+    queryFn: ({ signal }) => projectEnvelope(() => getUserGroupsWithSignal(signal), safeGroupOptions),
+    retry: false,
+  })
+  const groupRatios = useMemo(() => new Map((groups.data || []).map((group) => [group.name, group.ratio])), [groups.data])
   const allRecords = list.data?.records || []
   const filtered = useMemo(() => status === 'all' ? allRecords : allRecords.filter((record) => record.status === Number(status)), [allRecords, status])
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize)
   const allVisibleSelected = visible.length > 0 && visible.every((record) => selected.includes(record.id))
-  const hasPartial = Boolean(list.data && (list.data.invalidCount > 0 || list.data.records.some((record) => record.partial) || list.data.truncated || (!list.data.truncated && list.data.records.length !== list.data.reportedTotal)))
   const contractBlocked = Boolean(list.data && list.data.reportedTotal > 0 && list.data.records.length === 0)
   const hasFilters = Boolean(search.trim()) || status !== 'all'
 
@@ -854,7 +1028,7 @@ export function ConsoleKeysPage() {
       (data) => {
         const key = sourceObject(data)?.key
         if (typeof key !== 'string' || key.length < 8 || key.length > 512 || /[\u0000-\u001f\u007f]/.test(key)) throw new KeyContractError('The reveal response did not include a valid key.')
-        if (mounted.current) setSecret(key)
+        if (mounted.current) setSecret(withApiKeyPrefix(key))
       },
     ),
     gcTime: 0,
@@ -921,21 +1095,16 @@ export function ConsoleKeysPage() {
       </header>
 
       {notice ? <div role="status" className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2 text-sm"><span>{notice}</span><Button variant="ghost" size="sm" onClick={() => setNotice(null)}>{t('Close')}</Button></div> : null}
-      {hasPartial ? <div role="status" className="flex gap-2 rounded-md border px-3 py-2 text-sm text-muted-foreground"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{t('Some API key records or fields are unavailable. Usable records remain visible; incomplete values are not inferred.')}</span></div> : null}
 
       <section aria-label={t('API key filters')} className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="min-w-0 flex-1 lg:max-w-sm">
-          <div className="relative"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Search by name or prefix...')} aria-label={t('Search API keys')} aria-invalid={searchBlocked} className="ps-9" /></div>
+          <div className="relative"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Search by name or key...')} aria-label={t('Search API keys')} aria-invalid={searchBlocked} className="ps-9" /></div>
           {searchBlocked ? <p role="alert" className="mt-1 text-xs text-destructive">{t('Credentials and URLs cannot be used as search terms.')}</p> : null}
         </div>
-        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:flex">
+        <div>
           <Select value={status} onValueChange={(value) => { setStatus(value); setPage(1) }}>
             <SelectTrigger className="w-full sm:w-40" aria-label={t('Filter by status')}><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">{t('All statuses')}</SelectItem><SelectItem value="1">{t('Enabled')}</SelectItem><SelectItem value="2">{t('Disabled')}</SelectItem><SelectItem value="3">{t('Expired')}</SelectItem><SelectItem value="4">{t('Exhausted')}</SelectItem></SelectContent>
-          </Select>
-          <Select value="unavailable" disabled>
-            <SelectTrigger className="w-full sm:w-44" aria-label={t('Permission filter unavailable')}><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="unavailable">{t('Permissions unavailable')}</SelectItem></SelectContent>
           </Select>
         </div>
         {hasFilters ? <Button variant="ghost" size="sm" className="self-start lg:self-auto" onClick={clearFilters}>{t('Clear')}</Button> : null}
@@ -946,23 +1115,23 @@ export function ConsoleKeysPage() {
       <section aria-label={t('API keys')} className="overflow-hidden rounded-md border">
         {list.isPending ? <ListSkeleton /> : list.isError ? <StatePanel kind="error" message={errorMessage(list.error, 'Unable to load API keys.', t)} onRetry={() => void list.refetch()} /> : contractBlocked ? <StatePanel kind="contract" message={t('Returned records do not expose a usable numeric id and safe name.')} /> : emptyFiltered ? <StatePanel kind="empty" message={hasFilters ? t('Try a different search term or clear the current filters.') : t('Create a key to authenticate your first API request.')} onClear={hasFilters ? clearFilters : undefined} /> : (
           <>
-            <div className="hidden lg:block">
-              <Table className={selected.length ? 'min-w-[1040px]' : 'min-w-[980px]'}>
+            <div className="hidden overflow-x-auto lg:block">
+              <Table className={selected.length ? 'min-w-[1090px]' : 'min-w-[1030px]'}>
                 <TableHeader><TableRow className="hover:bg-transparent">
                   {selected.length ? <TableHead className="w-10 ps-4"><Checkbox aria-label={t('Select page')} checked={allVisibleSelected} disabled={!allVisibleSelected && selected.length >= maxBatchSize} onCheckedChange={(checked) => checked ? selectRecords(visible) : setSelected((current) => current.filter((id) => !visible.some((record) => record.id === id)))} /></TableHead> : null}
-                  <TableHead className={selected.length ? undefined : 'ps-4'}>{t('Name')}</TableHead><TableHead>{t('Prefix')}</TableHead><TableHead>{t('Permissions')}</TableHead><TableHead>{t('Status')}</TableHead><TableHead>{t('Quota')}</TableHead><TableHead>{t('Created')}</TableHead><TableHead>{t('Last used')}</TableHead><TableHead>{t('Expires')}</TableHead><TableHead><span className="sr-only">{t('Actions')}</span></TableHead>
+                  <TableHead className={selected.length ? undefined : 'ps-4'}>{t('Name')}</TableHead><TableHead>{t('Key')}</TableHead><TableHead>{t('Group')}</TableHead><TableHead>{t('Status')}</TableHead><TableHead>{t('Quota')}</TableHead><TableHead>{t('Created')}</TableHead><TableHead>{t('Last used')}</TableHead><TableHead>{t('Expires')}</TableHead><TableHead><span className="sr-only">{t('Actions')}</span></TableHead>
                 </TableRow></TableHeader>
                 <TableBody>{visible.map((record) => (
                   <TableRow key={record.id}>
                     {selected.length ? <TableCell className="ps-4"><Checkbox aria-label={`${t('Select')} ${record.name}`} checked={selected.includes(record.id)} disabled={!selected.includes(record.id) && selected.length >= maxBatchSize} onCheckedChange={(checked) => checked ? selectRecords([record]) : setSelected((current) => current.filter((id) => id !== record.id))} /></TableCell> : null}
                     <TableCell className={`max-w-48 font-medium ${selected.length ? '' : 'ps-4'}`}><span className="block truncate" title={record.name}>{record.name}</span></TableCell>
-                    <TableCell><code className="font-mono text-xs text-muted-foreground">{record.maskedKey || t('Unavailable')}</code></TableCell>
-                    <TableCell><PermissionBadge /></TableCell>
+                    <TableCell className="max-w-56"><KeyValue apiKey={record} /></TableCell>
+                    <TableCell className="max-w-52"><GroupValue group={record.group} ratio={record.group ? groupRatios.get(record.group) : undefined} /></TableCell>
                     <TableCell><StatusBadge status={record.status} /></TableCell>
                     <TableCell className="font-mono text-xs">{record.unlimitedQuota ? t('Unlimited') : formatQuota(record.remainQuota, locale)}</TableCell>
                     <TableCell className="text-muted-foreground">{formatKeyDate(record.createdTime, locale)}</TableCell>
                     <TableCell className="text-muted-foreground">{formatKeyDate(record.accessedTime, locale)}</TableCell>
-                    <TableCell className="text-muted-foreground">{record.expiredTime === -1 ? t('Never') : formatKeyDate(record.expiredTime, locale)}</TableCell>
+                    <TableCell className="text-muted-foreground">{record.expiredTime === -1 ? t('Never expires') : formatKeyDate(record.expiredTime, locale)}</TableCell>
                     <TableCell className="pe-3 text-end">{keyActions(record)}</TableCell>
                   </TableRow>
                 ))}</TableBody>
@@ -973,15 +1142,16 @@ export function ConsoleKeysPage() {
               <article key={record.id} className="space-y-4 p-4">
                 <div className="flex min-w-0 items-start gap-3">
                   {selected.length ? <Checkbox className="mt-1" aria-label={`${t('Select')} ${record.name}`} checked={selected.includes(record.id)} disabled={!selected.includes(record.id) && selected.length >= maxBatchSize} onCheckedChange={(checked) => checked ? selectRecords([record]) : setSelected((current) => current.filter((id) => id !== record.id))} /> : null}
-                  <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{record.name}</h2><code className="mt-1 block truncate font-mono text-xs text-muted-foreground">{record.maskedKey || t('Unavailable')}</code></div>
+                  <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{record.name}</h2><div className="mt-1"><KeyValue apiKey={record} /></div></div>
                   {keyActions(record)}
                 </div>
-                <div className="flex flex-wrap gap-2"><StatusBadge status={record.status} /><PermissionBadge /></div>
+                <div className="flex flex-wrap gap-2"><StatusBadge status={record.status} /></div>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                  <div className="col-span-2 min-w-0"><dt className="text-xs text-muted-foreground">{t('Group')}</dt><dd className="mt-1"><GroupValue group={record.group} ratio={record.group ? groupRatios.get(record.group) : undefined} /></dd></div>
                   <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Quota')}</dt><dd className="mt-1 truncate font-mono text-xs">{record.unlimitedQuota ? t('Unlimited') : formatQuota(record.remainQuota, locale)}</dd></div>
                   <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Created')}</dt><dd className="mt-1 truncate">{formatKeyDate(record.createdTime, locale)}</dd></div>
                   <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Last used')}</dt><dd className="mt-1 truncate">{formatKeyDate(record.accessedTime, locale)}</dd></div>
-                  <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Expires')}</dt><dd className="mt-1 truncate">{record.expiredTime === -1 ? t('Never') : formatKeyDate(record.expiredTime, locale)}</dd></div>
+                  <div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Expires')}</dt><dd className="mt-1 truncate">{record.expiredTime === -1 ? t('Never expires') : formatKeyDate(record.expiredTime, locale)}</dd></div>
                 </dl>
               </article>
             ))}</div>
@@ -991,7 +1161,7 @@ export function ConsoleKeysPage() {
         {!list.isPending && !list.isError && !contractBlocked ? <footer className="flex min-h-12 items-center justify-between gap-4 border-t px-4 py-2 text-sm text-muted-foreground"><span>{t('{{visible}} of {{total}} keys', { visible: filtered.length, total: list.data?.reportedTotal ?? filtered.length })}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>{t('Previous')}</Button><Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>{t('Next')}</Button></div></footer> : null}
       </section>
 
-      {editing !== undefined ? <KeyEditor token={editing} defaultGroup={safeLabel(user?.group, 64) || 'default'} returnFocus={returnFocus} onClose={() => setEditing(undefined)} onSaved={(result) => {
+      {editing !== undefined ? <KeyEditor token={editing} defaultGroup={safeLabel(user?.group, 64) || 'default'} groups={groups.data || []} groupsUnavailable={groups.isError} returnFocus={returnFocus} onClose={() => setEditing(undefined)} onSaved={(result) => {
         setEditing(undefined)
         setNotice(result.created ? result.id ? t('API key created. Confirm reveal before leaving this session if you need the full value.') : t('API key created. The server did not return its id; reveal it from the refreshed list.') : t('API key updated.'))
         if (result.created && result.id) setRevealTarget({ id: result.id, name: result.name, maskedKey: null, partial: true, editable: false })

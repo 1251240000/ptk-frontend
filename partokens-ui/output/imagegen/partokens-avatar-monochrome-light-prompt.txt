@@ -1,0 +1,12 @@
+Use case: precise-object-edit
+Asset type: light-mode counterpart of the approved Partokens monochrome dark-mode avatar
+Input images: Image 1 is the approved monochrome dark-mode avatar and is the edit target; Image 2 is the original Partokens P-shaped mark and is a structural identity reference
+Primary request: create the exact monochrome light-mode counterpart of Image 1 by changing only the background and foreground tones
+Scene/backdrop: replace the dark surface with a flat #ffffff rounded-square surface; use only the minimum neutral edge separation required against a #f6f8fa page
+Subject: keep the P silhouette, scale, position, visual weight, open counter, outer arc, continuous stem transition, terminal cuts, and negative space exactly unchanged
+Style/medium: the same minimal monochrome near-flat product mark and raster finish as Image 1
+Composition/framing: pixel-consistent geometry and padding with Image 1; exact 1:1 square; readable at 16 px, 24 px, and 32 px
+Lighting/mood: neutral interface treatment; almost completely flat; no new light source
+Color palette: only background #ffffff and mark #1f2328; neutral grays caused by antialiasing are acceptable; absolutely no chromatic color
+Constraints: change only the two monochrome tones and minimum neutral edge separation; keep every shape and proportion unchanged; one monolithic uninterrupted shape; exactly one foreground color; no internal lines, marks, inserts, gaps, seams, or decorative elements; no text; no wordmark; no watermark; no mockup frame
+Avoid: blue or any color accent; dots; squares; nodes; tokens; routing lines; inset lines; connectors; changing the silhouette; moving or resizing the mark; gradients; glossy highlights; dramatic shadows; bevels; metallic material; adding or deleting details

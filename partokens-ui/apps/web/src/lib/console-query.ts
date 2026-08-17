@@ -11,6 +11,7 @@ export const consoleQueryKeys = {
   overview: {
     all: overviewQueryRoot,
     status: () => [...overviewQueryRoot, 'status'] as const,
+    subscriptions: () => [...overviewQueryRoot, 'subscriptions'] as const,
     tokens: () => [...overviewQueryRoot, 'tokens'] as const,
     pricing: () => [...overviewQueryRoot, 'pricing'] as const,
     stats: (range: unknown) => [...overviewQueryRoot, 'stats', range] as const,
@@ -32,6 +33,7 @@ export const consoleQueryKeys = {
     all: usageLogsQueryRoot,
     list: (params: unknown) => [...usageLogsQueryRoot, 'list', params] as const,
     stats: (params: unknown) => [...usageLogsQueryRoot, 'stats', params] as const,
+    tokenTotals: (params: unknown) => [...usageLogsQueryRoot, 'token-totals', params] as const,
   },
 } as const
 

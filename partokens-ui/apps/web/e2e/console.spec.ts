@@ -313,7 +313,7 @@ test('restricted feature responses keep all canonical console areas on self scop
   await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot access this analytics data.' }).first()).toBeVisible()
 
   await page.getByRole('link', { name: 'API keys' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot manage API keys.' })).toBeVisible()
+  await expect(page.getByText('Your account cannot manage API keys.', { exact: true })).toBeVisible()
 
   await page.getByRole('link', { name: 'Usage logs' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot access usage logs.' })).toBeVisible()
@@ -351,13 +351,10 @@ test('canonical console analytics uses real-shaped aggregates and preserves keyb
   await expect(page.getByRole('tabpanel', { name: 'Trend' }).getByRole('img').first()).toBeVisible()
   await page.screenshot({ path: `${evidenceScreenshots}/analytics-1440.png`, fullPage: true })
 
-  const details = page.getByRole('button', { name: 'View data' })
-  await details.focus()
-  await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog', { name: 'Aggregated usage data' })).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(details).toBeFocused()
+  await expect(page.getByRole('button', { name: 'View data' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Export' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Analytics status' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Apply filters' })).toHaveCount(0)
 
   const initialUsageRequests = requests.filter((url) => new URL(url).pathname === '/api/data/self').length
   await page.getByRole('button', { name: 'Refresh' }).click()
@@ -372,7 +369,6 @@ test('canonical console analytics uses real-shaped aggregates and preserves keyb
 
   await page.getByRole('combobox', { name: 'Time range' }).click()
   await page.getByRole('option', { name: 'Last 90 days' }).click()
-  await page.getByRole('button', { name: 'Apply filters' }).click()
   await expect.poll(() => requests.filter((url) => new URL(url).pathname === '/api/data/self').length).toBeGreaterThanOrEqual(4)
   const quotaRequests = requests.filter((url) => new URL(url).pathname === '/api/data/self').map((url) => new URL(url))
   expect(quotaRequests.slice(-3).every((url) => Number(url.searchParams.get('end_timestamp')) - Number(url.searchParams.get('start_timestamp')) <= 30 * 86_400)).toBe(true)
@@ -406,7 +402,7 @@ test('canonical console analytics refreshes a usage 401 while keeping a flow 403
 
   await expect(page.getByRole('heading', { name: 'Analytics', exact: true })).toBeVisible()
   await expect(page.getByLabel('Usage summary')).toContainText('19')
-  await expect(page.getByRole('status').filter({ hasText: 'Request flow is unavailable. Usage views remain usable.' })).toBeVisible()
+  await expect(page.getByText('Model usage', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Routes' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot access this analytics data.' })).toBeVisible()
   expect(usageAttempts).toBeGreaterThanOrEqual(2)
@@ -431,9 +427,10 @@ test('canonical console analytics stops incomplete contracts and renders true em
   await page.goto('/en/console/analytics')
 
   await expect(page.getByLabel('Loading analytics')).toBeVisible()
-  await expect(page.getByRole('status').filter({ hasText: 'Some aggregate rows are incomplete' })).toBeVisible()
+  await expect(page.getByText('Model usage', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Routes' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Analytics contract is incomplete' })).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'Data unavailable for this view' })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('Request route data is temporarily unavailable.')
 
   state = 'empty'
   await page.reload()
@@ -481,6 +478,14 @@ test('canonical console usage logs uses self-scoped list and statistics queries 
   await expect(page.getByRole('link', { name: 'Usage logs' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByText('req_fixture_123456789').first()).toBeVisible()
   await expect(page.getByLabel('Usage statistics')).toContainText('$0.02')
+  await expect(page.getByText('1.25x Ratio', { exact: true }).first()).toBeVisible()
+  await expect(page.getByLabel('OpenAI').first()).toBeVisible()
+  await expect(page.getByLabel('Usage statistics')).toContainText('Input tokens')
+  await expect(page.getByLabel('Usage statistics')).toContainText('120')
+  await expect(page.getByLabel('Usage statistics')).toContainText('64')
+  await expect(page.getByLabel('Usage statistics')).toContainText('12')
+  await expect(page.getByText('$0.024000', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('0.42 s', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('Fixture completion request')).toHaveCount(0)
   await expect(page.getByText(/billing_mode/)).toHaveCount(0)
   await page.screenshot({ path: `${evidenceScreenshots}/logs-1440.png`, fullPage: true })
@@ -489,7 +494,11 @@ test('canonical console usage logs uses self-scoped list and statistics queries 
   await details.focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog', { name: 'Request details' })).toBeVisible()
-  await expect(page.getByRole('status').filter({ hasText: 'Request content, raw metadata' })).toBeVisible()
+  await expect(page.getByRole('dialog')).toContainText('Model pricing')
+  await expect(page.getByRole('dialog')).toContainText('Standard price')
+  await expect(page.getByRole('dialog')).toContainText('Actual price')
+  await expect(page.getByRole('dialog')).not.toContainText('Upstream request ID')
+  await expect(page.getByRole('status').filter({ hasText: 'To protect your privacy, Partokens does not record' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(details).toBeFocused()
 
@@ -562,8 +571,8 @@ test('canonical console usage logs refreshes a list 401 while keeping statistics
       await route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ success: false, message: 'sensitive backend detail', data: null }) })
       return
     }
-    listAttempts += 1
-    if (listAttempts === 1) {
+    if (new URL(route.request().url()).searchParams.get('page_size') === '20') listAttempts += 1
+    if (listAttempts === 1 && new URL(route.request().url()).searchParams.get('page_size') === '20') {
       await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ success: false, message: 'sensitive backend detail', data: null }) })
       return
     }
@@ -655,6 +664,7 @@ for (const width of [390, 320]) {
 
 test('canonical console API keys uses the token CRUD, status, batch, and reveal contracts without retaining secrets', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:4174' })
   const requests: Array<{ method: string; url: string; body: string | null }> = []
   const consoleErrors: string[] = []
   const pageErrors: string[] = []
@@ -667,9 +677,22 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
 
   await expect(page.getByRole('heading', { name: 'API keys', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'API keys' })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByText('ABCD**********WXYZ').first()).toBeVisible()
+  await expect(page.getByText('sk-ABCD**********WXYZ').first()).toBeVisible()
   await expect(page.getByText('fixture-session-token')).toHaveCount(0)
+  await expect(page.getByRole('columnheader').allTextContents()).resolves.toEqual(['Name', 'Key', 'Group', 'Status', 'Quota', 'Created', 'Last used', 'Expires', 'Actions'])
   await page.screenshot({ path: `${evidenceScreenshots}/keys-1440.png`, fullPage: true })
+
+  const studioRow = page.getByRole('row').filter({ hasText: 'Studio fixture' })
+  await expect(studioRow).toContainText('Image')
+  await expect(studioRow).toContainText('1.5x Ratio')
+  const automationRow = page.getByRole('row').filter({ hasText: 'Automation fixture' })
+  await expect(automationRow).toContainText('default')
+  await expect(automationRow).toContainText('1x Ratio')
+  const copyKey = studioRow.getByRole('button', { name: 'Copy key Studio fixture' })
+  await expect(copyKey).toBeVisible()
+  await copyKey.click()
+  await expect(page.getByText('API key copied.')).toBeVisible()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('sk-fixture-session-token')
 
   const studioActions = page.getByRole('button', { name: 'Actions Studio fixture' })
   await studioActions.focus()
@@ -678,7 +701,7 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
   await expect(page.getByRole('dialog', { name: 'Reveal full key?' })).toBeVisible()
   await expect(page.getByText('fixture-session-token')).toHaveCount(0)
   await page.getByRole('button', { name: 'Confirm reveal' }).click()
-  await expect(page.getByText('fixture-session-token')).toBeVisible()
+  await expect(page.getByText('sk-fixture-session-token')).toBeVisible()
   expect(await page.evaluate(() => Object.values(window.localStorage).some((value) => value.includes('fixture-session-token')))).toBe(false)
   await page.keyboard.press('Escape')
   await expect(page.getByText('fixture-session-token')).toHaveCount(0)
@@ -688,9 +711,21 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
   await page.getByRole('menuitem', { name: 'Edit' }).click()
   const nameInput = page.getByLabel('Name')
   await expect(nameInput).toHaveValue('Studio fixture')
+  await page.getByLabel('Group').click()
+  await expect(page.getByRole('option', { name: 'default', exact: true })).toHaveCount(0)
+  await page.getByRole('option', { name: 'Image', exact: true }).click()
   await nameInput.fill('Studio production')
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByText('Studio production', { exact: true }).first()).toBeVisible()
+
+  const automationActions = page.getByRole('button', { name: 'Actions Automation fixture' })
+  await automationActions.click()
+  await page.getByRole('menuitem', { name: 'Edit' }).click()
+  await expect(page.getByLabel('Group')).toContainText('Select a group')
+  await page.getByLabel('Group').click()
+  await expect(page.getByRole('option', { name: 'default', exact: true })).toHaveCount(0)
+  await page.getByRole('option', { name: 'Image', exact: true }).click()
+  await page.getByRole('button', { name: 'Cancel' }).click()
 
   const renamedActions = page.getByRole('button', { name: 'Actions Studio production' })
   await renamedActions.click()
@@ -700,7 +735,75 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
 
   await page.getByRole('button', { name: 'Create key' }).first().click()
   await page.getByLabel('Name').fill('Build worker')
-  await page.getByLabel('Quota (USD)').fill('3.5')
+  await expect(page.getByLabel('Group')).toContainText('Select a group')
+  await page.getByLabel('Group').click()
+  await expect(page.getByRole('option', { name: 'default', exact: true })).toHaveCount(0)
+  await page.getByRole('option', { name: 'Image', exact: true }).click()
+  const quotaLimit = page.getByLabel('Quota limit')
+  await expect(quotaLimit).toHaveValue('')
+  await expect(quotaLimit).toHaveAttribute('placeholder', 'Unlimited')
+  await quotaLimit.fill('12.5')
+  await expect(quotaLimit).toHaveValue('12.5')
+  await quotaLimit.fill('0')
+  await quotaLimit.blur()
+  await expect(quotaLimit).toHaveValue('')
+  await quotaLimit.fill('12.5')
+  const expirationSelect = page.getByRole('combobox', { name: 'Expiration time', exact: true })
+  await expect(expirationSelect).toContainText('No expiration')
+  await expirationSelect.click()
+  const expirationMenu = page.locator('[data-slot="select-content"]')
+  const expirationMenuStyle = await expirationMenu.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { backgroundColor: style.backgroundColor, borderColor: style.borderColor, boxShadow: style.boxShadow }
+  })
+  expect(expirationMenuStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(expirationMenuStyle.borderColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(expirationMenuStyle.boxShadow).not.toBe('none')
+  await expect(page.getByRole('option').allTextContents()).resolves.toEqual(['No expiration', '1 day', '7 days', '30 days', 'Custom time'])
+  await page.getByRole('option', { name: 'Custom time' }).click()
+  const customCalendar = page.locator('[data-custom-expiration-calendar]')
+  await expect(customCalendar).toBeVisible()
+  await expect(expirationSelect).toContainText('No expiration')
+  const customDate = new Date()
+  customDate.setDate(customDate.getDate() + 1)
+  const customDateValue = [
+    customDate.getFullYear(),
+    String(customDate.getMonth() + 1).padStart(2, '0'),
+    String(customDate.getDate()).padStart(2, '0'),
+  ].join('-')
+  const customDateLabel = new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(customDate)
+  await customCalendar.locator(`button[data-day="${customDateValue}"]`).click()
+  await expect(customCalendar).toHaveCount(0)
+  await expect(expirationSelect).toContainText(customDateLabel)
+  await expirationSelect.click()
+  await page.getByRole('option', { name: 'Custom time' }).click()
+  await expect(customCalendar).toBeVisible()
+  const revisedDate = new Date(customDate)
+  revisedDate.setDate(revisedDate.getDate() + 1)
+  const revisedDateValue = [
+    revisedDate.getFullYear(),
+    String(revisedDate.getMonth() + 1).padStart(2, '0'),
+    String(revisedDate.getDate()).padStart(2, '0'),
+  ].join('-')
+  const revisedDateLabel = new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(revisedDate)
+  await customCalendar.locator(`button[data-day="${revisedDateValue}"]`).click()
+  await expect(expirationSelect).toContainText(revisedDateLabel)
+  await expirationSelect.click()
+  await page.getByRole('option', { name: '7 days' }).click()
+  await expect(customCalendar).toHaveCount(0)
+  await expect(expirationSelect).toContainText('7 days')
+  await expirationSelect.click()
+  await page.getByRole('option', { name: 'Custom time' }).click()
+  await expect(customCalendar).toBeVisible()
+  await customCalendar.locator(`button[data-day="${revisedDateValue}"]`).click()
+  await expect(expirationSelect).toContainText(revisedDateLabel)
+  await expect(page.getByLabel('Group')).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'Unlimited quota' })).toHaveCount(0)
+  await expect(page.getByRole('checkbox', { name: 'Never expires' })).toHaveCount(0)
+  await expect(page.getByLabel('Permissions')).toHaveCount(0)
+  await expect(page.getByText('Advanced settings')).toHaveCount(0)
+  await expect(page.getByText('Allowed models')).toHaveCount(0)
+  await expect(page.getByLabel('IP allowlist')).toHaveCount(0)
   await page.getByRole('button', { name: 'Create key' }).last().click()
   await expect(page.getByText('Build worker', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: 'server did not return its id' })).toBeVisible()
@@ -724,7 +827,13 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
   expect(paths).toContainEqual(['DELETE', '/api/token/8'])
   expect(paths).toContainEqual(['POST', '/api/token/batch'])
   const createBody = requests.find((request) => request.method === 'POST' && new URL(request.url).pathname === '/api/token/')?.body || ''
-  expect(createBody).toContain('"remain_quota":1750000')
+  const createPayload = JSON.parse(createBody) as { expired_time: number; remain_quota: number; unlimited_quota: boolean }
+  expect(createPayload.remain_quota).toBe(6_250_000)
+  expect(createPayload.unlimited_quota).toBe(false)
+  const expectedCustomExpiry = Math.floor(new Date(revisedDate.getFullYear(), revisedDate.getMonth(), revisedDate.getDate(), 23, 59, 59, 999).getTime() / 1000)
+  expect(createPayload.expired_time).toBe(expectedCustomExpiry)
+  expect(createBody).toContain('"group":"Image"')
+  expect(createBody).not.toContain('"expired_time":-1')
   expect(createBody).not.toContain('fixture-session-token')
   expect(consoleErrors).toEqual([])
   expect(pageErrors).toEqual([])
@@ -746,7 +855,7 @@ test('canonical console API key reveal expires from memory without closing the c
   await page.getByRole('button', { name: 'Actions Studio fixture' }).click()
   await page.getByRole('menuitem', { name: 'Reveal' }).click()
   await page.getByRole('button', { name: 'Confirm reveal' }).click()
-  await expect(page.getByText('fixture-session-token')).toBeVisible()
+  await expect(page.getByText('sk-fixture-session-token')).toBeVisible()
   await expect(page.getByText('fixture-session-token')).toHaveCount(0, { timeout: 2_000 })
   await expect(page.getByRole('dialog', { name: 'Reveal full key?' })).toBeVisible()
 })
@@ -778,7 +887,7 @@ test('canonical console API keys refreshes a list 401 and keeps a mutation 403 l
   await page.getByRole('button', { name: 'Actions Studio fixture' }).click()
   await page.getByRole('menuitem', { name: 'Reveal' }).click()
   await page.getByRole('button', { name: 'Confirm reveal' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot manage API keys.' })).toBeVisible()
+  await expect(page.getByText('Your account cannot manage API keys.', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Close', exact: true }).last().click()
 
   await page.route('**/api/token/**', async (route) => {
@@ -792,7 +901,7 @@ test('canonical console API keys refreshes a list 401 and keeps a mutation 403 l
   await page.getByRole('button', { name: 'Actions Studio fixture' }).click()
   await page.getByRole('menuitem', { name: 'Disable' }).click()
   await page.getByRole('dialog', { name: 'Disable this API key?' }).getByRole('button', { name: 'Disable key' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot manage API keys.' })).toBeVisible()
+  await expect(page.getByText('Your account cannot manage API keys.', { exact: true }).last()).toBeVisible()
 })
 
 test('canonical console API key permission failures classify 403, 404, and business failures without refresh or persistence', async ({ page }) => {
@@ -842,7 +951,7 @@ test('canonical console API key permission failures classify 403, 404, and busin
   const actions = page.getByRole('button', { name: 'Actions Studio fixture' })
   await actions.click()
   await page.getByRole('menuitem', { name: 'Edit' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'This API key does not exist or is not visible to your account.' })).toBeVisible()
+  await expect(page.getByText('This API key does not exist or is not visible to your account.', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()
 
   allowDetail = true
@@ -851,32 +960,32 @@ test('canonical console API key permission failures classify 403, 404, and busin
   await expect(page.getByLabel('Name')).toHaveValue('Studio fixture')
   await page.getByLabel('Name').fill('Non-owner attempted rename')
   await page.getByRole('button', { name: 'Save changes' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot manage API keys.' })).toBeVisible()
+  await expect(page.getByText('Your account cannot manage API keys.', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()
 
   await actions.click()
   await page.getByRole('menuitem', { name: 'Disable' }).click()
   await page.getByRole('dialog', { name: 'Disable this API key?' }).getByRole('button', { name: 'Disable key' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Your account cannot manage API keys.' })).toBeVisible()
+  await expect(page.getByText('Your account cannot manage API keys.', { exact: true })).toBeVisible()
   await page.getByRole('dialog', { name: 'Disable this API key?' }).getByRole('button', { name: 'Cancel' }).click()
 
   await actions.click()
   await page.getByRole('menuitem', { name: 'Reveal' }).click()
   await page.getByRole('button', { name: 'Confirm reveal' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Unable to reveal key' })).toBeVisible()
+  await expect(page.getByText('Unable to reveal key', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Close', exact: true }).last().click()
 
   await actions.click()
   await page.getByRole('menuitem', { name: 'Delete' }).click()
   await page.getByRole('dialog', { name: 'Delete this key?' }).getByRole('button', { name: 'Delete' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'This API key does not exist or is not visible to your account.' })).toBeVisible()
+  await expect(page.getByText('This API key does not exist or is not visible to your account.', { exact: true })).toBeVisible()
   await page.getByRole('dialog', { name: 'Delete this key?' }).getByRole('button', { name: 'Cancel' }).click()
 
   await actions.click()
   await page.getByRole('menuitem', { name: 'Select for batch' }).click()
   await page.getByRole('button', { name: 'Delete selected' }).click()
   await page.getByRole('dialog', { name: 'Delete selected keys?' }).getByRole('button', { name: 'Delete selected' }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'Unable to delete selected API keys.' })).toBeVisible()
+  await expect(page.getByText('Unable to delete selected API keys.', { exact: true })).toBeVisible()
 
   expect(refreshAttempts).toBe(1)
   expect(new URL(page.url()).pathname).toBe('/en/console/keys')
@@ -927,7 +1036,7 @@ test('canonical console API keys exposes loading, partial, contract, and empty l
   await page.goto('/en/console/keys')
 
   await expect(page.getByLabel('Loading API keys')).toBeVisible()
-  await expect(page.getByRole('status').filter({ hasText: 'Some API key records or fields are unavailable' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Some API key records or fields are unavailable' })).toHaveCount(0)
   await expect(page.getByText('Partial key', { exact: true }).first()).toBeVisible()
 
   state = 'contract'
@@ -964,13 +1073,30 @@ for (const width of [390, 320]) {
     await page.getByRole('button', { name: '切换主题' }).click()
     await page.getByRole('menuitemradio', { name: 'Dark' }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-    const actions = page.getByRole('button', { name: /Studio fixture/ })
+    const studioCard = page.locator('article').filter({ hasText: 'Studio fixture' })
+    await expect(studioCard.getByText('分组', { exact: true })).toBeVisible()
+    await expect(studioCard.getByText('1.5x 倍率', { exact: true })).toBeVisible()
+    const actions = page.getByRole('button', { name: '操作 Studio fixture', exact: true })
     await actions.focus()
     await page.keyboard.press('Enter')
     await page.getByRole('menuitem', { name: '显示完整值' }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(actions).toBeFocused()
+    await page.getByRole('button', { name: '创建密钥' }).first().click()
+    await expect(page.getByLabel('额度限制')).toHaveValue('')
+    await expect(page.getByLabel('额度限制')).toHaveAttribute('placeholder', '无限制')
+    await page.getByRole('combobox', { name: '过期时间' }).click()
+    const expirationMenuStyle = await page.locator('[data-slot="select-content"]').evaluate((element) => {
+      const style = getComputedStyle(element)
+      return { backgroundColor: style.backgroundColor, borderColor: style.borderColor, boxShadow: style.boxShadow }
+    })
+    expect(expirationMenuStyle.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+    expect(expirationMenuStyle.borderColor).not.toBe('rgba(0, 0, 0, 0)')
+    expect(expirationMenuStyle.boxShadow).not.toBe('none')
+    await expect(page.getByRole('option').allTextContents()).resolves.toEqual(['永不过期', '1 天', '7 天', '30 天', '自定义时间'])
+    await page.getByRole('option', { name: '自定义时间' }).click()
+    await expect(page.locator('[data-custom-expiration-calendar]')).toBeVisible()
     if (width === 390) await page.screenshot({ path: `${evidenceScreenshots}/keys-390.png`, fullPage: true })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     expect(consoleErrors).toEqual([])

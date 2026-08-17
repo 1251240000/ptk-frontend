@@ -73,12 +73,13 @@ describe('UI translation completeness', () => {
       join(webRoot, 'pages/console-usage-logs-page.tsx'),
     ]
     const uniqueKeys = literalTranslationKeysFromFiles(consoleFiles)
-    const legitimateFrenchMatches = new Set(['Actions', 'Client', 'Console', 'Notifications', 'Page {{page}} / {{pages}}', 'Quota', 'Quota (USD)', 'Routes', 'Service', 'Type', 'Version'])
+    const legitimateFrenchMatches = new Set(['Actions', 'Client', 'Console', 'Notifications', 'Page {{page}} / {{pages}}', 'Quota', 'Routes', 'Service', 'Type', 'Version'])
+    const legitimateCrossLocaleMatches = new Set(['Token'])
 
     for (const locale of locales.filter((value) => value !== 'en')) {
       const dictionary = resources[locale].translation as Record<string, string>
       const english = resources.en.translation as Record<string, string>
-      const fallback = uniqueKeys.filter((key) => dictionary[key] === english[key] && !(locale === 'fr' && legitimateFrenchMatches.has(key)))
+      const fallback = uniqueKeys.filter((key) => dictionary[key] === english[key] && !legitimateCrossLocaleMatches.has(key) && !(locale === 'fr' && legitimateFrenchMatches.has(key)))
       expect(fallback, locale).toEqual([])
     }
   })

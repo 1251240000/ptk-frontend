@@ -98,14 +98,14 @@ describe('studio image transport', () => {
     await generateStudioImages({
       model: 'gpt-image-1',
       prompt: 'A wide editorial image',
-      size: '1600x900',
+      size: '1600x1024',
       quality: 'medium',
       background: 'auto',
       count: 10,
     }, undefined, fetcher)
 
     const request = fetcherMock.mock.calls[0]?.[1] as RequestInit
-    expect(JSON.parse(String(request.body))).toMatchObject({ size: '1600x900', n: 10 })
+    expect(JSON.parse(String(request.body))).toMatchObject({ size: '1600x1024', n: 10 })
   })
 })
 
@@ -118,10 +118,22 @@ describe('studio model capabilities', () => {
     expect(studioModelCapabilities('gpt-image-1').maxCount).toBe(10)
   })
 
+  it('offers a compact set of recommended GPT Image sizes plus custom size support', () => {
+    const capabilities = studioModelCapabilities('gpt-image-1')
+
+    expect(capabilities.supportsCustomSize).toBe(true)
+    expect(capabilities.sizes).toEqual(['auto', '1024x1024', '1536x1024', '1024x1536', '1792x1024', '1024x1792', '2048x1152', '1152x2048'])
+    expect(capabilities.sizes.filter((item) => item !== 'auto')).toHaveLength(7)
+  })
+
   it('validates custom dimensions before a request is sent', () => {
-    expect(isValidStudioImageSize('1600x900')).toBe(true)
-    expect(isValidStudioImageSize('63x4096')).toBe(false)
+    expect(isValidStudioImageSize('1600x1024', 'gpt-image-1')).toBe(true)
+    expect(isValidStudioImageSize('1600x900', 'gpt-image-1')).toBe(false)
+    expect(isValidStudioImageSize('480x480', 'gpt-image-1')).toBe(false)
+    expect(isValidStudioImageSize('3840x1280', 'gpt-image-1')).toBe(true)
+    expect(isValidStudioImageSize('3840x1264', 'gpt-image-1')).toBe(false)
     expect(isValidStudioImageSize('custom')).toBe(false)
+    expect(isValidStudioImageSize('1600x1024', 'dall-e-3')).toBe(false)
   })
 
   it('uses conservative defaults for models without a reviewed override', () => {
@@ -131,6 +143,7 @@ describe('studio model capabilities', () => {
       backgrounds: ['auto'],
       maxCount: 1,
       supportsEdit: false,
+      supportsCustomSize: false,
     })
   })
 })

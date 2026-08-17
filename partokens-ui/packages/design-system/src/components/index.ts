@@ -1,5 +1,6 @@
 export { Badge, badgeVariants } from './badge'
 export { Button, buttonVariants } from './button'
+export { Calendar, CalendarDayButton } from './calendar'
 export {
   Card,
   CardAction,
@@ -40,6 +41,7 @@ export {
 export { Input } from './input'
 export { Label } from './label'
 export { PartokensMark } from './partokens-mark'
+export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover'
 export {
   Select,
   SelectContent,

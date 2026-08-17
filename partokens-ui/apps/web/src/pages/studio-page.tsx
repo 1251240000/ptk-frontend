@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
-import { LoaderCircle, Plus, Sparkles } from 'lucide-react'
+import { AlertTriangle, LoaderCircle, Plus, Sparkles } from 'lucide-react'
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -37,9 +37,12 @@ import {
   generateStudioImages,
   getStudioCredential,
   setStudioCredential,
+  studioCustomImageDimension,
   studioGroup,
+  studioImageSizeErrorMessage,
   studioModelCapabilities,
   isValidStudioImageSize,
+  validateStudioImageSize,
   type StudioAsset,
   type StudioNode,
   type StudioProject,
@@ -185,11 +188,14 @@ export function StudioPage() {
   const [createKeyBusy, setCreateKeyBusy] = useState(false)
   const [createKeyError, setCreateKeyError] = useState('')
   const [credentialRevision, setCredentialRevision] = useState(0)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
   const projectRef = useRef<StudioProject | null>(null)
   const referenceInputRef = useRef<HTMLInputElement>(null)
   const referenceUrlRef = useRef<string | null>(null)
   const resultUrlsRef = useRef<string[]>([])
   const abortRef = useRef<AbortController | null>(null)
+  const leavingAfterConfirmRef = useRef(false)
+  const pendingLeaveHrefRef = useRef<string | null>(null)
   const hydratedRef = useRef(false)
   const loadRequestRef = useRef(0)
 
@@ -347,6 +353,56 @@ export function StudioPage() {
   }, [revokeReferenceUrl, revokeResultUrls])
 
   useEffect(() => {
+    const confirmLeaveMessage = t('Leaving this page will stop the current image generation. Continue?')
+    const isGenerating = () => Boolean(abortRef.current && status === 'loading' && failureScope === 'generation')
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isGenerating()) return
+      event.preventDefault()
+      event.returnValue = confirmLeaveMessage
+    }
+    const click = (event: MouseEvent) => {
+      if (!isGenerating() || leavingAfterConfirmRef.current || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const target = event.target instanceof Element ? event.target.closest('a[href]') : null
+      if (!(target instanceof HTMLAnchorElement)) return
+      if (target.target && target.target !== '_self') return
+      const href = target.getAttribute('href')
+      if (!href || href.startsWith('#')) return
+      const nextUrl = new URL(target.href, window.location.href)
+      if (nextUrl.href === window.location.href) return
+      event.preventDefault()
+      event.stopPropagation()
+      pendingLeaveHrefRef.current = target.href
+      setLeaveConfirmOpen(true)
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+    document.addEventListener('click', click, true)
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload)
+      document.removeEventListener('click', click, true)
+    }
+  }, [failureScope, status, t])
+
+  const stopGenerationForLeave = () => {
+    abortRef.current?.abort()
+    setCancelled(true)
+    setStatus('idle')
+  }
+
+  const continuePendingLeave = () => {
+    const href = pendingLeaveHrefRef.current
+    pendingLeaveHrefRef.current = null
+    setLeaveConfirmOpen(false)
+    leavingAfterConfirmRef.current = true
+    stopGenerationForLeave()
+    if (href) window.location.assign(href)
+  }
+
+  const cancelPendingLeave = () => {
+    pendingLeaveHrefRef.current = null
+    setLeaveConfirmOpen(false)
+  }
+
+  useEffect(() => {
     clearStudioCredential()
     setCredentialRevision((value) => value + 1)
   }, [revision])
@@ -357,9 +413,14 @@ export function StudioPage() {
   }, [model, models, modelsQuery.isSuccess])
 
   useEffect(() => {
+    if (customSizeMode && !capabilities.supportsCustomSize) {
+      setCustomSizeMode(false)
+      setSize(capabilities.sizes[0]!)
+      return
+    }
     const nextSize = customSizeMode
       ? size
-      : capabilities.sizes.includes(size) || (size !== 'auto' && isValidStudioImageSize(size))
+      : capabilities.sizes.includes(size) || isValidStudioImageSize(size, model)
         ? size
         : capabilities.sizes[0]!
     const nextQuality = capabilities.qualities.includes(quality) ? quality : capabilities.qualities[0]!
@@ -367,7 +428,7 @@ export function StudioPage() {
     if (nextSize !== size) setSize(nextSize)
     if (nextQuality !== quality) setQuality(nextQuality)
     if (nextCount !== count) setCount(nextCount)
-  }, [capabilities, count, customSizeMode, quality, size])
+  }, [capabilities, count, customSizeMode, model, quality, size])
 
   useEffect(() => {
     const current = projectRef.current
@@ -701,7 +762,7 @@ export function StudioPage() {
   }
 
   const requestGeneration = () => {
-    if (!prompt.trim() || !model || !isValidStudioImageSize(size)) return
+    if (!prompt.trim() || !model || !isValidStudioImageSize(size, model)) return
     if (credentialReady) {
       void runGeneration()
       return
@@ -758,7 +819,9 @@ export function StudioPage() {
   const busy = status === 'loading'
   const tokenRestriction = selectedToken ? tokenModels(selectedToken) : []
   const customSizeSelected = customSizeMode || (size !== 'auto' && !capabilities.sizes.includes(size))
-  const sizeValid = isValidStudioImageSize(size)
+  const sizeValidation = validateStudioImageSize(size, model)
+  const sizeValid = sizeValidation.ok
+  const sizeError = studioImageSizeErrorMessage(sizeValidation)
   const [customWidth = '', customHeight = ''] = size.toLowerCase().split('x', 2)
   void credentialRevision
 
@@ -830,7 +893,7 @@ export function StudioPage() {
                 <SelectTrigger id="studio-size" className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {capabilities.sizes.map((item) => <SelectItem key={item} value={item}>{studioSizeLabel(item, translate)}</SelectItem>)}
-                  <SelectItem value="custom">{t('Custom size')}</SelectItem>
+                  {capabilities.supportsCustomSize ? <SelectItem value="custom">{t('Custom size')}</SelectItem> : null}
                 </SelectContent>
               </Select>
               {customSizeSelected ? <>
@@ -840,9 +903,9 @@ export function StudioPage() {
                     <Input
                       id="studio-custom-width"
                       type="number"
-                      min={64}
-                      max={4096}
-                      step={1}
+                      min={studioCustomImageDimension.min}
+                      max={studioCustomImageDimension.max}
+                      step={studioCustomImageDimension.step}
                       value={customWidth}
                       onChange={(event) => setSize(`${event.target.value.replace(/\D/g, '')}x${customHeight}`)}
                       placeholder="1024"
@@ -856,9 +919,9 @@ export function StudioPage() {
                     <Input
                       id="studio-custom-height"
                       type="number"
-                      min={64}
-                      max={4096}
-                      step={1}
+                      min={studioCustomImageDimension.min}
+                      max={studioCustomImageDimension.max}
+                      step={studioCustomImageDimension.step}
                       value={customHeight}
                       onChange={(event) => setSize(`${customWidth}x${event.target.value.replace(/\D/g, '')}`)}
                       placeholder="1024"
@@ -868,7 +931,7 @@ export function StudioPage() {
                     />
                   </div>
                 </div>
-                {!sizeValid ? <p className="text-xs text-destructive">{t('Enter a valid image size between 64x64 and 4096x4096')}</p> : null}
+                <p className={sizeValid ? 'text-xs text-muted-foreground' : 'text-xs text-destructive'} role={sizeValid ? undefined : 'alert'}>{t(sizeValid ? 'Width and height must use 16 px steps.' : sizeError)}</p>
               </> : null}
             </div>
 
@@ -980,6 +1043,23 @@ export function StudioPage() {
               {t('Continue generating')}
             </Button>
           </DialogFooter> : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={leaveConfirmOpen} onOpenChange={(open) => { if (!open) cancelPendingLeave() }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('Stop image generation?')}</DialogTitle>
+            <DialogDescription>{t('Leaving this page will stop the current image generation. Continue?')}</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <p className="text-muted-foreground">{t('The current request will be cancelled and no new images from it will be saved.')}</p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={cancelPendingLeave}>{t('Stay on page')}</Button>
+            <Button type="button" variant="destructive" onClick={continuePendingLeave}>{t('Stop and leave')}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

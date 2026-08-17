@@ -11,8 +11,6 @@ import {
   Eye,
   KeyRound,
   LoaderCircle,
-  MoreHorizontal,
-  Play,
   ReceiptText,
   RefreshCw,
   Route,
@@ -30,12 +28,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -58,8 +50,7 @@ import {
 import {
   getLogs,
   getLogStats,
-  getPricingWithSignal,
-  getStatusWithSignal,
+  getSelfSubscriptionsWithSignal,
   getTokens,
 } from '@partokens/api-client'
 import { isAppLocale, type AppLocale } from '@partokens/i18n'
@@ -73,11 +64,19 @@ import {
   refreshConsoleQueries,
 } from '@/lib/console-query'
 import { parseLogPage, type SafeLogRecord } from '@/lib/console-usage-contract'
-import { formatDate, formatInteger, formatQuota } from '@/lib/format'
+import { formatDate, formatInteger, formatQuota, quotaUnitsToDollars } from '@/lib/format'
 import { canonicalConsoleRoute } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
 
-type SafeStatus = { version?: string }
+type SafeSubscription = {
+  id: number
+  status: string
+  amountTotal: number
+  amountUsed: number
+  endTime?: number
+  nextResetTime?: number
+}
+type SafeSubscriptionPage = { records: SafeSubscription[]; partial: boolean }
 type SafeToken = { id: number; name: string; status: number; accessedAt?: number }
 type SafeTokenPage = { records: SafeToken[]; partial: boolean }
 type SafeStats = { quota?: number; partial: boolean }
@@ -101,12 +100,6 @@ function safeLabel(value: unknown, limit: number): string | undefined {
   const trimmed = value.trim()
   if (!trimmed || trimmed.length > limit || /https?:\/\/|\bBearer\b|(?:api[-_ ]?key|token)\s*[:=]/i.test(trimmed)) return undefined
   return trimmed
-}
-
-function safeStatus(input: unknown): SafeStatus {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ContractError('Service status contract is incomplete.')
-  const version = safeLabel((input as Record<string, unknown>).version, 64)
-  return { version }
 }
 
 function safeTokens(input: unknown): SafeTokenPage {
@@ -136,13 +129,42 @@ function safeTokens(input: unknown): SafeTokenPage {
   return { records, partial: invalid > 0 }
 }
 
-function safePricingCount(input: unknown): number {
-  if (Array.isArray(input)) return input.length
-  if (!input || typeof input !== 'object') throw new ContractError('Pricing contract is incomplete.')
-  const source = input as Record<string, unknown>
-  if (Array.isArray(source.items)) return source.items.length
-  if (Array.isArray(source.data)) return source.data.length
-  throw new ContractError('Pricing contract is incomplete.')
+function safeSubscriptions(input: unknown): SafeSubscriptionPage {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new ContractError('Subscription contract is incomplete.')
+  const items = (input as Record<string, unknown>).subscriptions
+  if (!Array.isArray(items)) throw new ContractError('Subscription contract is incomplete.')
+
+  const records: SafeSubscription[] = []
+  let invalid = 0
+  for (const item of items) {
+    const source = item && typeof item === 'object' && !Array.isArray(item)
+      ? (item as Record<string, unknown>).subscription
+      : undefined
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+      invalid += 1
+      continue
+    }
+    const record = source as Record<string, unknown>
+    const id = finiteNumber(record.id)
+    const status = safeLabel(record.status, 32)
+    const amountTotal = finiteNumber(record.amount_total)
+    const amountUsed = finiteNumber(record.amount_used)
+    if (!id || !Number.isInteger(id) || !status || amountTotal == null || amountUsed == null) {
+      invalid += 1
+      continue
+    }
+    records.push({
+      id,
+      status,
+      amountTotal,
+      amountUsed,
+      endTime: finiteNumber(record.end_time),
+      nextResetTime: finiteNumber(record.next_reset_time),
+    })
+  }
+
+  if (items.length > 0 && records.length === 0) throw new ContractError('Subscription contract is incomplete.')
+  return { records, partial: invalid > 0 }
 }
 
 function safeStats(input: unknown): SafeStats {
@@ -245,12 +267,21 @@ function QueryState(props: { message: string; onRetry: () => void; compact?: boo
   )
 }
 
+function formatQuotaPair(value: number, locale: AppLocale): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    currencyDisplay: 'narrowSymbol',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(quotaUnitsToDollars(value))
+}
+
 function RequestReadiness(props: {
+  locale: AppLocale
   userName: string
   requestCount: number
   query: ReturnType<typeof useQuery<SafeTokenPage>>
-  locale: AppLocale
-  playgroundAvailable: boolean
 }) {
   const { t } = useTranslation()
   const available = (props.query.data?.records ?? []).filter((token) => token.status === 1)
@@ -262,7 +293,7 @@ function RequestReadiness(props: {
   ]
 
   return (
-    <section aria-labelledby="request-readiness-title" className="overflow-hidden rounded-md border">
+    <section aria-labelledby="request-readiness-title" className="flex h-full min-h-full flex-col overflow-hidden rounded-md border">
       <header className="flex items-start justify-between gap-4 border-b p-4">
         <div className="min-w-0">
           <h2 id="request-readiness-title" className="text-sm font-semibold">{t('Request readiness')}</h2>
@@ -289,50 +320,53 @@ function RequestReadiness(props: {
           })}
         </div>
       )}
-      <footer className="flex flex-col gap-3 border-t bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">{t('Available endpoint')}</p>
-          <code className="mt-1 block break-all font-mono text-xs font-medium">/v1/chat/completions</code>
-        </div>
-        {props.playgroundAvailable ? (
-          <Button asChild size="sm"><Link to={canonicalConsoleRoute('playground')} params={{ locale: props.locale }}><Play />{t('Open Playground')}</Link></Button>
-        ) : (
-          <Button size="sm" disabled><Play />{t('Open Playground')}</Button>
-        )}
+      <footer className="mt-auto flex border-t p-3">
+        <Button asChild variant="ghost" size="sm" className="ms-auto"><Link to={canonicalConsoleRoute('keys')} params={{ locale: props.locale }}>{t('Manage keys')}<ArrowRight /></Link></Button>
       </footer>
     </section>
   )
 }
 
-function ServiceReadiness(props: { query: ReturnType<typeof useQuery<SafeStatus>>; locale: AppLocale }) {
+function SubscriptionStatus(props: { query: ReturnType<typeof useQuery<SafeSubscriptionPage>>; locale: AppLocale }) {
   const { t } = useTranslation()
   const checking = props.query.isLoading || props.query.isFetching
+  const active = props.query.data?.records.filter((item) => item.status === 'active') ?? []
+  const totalQuota = active.reduce((sum, item) => sum + Math.max(0, item.amountTotal), 0)
+  const usedQuota = active.reduce((sum, item) => sum + Math.max(0, item.amountUsed), 0)
+  const usagePercent = totalQuota > 0 ? Math.min(100, Math.max(0, (usedQuota / totalQuota) * 100)) : 0
+
   return (
-    <section aria-labelledby="service-readiness-title" className="flex min-h-full flex-col overflow-hidden rounded-md border">
+    <section aria-labelledby="subscription-status-title" className="flex h-full min-h-full flex-col overflow-hidden rounded-md border">
       <header className="flex items-start justify-between gap-4 border-b p-4">
         <div className="min-w-0">
-          <h2 id="service-readiness-title" className="text-sm font-semibold">{t('API service')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t('Current availability and deployed version.')}</p>
+          <h2 id="subscription-status-title" className="text-sm font-semibold">{t('Subscription status')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('Quota available from active subscriptions.')}</p>
         </div>
         {checking ? (
-          <Badge variant="secondary" className="shrink-0 gap-1.5"><LoaderCircle className="size-3.5 animate-spin" />{t('Checking')}</Badge>
+          <Badge variant="secondary" className="shrink-0 gap-1.5"><LoaderCircle className="size-3.5 animate-spin" />{t('Loading')}</Badge>
         ) : props.query.isError ? (
           <Badge variant="destructive" className="shrink-0">{t('Unavailable')}</Badge>
+        ) : active.length > 0 ? (
+          <Badge variant="outline" className="shrink-0 gap-1.5"><span className="size-1.5 rounded-full bg-emerald-500" />{t('Active')}</Badge>
         ) : (
-          <Badge variant="outline" className="shrink-0 gap-1.5"><span className="size-1.5 rounded-full bg-emerald-500" />{t('Available')}</Badge>
+          <Badge variant="secondary" className="shrink-0">{t('No active subscription')}</Badge>
         )}
       </header>
       {props.query.isError ? (
-        <QueryState compact message={safeErrorMessage(props.query.error, t('API service'), t)} onRetry={() => void props.query.refetch()} />
+        <QueryState compact message={safeErrorMessage(props.query.error, t('Subscription status'), t)} onRetry={() => void props.query.refetch()} />
       ) : (
-        <dl className="divide-y px-4">
-          <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-muted-foreground">{t('Service')}</dt><dd className="font-medium">Partokens API</dd></div>
-          <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-muted-foreground">{t('Version')}</dt><dd><code className="font-mono text-xs">{props.query.data?.version ?? '—'}</code></dd></div>
-          <div className="flex items-center justify-between gap-4 py-3 text-sm"><dt className="text-muted-foreground">{t('Compatibility')}</dt><dd className="font-medium">OpenAI API</dd></div>
-        </dl>
+        <div className="flex flex-1 flex-col justify-center px-4 py-3">
+          <div className="flex min-w-0 items-baseline justify-between gap-3">
+            <span className="shrink-0 text-xs text-muted-foreground">{t('Quota usage')}</span>
+            <span className="min-w-0 truncate whitespace-nowrap text-end font-mono text-sm font-semibold tabular-nums">{formatQuotaPair(usedQuota, props.locale)} / {formatQuotaPair(totalQuota, props.locale)}</span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${usagePercent}%` }} />
+          </div>
+        </div>
       )}
       <footer className="mt-auto border-t p-3">
-        <Button asChild variant="ghost" size="sm" className="w-full justify-between"><Link to="/$locale/notices" params={{ locale: props.locale }}>{t('Notices')}<ArrowRight /></Link></Button>
+        <div className="flex justify-end"><Button asChild variant="ghost" size="sm"><Link to={canonicalConsoleRoute('wallet')} params={{ locale: props.locale }}>{t('Manage subscriptions')}<ArrowRight /></Link></Button></div>
       </footer>
     </section>
   )
@@ -341,10 +375,10 @@ function ServiceReadiness(props: { query: ReturnType<typeof useQuery<SafeStatus>
 function RequestTrace(props: { locale: AppLocale }) {
   const { t } = useTranslation()
   const stages = [
-    { label: t('Client'), value: 'OpenAI SDK', icon: Server },
-    { label: t('Available endpoint'), value: 'POST /v1/chat/completions', icon: Route },
-    { label: t('Provider route'), value: t('Not exposed'), icon: Bot },
-    { label: t('Response'), value: t('Not observed'), icon: CheckCircle2 },
+    { label: t('Client'), value: t('Agent Client'), icon: Server },
+    { label: t('Available endpoint'), value: 'https://partokens.com', icon: Route },
+    { label: t('Provider'), value: t('OpenAI, Grok, OpenCode, etc.'), icon: Bot },
+    { label: t('Response'), value: t('Partokens secure response protects your privacy.'), icon: CheckCircle2 },
   ]
 
   return (
@@ -354,7 +388,7 @@ function RequestTrace(props: { locale: AppLocale }) {
           <h2 id="request-trace-title" className="text-sm font-semibold">{t('Request route')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t('The active path from compatible client to provider response.')}</p>
         </div>
-        <Button asChild variant="outline" size="sm" className="self-start sm:self-auto"><Link to={canonicalConsoleRoute('usageLogs')} params={{ locale: props.locale }}>{t('Inspect logs')}<ArrowRight /></Link></Button>
+        <Button asChild variant="ghost" size="sm" className="self-start sm:self-auto"><Link to={canonicalConsoleRoute('usageLogs')} params={{ locale: props.locale }}>{t('Inspect logs')}<ArrowRight /></Link></Button>
       </header>
       <ol className="grid divide-y lg:grid-cols-4 lg:divide-x lg:divide-y-0">
         {stages.map((stage, index) => {
@@ -380,10 +414,17 @@ function logTokens(log: SafeLogRecord) {
   return log.promptTokens + log.completionTokens
 }
 
+function usageStatusLabel(type: number) {
+  if (type === 2) return 'Overview status complete'
+  if (type === 5) return 'Error'
+  return 'Recorded'
+}
+
 function UsageStatus(props: { record: SafeLogRecord }) {
   const { t } = useTranslation()
-  if (props.record.type === 5) return <Badge variant="destructive">{t('Error')}</Badge>
-  return <Badge variant="outline" className="gap-1.5"><span className="size-1.5 rounded-full bg-emerald-500" />{t('Recorded')}</Badge>
+  const label = usageStatusLabel(props.record.type)
+  if (props.record.type === 5) return <Badge variant="destructive">{t(label)}</Badge>
+  return <Badge variant="outline" className="gap-1.5"><span className="size-1.5 rounded-full bg-emerald-500" />{t(label)}</Badge>
 }
 
 function UsageDetails(props: { record: SafeLogRecord; locale: AppLocale }) {
@@ -397,7 +438,7 @@ function UsageDetails(props: { record: SafeLogRecord; locale: AppLocale }) {
     [t('Tokens'), formatInteger(logTokens(props.record), props.locale)],
     [t('Cost'), formatQuota(props.record.quota, props.locale)],
     [t('Latency'), props.record.useTime == null ? '—' : `${props.record.useTime.toFixed(2)} s`],
-    [t('Status'), props.record.type === 5 ? t('Error') : t('Recorded')],
+    [t('Status'), t(usageStatusLabel(props.record.type))],
   ]
 
   return (
@@ -522,19 +563,14 @@ export function ConsoleOverviewPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
-  const status = useQuery({
-    queryKey: consoleQueryKeys.overview.status(),
-    queryFn: ({ signal }) => safeQuery(() => getStatusWithSignal(signal), safeStatus),
+  const subscriptions = useQuery({
+    queryKey: consoleQueryKeys.overview.subscriptions(),
+    queryFn: ({ signal }) => safeQuery(() => getSelfSubscriptionsWithSignal(signal), safeSubscriptions),
     retry: false,
   })
   const tokens = useQuery({
     queryKey: consoleQueryKeys.overview.tokens(),
     queryFn: ({ signal }) => safeQuery(() => getTokens({ p: 1, size: 100 }, signal), safeTokens),
-    retry: false,
-  })
-  const pricing = useQuery({
-    queryKey: consoleQueryKeys.overview.pricing(),
-    queryFn: ({ signal }) => safeQuery(() => getPricingWithSignal(signal), safePricingCount),
     retry: false,
   })
   const stats = useQuery({
@@ -543,15 +579,13 @@ export function ConsoleOverviewPage() {
     retry: false,
   })
   const logs = useQuery({
-    queryKey: consoleQueryKeys.overview.recentUsage(range),
-    queryFn: ({ signal }) => safeQuery(() => getLogs({ p: 1, page_size: 5, ...range }, signal), (input) => parseLogPage(input, 1)),
+    queryKey: consoleQueryKeys.overview.recentUsage({ ...range, type: 2 }),
+    queryFn: ({ signal }) => safeQuery(() => getLogs({ p: 1, page_size: 5, type: 2, ...range }, signal), (input) => parseLogPage(input, 1)),
     retry: false,
   })
 
-  const initialLoading = status.isLoading || tokens.isLoading || pricing.isLoading || stats.isLoading || logs.isLoading
-  const partial = tokens.data?.partial || stats.data?.partial || Boolean(logs.data && (logs.data.partialCount || logs.data.invalidCount || logs.data.redactedCount))
-  const playgroundAvailable = Boolean(pricing.data && pricing.data > 0)
-
+  const initialLoading = subscriptions.isLoading || tokens.isLoading || stats.isLoading || logs.isLoading
+  const partial = subscriptions.data?.partial || tokens.data?.partial || stats.data?.partial || Boolean(logs.data && (logs.data.partialCount || logs.data.invalidCount || logs.data.redactedCount))
   useEffect(() => {
     if (!initialLoading && !updatedAt) setUpdatedAt(new Date())
   }, [initialLoading, updatedAt])
@@ -578,22 +612,7 @@ export function ConsoleOverviewPage() {
           <p className="text-muted-foreground">{t('Account readiness, usage, and the next useful action in one view.')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" disabled={refreshing}><Link to={canonicalConsoleRoute('keys')} params={{ locale }}><KeyRound />{t('Create a key')}</Link></Button>
-          {playgroundAvailable ? (
-            <Button asChild><Link to={canonicalConsoleRoute('playground')} params={{ locale }}><Play />{t('Open Playground')}</Link></Button>
-          ) : (
-            <Button disabled><Play />{t('Open Playground')}</Button>
-          )}
           <Button variant="outline" disabled={refreshing} onClick={() => void refresh()}>{refreshing ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}{refreshing ? t('Refreshing...') : t('Refresh')}</Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={refreshing} aria-label={t('Overview actions')}><MoreHorizontal /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{t('Overview actions')}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild><Link to={canonicalConsoleRoute('analytics')} params={{ locale }}><ArrowRight />{t('Analytics')}</Link></DropdownMenuItem>
-              <DropdownMenuItem asChild><Link to={canonicalConsoleRoute('usageLogs')} params={{ locale }}><ReceiptText />{t('Usage logs')}</Link></DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -601,12 +620,11 @@ export function ConsoleOverviewPage() {
         <>
           <MetricSummary locale={locale} balance={user?.quota} recent={stats.data?.quota} total={user?.used_quota} requests={user?.request_count} />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,0.9fr)]">
-            <RequestReadiness userName={user?.email || user?.username || t('Account')} requestCount={Number(user?.request_count || 0)} query={tokens} locale={locale} playgroundAvailable={playgroundAvailable} />
-            <ServiceReadiness query={status} locale={locale} />
+            <RequestReadiness locale={locale} userName={user?.email || user?.username || t('Account')} requestCount={Number(user?.request_count || 0)} query={tokens} />
+            <SubscriptionStatus query={subscriptions} locale={locale} />
           </div>
           <RequestTrace locale={locale} />
           <RecentUsage query={logs} locale={locale} />
-          {pricing.isError ? <p role="alert" className="text-xs text-muted-foreground">{safeErrorMessage(pricing.error, t('Pricing data'), t)}</p> : null}
           {partial ? <p role="status" className="text-xs text-muted-foreground">{t('Some account records were incomplete or redacted. Only validated fields are shown.')}</p> : null}
           <p className="text-end text-xs text-muted-foreground">{updatedAt ? t('Updated at {{time}}', { time: updatedAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) }) : t('Update unavailable')}</p>
         </>

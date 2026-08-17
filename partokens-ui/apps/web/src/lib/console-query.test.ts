@@ -18,6 +18,7 @@ describe('canonical Console query contract', () => {
     expect(consoleQueryKeys.analytics.usage('7', 'day')).toEqual(['console', 'analytics', 'usage', '7', 'day'])
     expect(consoleQueryKeys.apiKeys.list('studio')).toEqual(['console', 'keys', 'list', 'studio'])
     expect(consoleQueryKeys.usageLogs.stats({ group: 'default' })).toEqual(['console', 'usage-logs', 'stats', { group: 'default' }])
+    expect(consoleQueryKeys.usageLogs.tokenTotals({ group: 'default' })).toEqual(['console', 'usage-logs', 'token-totals', { group: 'default' }])
   })
 
   it('classifies 401, 403, contract, and availability failures without exposing response data', () => {

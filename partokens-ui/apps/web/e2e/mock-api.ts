@@ -303,7 +303,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       return
     }
     if (path === '/api/user/self/groups') {
-      await json(route, envelope({ default: { ratio: 1 } }))
+      await json(route, envelope({ default: { ratio: 1 }, Image: { ratio: 1.5 } }))
       return
     }
     if (path === '/api/user/topup/info') {
@@ -425,7 +425,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
         group: 'default',
         request_id: 'req_fixture_123456789',
         upstream_request_id: 'upstream_fixture_987654321',
-        other: JSON.stringify({ billing_mode: 'token', model_ratio: 1, completion_ratio: 1 }),
+        other: JSON.stringify({ billing_mode: 'token', model_ratio: 1, completion_ratio: 1, cache_ratio: 0.5, model_price: -1, group_ratio: 1.25, cache_tokens: 12, frt: 420 }),
       }], total: 1, page: 1, page_size: 20 }))
       return
     }

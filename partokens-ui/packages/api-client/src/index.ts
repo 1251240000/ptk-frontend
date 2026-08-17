@@ -1266,7 +1266,11 @@ export async function getSubscriptionPlans(): Promise<ApiEnvelope<SubscriptionPl
 }
 
 export async function getSelfSubscriptions(): Promise<ApiEnvelope<SelfSubscriptionData>> {
-  const response = await api.get('/api/subscription/self')
+  return getSelfSubscriptionsWithSignal()
+}
+
+export async function getSelfSubscriptionsWithSignal(signal?: AbortSignal): Promise<ApiEnvelope<SelfSubscriptionData>> {
+  const response = await api.get('/api/subscription/self', { signal })
   return parseEnvelope<SelfSubscriptionData>(response.data)
 }
 

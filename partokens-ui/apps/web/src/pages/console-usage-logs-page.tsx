@@ -3,15 +3,18 @@ import { useParams } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
 import {
   AlertTriangle,
-  ChevronDown,
+  ArrowDownToLine,
+  ArrowUpFromLine,
   ChevronRight,
-  Download,
+  Database,
   FileSearch,
+  Gauge,
   LoaderCircle,
   RefreshCw,
   Search,
+  TimerReset,
 } from 'lucide-react'
-import { useMemo, useRef, useState, type FormEvent, type MouseEvent, type RefObject } from 'react'
+import { Fragment, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -72,12 +75,19 @@ import {
   containsSensitiveLogText,
   parseLogPage,
   parseLogStats,
+  parseLogTokenTotalsPage,
+  mergeLogTokenTotals,
   type SafeLogRecord,
   type SafeLogStats,
+  type SafeLogTokenTotals,
 } from '@/lib/console-usage-contract'
 import { formatDate, formatInteger, formatQuota } from '@/lib/format'
+import { ModelProviderBadge } from '@/components/model-provider-badge'
 
 const pageSize = 20
+const tokenTotalsPageSize = 100
+const maxTokenTotalsPages = 100
+const tokenTotalsConcurrency = 4
 
 type LogFilterState = {
   type: string
@@ -122,6 +132,33 @@ async function fetchStats(params: Omit<UsageLogQuery, 'p' | 'page_size'>, signal
   }
 }
 
+async function fetchTokenTotals(params: Omit<UsageLogQuery, 'p' | 'page_size'>, signal?: AbortSignal): Promise<SafeLogTokenTotals> {
+  try {
+    const loadPage = async (page: number) => {
+      const response = await getLogs({ ...params, p: page, page_size: tokenTotalsPageSize }, signal)
+      if (!response.success) throw new ConsoleRequestError('Usage token totals are unavailable.')
+      return parseLogTokenTotalsPage(response.data, page)
+    }
+
+    const firstPage = await loadPage(1)
+    const availablePages = Math.max(1, Math.ceil(firstPage.total / firstPage.pageSize))
+    const pageCount = Math.min(availablePages, maxTokenTotalsPages)
+    const pages = [firstPage]
+
+    for (let first = 2; first <= pageCount; first += tokenTotalsConcurrency) {
+      const batch = Array.from(
+        { length: Math.min(tokenTotalsConcurrency, pageCount - first + 1) },
+        (_, index) => loadPage(first + index),
+      )
+      pages.push(...await Promise.all(batch))
+    }
+
+    return mergeLogTokenTotals(pages, availablePages > maxTokenTotalsPages)
+  } catch (error) {
+    throw asConsoleRequestError(error, 'Usage token totals are unavailable.')
+  }
+}
+
 function defaultFilters(): LogFilterState {
   return { type: '0', model: '', group: '', searchKind: 'request', searchValue: '', rangeHours: '24' }
 }
@@ -158,6 +195,20 @@ function makeStatsParams(params: UsageLogQuery): Omit<UsageLogQuery, 'p' | 'page
   }
 }
 
+function makeTokenTotalsParams(params: UsageLogQuery): Omit<UsageLogQuery, 'p' | 'page_size'> | null {
+  if (params.type != null && params.type !== 2) return null
+  return {
+    type: 2,
+    ...(params.model_name ? { model_name: params.model_name } : {}),
+    ...(params.token_name ? { token_name: params.token_name } : {}),
+    ...(params.group ? { group: params.group } : {}),
+    ...(params.request_id ? { request_id: params.request_id } : {}),
+    ...(params.upstream_request_id ? { upstream_request_id: params.upstream_request_id } : {}),
+    ...(params.start_timestamp ? { start_timestamp: params.start_timestamp } : {}),
+    ...(params.end_timestamp ? { end_timestamp: params.end_timestamp } : {}),
+  }
+}
+
 function logTypeLabel(type: number) {
   const labels: Record<number, string> = { 1: 'Top-up', 2: 'Usage', 3: 'Management', 4: 'System', 5: 'Error', 6: 'Refund', 7: 'Login' }
   return labels[type] || `Event ${type}`
@@ -170,13 +221,70 @@ function TypeBadge({ type }: { type: number }) {
   return <Badge variant="secondary">{t(logTypeLabel(type))}</Badge>
 }
 
-function totalTokens(record: SafeLogRecord): number | undefined {
-  if (record.promptTokens == null || record.completionTokens == null) return undefined
-  return record.promptTokens + record.completionTokens
+function GroupValue({ record }: { record: SafeLogRecord }) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <span className="max-w-28 truncate" title={record.group}>{record.group || '—'}</span>
+      {record.groupRatio != null ? <Badge variant="outline" className="font-mono font-normal text-muted-foreground">{record.groupRatio}x {t('Ratio')}</Badge> : null}
+    </div>
+  )
 }
 
-function latency(record: SafeLogRecord) {
-  return record.useTime == null ? '—' : `${record.useTime.toFixed(2)} s`
+function TokenMetrics({ record, locale, compact = false }: { record: SafeLogRecord; locale: AppLocale; compact?: boolean }) {
+  const { t } = useTranslation()
+  const metrics = [
+    [t('Input tokens'), record.promptTokens, ArrowUpFromLine],
+    [t('Output tokens'), record.completionTokens, ArrowDownToLine],
+    [t('Cached tokens'), record.cacheTokens, Database],
+  ] as const
+  return (
+    <div className={`grid grid-cols-[max-content_max-content] gap-x-3 gap-y-1 font-mono text-xs tabular-nums ${compact ? 'w-max' : 'min-w-28'}`}>
+      {metrics.map(([label, value, Icon], index) => (
+        <Tooltip key={label}>
+          <TooltipTrigger asChild>
+            <span className={`inline-flex min-w-0 items-center gap-1.5 ${index === 2 ? 'col-span-2' : ''}`} aria-label={`${label}: ${formatInteger(value, locale)}`}>
+              <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span>{formatInteger(value, locale)}</span>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+  )
+}
+
+function durationTone(seconds: number, kind: 'first' | 'total') {
+  const greenLimit = kind === 'first' ? 10 : 30
+  const yellowLimit = kind === 'first' ? 30 : 60
+  if (seconds <= greenLimit) return 'text-success'
+  if (seconds <= yellowLimit) return 'text-warning'
+  return 'text-destructive'
+}
+
+function formatDuration(seconds: number | undefined) {
+  return seconds == null ? '—' : `${seconds.toFixed(2)} s`
+}
+
+function DurationMetrics({ record }: { record: SafeLogRecord }) {
+  const { t } = useTranslation()
+  const firstSeconds = record.firstResponseTime == null ? undefined : record.firstResponseTime / 1000
+  const metrics: ReadonlyArray<readonly [string, number | undefined, typeof TimerReset, 'first' | 'total']> = [
+    ...(record.isStream ? [[t('First token'), firstSeconds, TimerReset, 'first'] as const] : []),
+    [t('Total time'), record.useTime, Gauge, 'total'],
+  ]
+  return (
+    <div className="grid min-w-28 gap-1 text-xs tabular-nums">
+      {metrics.map(([label, seconds, Icon, kind]) => (
+        <span key={label} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+          <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="text-muted-foreground">{label}</span>
+          <span className={`font-mono font-medium ${seconds == null ? 'text-muted-foreground' : durationTone(seconds, kind)}`}>{formatDuration(seconds)}</span>
+        </span>
+      ))}
+    </div>
+  )
 }
 
 function ListState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
@@ -208,53 +316,112 @@ function EmptyState({ filtered, onClear }: { filtered: boolean; onClear: () => v
 }
 
 function StatsStrip({
-  query,
+  statsQuery,
+  tokenTotalsQuery,
   total,
   locale,
   traceBlocked,
 }: {
-  query: ReturnType<typeof useQuery<SafeLogStats>>
+  statsQuery: ReturnType<typeof useQuery<SafeLogStats>>
+  tokenTotalsQuery: ReturnType<typeof useQuery<SafeLogTokenTotals>>
   total?: number
   locale: AppLocale
   traceBlocked: boolean
 }) {
   const { t } = useTranslation()
-  if (query.isLoading) {
-    return <section aria-label={t('Loading usage statistics')} className="grid grid-cols-2 overflow-hidden rounded-md border lg:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className={`min-w-0 p-4 ${index % 2 === 0 ? 'border-e' : ''} ${index < 2 ? 'border-b' : ''} lg:border-b-0 ${index < 3 ? 'lg:border-e' : ''}`}><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-7 w-24" /></div>)}</section>
-  }
+  const tokenValue = (value: number | undefined) => tokenTotalsQuery.isLoading
+    ? <Skeleton className="h-7 w-24" />
+    : tokenTotalsQuery.isError || value == null
+      ? t('Unavailable')
+      : `${tokenTotalsQuery.data?.partial ? '≥ ' : ''}${formatInteger(value, locale)}`
   const metrics = [
-    [t('Filtered cost'), traceBlocked || query.isError ? t('Unavailable') : query.data ? formatQuota(query.data.quota, locale) : '—'],
-    [t('Records'), total == null ? '—' : formatInteger(total, locale)],
-    [t('Prompt tokens'), t('Unavailable')],
-    [t('Completion tokens'), t('Unavailable')],
-  ]
+    [t('Filtered cost'), statsQuery.isLoading ? <Skeleton className="h-7 w-24" /> : traceBlocked || statsQuery.isError ? t('Unavailable') : formatQuota(statsQuery.data?.quota ?? 0, locale, 6)],
+    [t('Records'), formatInteger(total ?? 0, locale)],
+    [t('Input tokens'), tokenValue(tokenTotalsQuery.data?.promptTokens)],
+    [t('Output tokens'), tokenValue(tokenTotalsQuery.data?.completionTokens)],
+    [t('Cached tokens'), tokenValue(tokenTotalsQuery.data?.cacheTokens)],
+  ] as const
   return (
-    <section aria-label={t('Usage statistics')} className="grid grid-cols-2 overflow-hidden rounded-md border lg:grid-cols-4">
-      {metrics.map(([label, value], index) => <div key={label} className={`min-w-0 p-4 ${index % 2 === 0 ? 'border-e' : ''} ${index < 2 ? 'border-b' : ''} lg:border-b-0 ${index < 3 ? 'lg:border-e' : ''}`}><p className="text-xs text-muted-foreground">{label}</p><p className={`mt-1 min-w-0 truncate font-mono font-semibold tabular-nums ${value === t('Unavailable') ? 'text-sm text-muted-foreground' : 'text-xl'}`}>{value}</p></div>)}
-      {!traceBlocked && query.isError ? <div role="alert" className="col-span-2 flex items-center justify-between gap-3 border-t px-4 py-3 text-sm lg:col-span-4"><span className="min-w-0 text-destructive">{safeQueryError(query.error, 'stats', t)}</span><Button variant="outline" size="sm" className="shrink-0" onClick={() => void query.refetch()}><RefreshCw />{t('Retry')}</Button></div> : null}
-      {traceBlocked ? <p role="status" className="col-span-2 border-t px-4 py-3 text-xs text-muted-foreground lg:col-span-4">{t('Filtered cost is unavailable because the statistics contract does not accept request or upstream request IDs. The record count remains exact.')}</p> : null}
-      {!traceBlocked && query.data?.partial ? <p role="status" className="col-span-2 border-t px-4 py-3 text-xs text-muted-foreground lg:col-span-4">{t('Some usage statistics are unavailable; usable metrics remain visible.')}</p> : null}
+    <section aria-label={t('Usage statistics')} className="grid grid-cols-2 overflow-hidden rounded-md border lg:grid-cols-5">
+      {metrics.map(([label, value], index) => <div key={label} className={`min-w-0 p-4 ${index < 4 && index % 2 === 0 ? 'border-e' : ''} ${index < 4 ? 'border-b' : ''} lg:border-b-0 ${index < 4 ? 'lg:border-e' : ''}`}><p className="text-xs text-muted-foreground">{label}</p><div className={`mt-1 min-w-0 truncate font-mono font-semibold tabular-nums ${value === t('Unavailable') ? 'text-sm text-muted-foreground' : 'text-xl'}`}>{value}</div></div>)}
+      {!traceBlocked && statsQuery.isError ? <div role="alert" className="col-span-2 flex items-center justify-between gap-3 border-t px-4 py-3 text-sm lg:col-span-5"><span className="min-w-0 text-destructive">{safeQueryError(statsQuery.error, 'stats', t)}</span><Button variant="outline" size="sm" className="shrink-0" onClick={() => void statsQuery.refetch()}><RefreshCw />{t('Retry')}</Button></div> : null}
+      {tokenTotalsQuery.isError ? <div role="alert" className="col-span-2 flex items-center justify-between gap-3 border-t px-4 py-3 text-sm lg:col-span-5"><span className="min-w-0 text-destructive">{t('Usage token totals are unavailable.')}</span><Button variant="outline" size="sm" className="shrink-0" onClick={() => void tokenTotalsQuery.refetch()}><RefreshCw />{t('Retry')}</Button></div> : null}
+      {traceBlocked ? <p role="status" className="col-span-2 border-t px-4 py-3 text-xs text-muted-foreground lg:col-span-5">{t('Filtered cost is unavailable because the statistics contract does not accept request or upstream request IDs. The record count remains exact.')}</p> : null}
+      {!traceBlocked && statsQuery.data?.partial ? <p role="status" className="col-span-2 border-t px-4 py-3 text-xs text-muted-foreground lg:col-span-5">{t('Some usage statistics are unavailable; usable metrics remain visible.')}</p> : null}
+      {tokenTotalsQuery.data?.partial ? <p role="status" className="col-span-2 border-t px-4 py-3 text-xs text-muted-foreground lg:col-span-5">{t('Token totals are incomplete because some matching usage logs could not be aggregated.')}</p> : null}
+    </section>
+  )
+}
+
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-3 px-3 py-2.5 text-sm"><dt className="text-muted-foreground">{label}</dt><dd className="flex min-w-0 justify-end break-words text-end font-medium">{children}</dd></div>
+}
+
+const basePricePerMillion = 2
+
+function formatModelPrice(value: number | undefined, locale: AppLocale) {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 6,
+    maximumFractionDigits: 6,
+  }).format(value)
+}
+
+function PricingDetails({ record, locale }: { record: SafeLogRecord; locale: AppLocale }) {
+  const { t } = useTranslation()
+  if (record.modelRatio == null && record.completionRatio == null && record.cacheRatio == null) return null
+  const standardInput = record.modelRatio != null && record.modelRatio > 0
+    ? record.modelRatio * basePricePerMillion
+    : record.modelPrice != null && record.modelPrice > 0
+      ? record.modelPrice
+      : undefined
+  if (standardInput == null) return null
+  const groupRatio = record.groupRatio ?? 1
+  const completionRatio = record.completionRatio ?? 1
+  const cacheRatio = record.cacheRatio ?? 1
+  const prices = [
+    [t('Input tokens'), standardInput, standardInput * groupRatio],
+    [t('Output tokens'), standardInput * completionRatio, standardInput * completionRatio * groupRatio],
+    [t('Cached tokens'), standardInput * cacheRatio, standardInput * cacheRatio * groupRatio],
+  ] as const
+  return (
+    <section className="overflow-hidden rounded-md border" aria-labelledby="model-pricing-heading">
+      <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+        <h3 id="model-pricing-heading" className="text-sm font-semibold">{t('Model pricing')}</h3>
+        <span className="text-[11px] text-muted-foreground">{t('Per million tokens')}</span>
+      </div>
+      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 gap-y-2 border-t px-3 py-2.5 text-xs">
+        <span className="text-muted-foreground" />
+        <span className="text-end text-muted-foreground">{t('Standard price')}</span>
+        <span className="text-end text-muted-foreground">{t('Actual price')}</span>
+        {prices.map(([label, standard, actual]) => (
+          <Fragment key={label}>
+            <span className="font-medium">{label}</span>
+            <span className="text-end font-mono tabular-nums">{formatModelPrice(standard, locale)}</span>
+            <span className="text-end font-mono font-medium tabular-nums">{formatModelPrice(actual, locale)}</span>
+          </Fragment>
+        ))}
+      </div>
     </section>
   )
 }
 
 function DetailList({ record, locale }: { record: SafeLogRecord; locale: AppLocale }) {
   const { t } = useTranslation()
-  const rows = [
-    [t('Request ID'), record.requestId || '—'],
-    [t('Upstream request ID'), record.upstreamRequestId || '—'],
-    [t('Time'), formatDate(record.createdAt, locale)],
-    [t('Type'), t(logTypeLabel(record.type))],
-    [t('Model'), record.modelName || '—'],
-    [t('Key name'), record.tokenName || '—'],
-    [t('Group'), record.group || '—'],
-    [t('Streaming'), record.isStream == null ? '—' : record.isStream ? t('Yes') : t('No')],
-    [t('Prompt tokens'), formatInteger(record.promptTokens, locale)],
-    [t('Completion tokens'), formatInteger(record.completionTokens, locale)],
-    [t('Cost'), formatQuota(record.quota, locale)],
-    [t('Latency'), latency(record)],
-  ]
-  return <div className="space-y-3"><dl className="divide-y rounded-md border">{rows.map(([label, value]) => <div key={label} className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-3 px-3 py-2.5 text-sm"><dt className="text-muted-foreground">{label}</dt><dd className="min-w-0 break-words text-end font-medium">{value}</dd></div>)}</dl><p role="status" className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">{t('Request content, raw metadata, and sensitive URLs are withheld because the self-log API has no field-level sensitivity contract.')}</p></div>
+  return <div className="space-y-3"><dl className="divide-y rounded-md border">
+    <DetailRow label={t('Request ID')}>{record.requestId || '—'}</DetailRow>
+    <DetailRow label={t('Time')}>{formatDate(record.createdAt, locale)}</DetailRow>
+    <DetailRow label={t('Type')}><TypeBadge type={record.type} /></DetailRow>
+    <DetailRow label={t('Group')}><GroupValue record={record} /></DetailRow>
+    <DetailRow label={t('Model')}><ModelProviderBadge model={record.modelName} /></DetailRow>
+    <DetailRow label={t('Key name')}>{record.tokenName || '—'}</DetailRow>
+    <DetailRow label={t('Streaming')}>{record.isStream == null ? '—' : record.isStream ? t('Yes') : t('No')}</DetailRow>
+    <DetailRow label={t('Token')}><TokenMetrics record={record} locale={locale} compact /></DetailRow>
+    <DetailRow label={t('Cost')}><span className="font-mono tabular-nums">{formatQuota(record.quota, locale, 6)}</span></DetailRow>
+    <DetailRow label={t('Duration')}><DurationMetrics record={record} /></DetailRow>
+  </dl><PricingDetails record={record} locale={locale} /><p role="status" className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">{t('To protect your privacy, Partokens does not record request bodies, metadata, or other sensitive content.')}</p></div>
 }
 
 function LogDetails({
@@ -270,7 +437,6 @@ function LogDetails({
 }) {
   const { t } = useTranslation()
   const { isMobile } = useSidebar()
-  const description = `${record.requestId || t('Event {{id}}', { id: record.rowId })} · ${formatDate(record.createdAt, locale)}`
   const closeAutoFocus = (event: Event) => {
     event.preventDefault()
     returnFocus.current?.focus()
@@ -280,7 +446,7 @@ function LogDetails({
     return (
       <Sheet open onOpenChange={(open) => !open && onClose()}>
         <SheetContent className="w-full sm:max-w-md" onCloseAutoFocus={closeAutoFocus}>
-          <SheetHeader><SheetTitle>{t('Request details')}</SheetTitle><SheetDescription>{description}</SheetDescription></SheetHeader>
+          <SheetHeader><SheetTitle>{t('Request details')}</SheetTitle><SheetDescription className="sr-only">{t('Request details')}</SheetDescription></SheetHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4"><DetailList record={record} locale={locale} /></div>
           <SheetFooter className="border-t"><Button variant="outline" onClick={onClose}>{t('Close')}</Button></SheetFooter>
         </SheetContent>
@@ -291,7 +457,7 @@ function LogDetails({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-xl" onCloseAutoFocus={closeAutoFocus}>
-        <DialogHeader><DialogTitle>{t('Request details')}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{t('Request details')}</DialogTitle><DialogDescription className="sr-only">{t('Request details')}</DialogDescription></DialogHeader>
         <DetailList record={record} locale={locale} />
         <DialogFooter><Button variant="outline" onClick={onClose}>{t('Close')}</Button></DialogFooter>
       </DialogContent>
@@ -321,9 +487,15 @@ export function ConsoleUsageLogsPage() {
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null)
   const params = useMemo(() => makeListParams(applied, appliedAt, page), [applied, appliedAt, page])
   const statParams = useMemo(() => makeStatsParams(params), [params])
+  const tokenTotalsParams = useMemo(() => makeTokenTotalsParams(params), [params])
   const statsTraceBlocked = Boolean(applied.searchValue) && (applied.searchKind === 'request' || applied.searchKind === 'upstream')
   const logs = useQuery({ queryKey: consoleQueryKeys.usageLogs.list(params), queryFn: ({ signal }) => fetchLogPage(params, page, signal), retry: false })
   const stats = useQuery({ queryKey: consoleQueryKeys.usageLogs.stats(statParams), queryFn: ({ signal }) => fetchStats(statParams, signal), enabled: !statsTraceBlocked, retry: false })
+  const tokenTotals = useQuery({
+    queryKey: consoleQueryKeys.usageLogs.tokenTotals(tokenTotalsParams),
+    queryFn: ({ signal }) => tokenTotalsParams ? fetchTokenTotals(tokenTotalsParams, signal) : Promise.resolve({ promptTokens: 0, completionTokens: 0, cacheTokens: 0, partial: false }),
+    retry: false,
+  })
   const totalPages = Math.max(1, Math.ceil((logs.data?.total || 0) / (logs.data?.pageSize || pageSize)))
   const hasFilters = applied.type !== '0' || Boolean(applied.model || applied.group || applied.searchValue) || applied.rangeHours !== '24'
   const hasVisibleFilters = filters.type !== '0' || Boolean(filters.model || filters.group || filters.searchValue) || filters.rangeHours !== '24'
@@ -383,22 +555,13 @@ export function ConsoleUsageLogsPage() {
     setSelected(record)
   }
   const partial = logs.data && (logs.data.invalidCount > 0 || logs.data.partialCount > 0 || logs.data.redactedCount > 0 || logs.data.paginationPartial)
-  const refreshing = logs.isFetching || (!statsTraceBlocked && stats.isFetching)
+  const refreshing = logs.isFetching || (!statsTraceBlocked && stats.isFetching) || tokenTotals.isFetching
 
   return <div className="flex flex-col gap-6 pb-8">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0"><h1 id="console-title" className="text-2xl font-bold tracking-tight">{t('Usage logs')}</h1><p className="text-muted-foreground">{t('Inspect model calls, account events, cost, and request latency.')}</p></div>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" disabled={refreshing} onClick={() => void refresh()}>{refreshing ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}{refreshing ? t('Refreshing...') : t('Refresh')}</Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button className="text-primary-foreground" style={{ color: 'var(--primary-foreground)' }}><Download />{t('Export')}<ChevronDown className="ms-1" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>{t('Complete filtered export')}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem disabled><Download />{t('Export CSV unavailable')}</DropdownMenuItem>
-            <DropdownMenuItem disabled><Download />{t('Export JSON unavailable')}</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </header>
 
@@ -420,13 +583,18 @@ export function ConsoleUsageLogsPage() {
     </form>
     {filterError ? <p role="alert" className="-mt-3 text-sm text-destructive">{filterError}</p> : null}
 
-    <StatsStrip query={stats} total={logs.data?.total} locale={locale} traceBlocked={statsTraceBlocked} />
+    <StatsStrip statsQuery={stats} tokenTotalsQuery={tokenTotals} total={logs.data?.total} locale={locale} traceBlocked={statsTraceBlocked} />
 
     <section aria-label={t('Usage logs')} className="overflow-hidden rounded-md border">
       {logs.isLoading ? <ListSkeleton /> : logs.isError ? <ListState error={logs.error} onRetry={() => void logs.refetch()} /> : logs.data?.records.length ? <>
         {partial ? <p role="status" className="border-b bg-muted/20 px-4 py-3 text-xs text-muted-foreground">{t('Some log records or fields were unavailable or redacted. Usable fields remain visible.')}</p> : null}
-        <div className="hidden overflow-x-auto lg:block"><Table className="min-w-[1040px]"><TableHeader><TableRow className="hover:bg-transparent"><TableHead className="ps-4">{t('Time / request')}</TableHead><TableHead>{t('Type')}</TableHead><TableHead>{t('Key name')}</TableHead><TableHead>{t('Model')}</TableHead><TableHead>{t('Streaming')}</TableHead><TableHead>{t('Tokens')}</TableHead><TableHead>{t('Cost')}</TableHead><TableHead>{t('Latency')}</TableHead><TableHead><span className="sr-only">{t('Details')}</span></TableHead></TableRow></TableHeader><TableBody>{logs.data.records.map((record) => <TableRow key={`${record.rowId}-${record.requestId || ''}`}><TableCell className="ps-4"><div className="whitespace-nowrap font-medium">{formatDate(record.createdAt, locale)}</div><code className="mt-0.5 block max-w-48 truncate font-mono text-xs text-muted-foreground" title={record.requestId}>{record.requestId || '—'}</code></TableCell><TableCell><TypeBadge type={record.type} /></TableCell><TableCell className="max-w-40 truncate" title={record.tokenName}>{record.tokenName || '—'}</TableCell><TableCell className="max-w-48 truncate font-medium" title={record.modelName}>{record.modelName || '—'}</TableCell><TableCell>{record.isStream == null ? '—' : record.isStream ? t('Yes') : t('No')}</TableCell><TableCell className="font-mono text-xs">{formatInteger(totalTokens(record), locale)}</TableCell><TableCell className="font-mono text-xs">{formatQuota(record.quota, locale)}</TableCell><TableCell className="font-mono text-xs">{latency(record)}</TableCell><TableCell className="pe-3 text-end"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="size-8" aria-label={t('View details {{request}}', { request: record.requestId || record.rowId })} onClick={(event) => openDetails(record, event)}><ChevronRight /></Button></TooltipTrigger><TooltipContent>{t('View details')}</TooltipContent></Tooltip></TableCell></TableRow>)}</TableBody></Table></div>
-        <div className="divide-y lg:hidden">{logs.data.records.map((record) => <article key={`${record.rowId}-${record.requestId || ''}`} className="space-y-4 p-4"><div className="flex min-w-0 items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><TypeBadge type={record.type} /><time className="text-xs text-muted-foreground">{formatDate(record.createdAt, locale)}</time></div><code className="mt-2 block break-all font-mono text-xs">{record.requestId || '—'}</code></div><Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={t('View details {{request}}', { request: record.requestId || record.rowId })} onClick={(event) => openDetails(record, event)}><ChevronRight /></Button></div><dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Key name')}</dt><dd className="mt-1 break-words">{record.tokenName || '—'}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Model')}</dt><dd className="mt-1 break-words">{record.modelName || '—'}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Tokens')}</dt><dd className="mt-1 font-mono text-xs">{formatInteger(totalTokens(record), locale)}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Cost')} / {t('Latency')}</dt><dd className="mt-1 font-mono text-xs">{formatQuota(record.quota, locale)} / {latency(record)}</dd></div></dl></article>)}</div>
+        <div className="hidden overflow-x-auto lg:block"><Table className="min-w-[1260px]"><TableHeader><TableRow className="hover:bg-transparent">
+          <TableHead className="ps-4">{t('Time / request')}</TableHead><TableHead>{t('Type')}</TableHead><TableHead>{t('Group')}</TableHead><TableHead>{t('Key name')}</TableHead><TableHead>{t('Model')}</TableHead><TableHead>{t('Streaming')}</TableHead><TableHead>{t('Token')}</TableHead><TableHead>{t('Cost')}</TableHead><TableHead>{t('Duration')}</TableHead><TableHead><span className="sr-only">{t('Details')}</span></TableHead>
+        </TableRow></TableHeader><TableBody>{logs.data.records.map((record) => <TableRow key={`${record.rowId}-${record.requestId || ''}`}>
+          <TableCell className="ps-4"><div className="whitespace-nowrap font-medium">{formatDate(record.createdAt, locale)}</div><code className="mt-0.5 block max-w-48 truncate font-mono text-xs text-muted-foreground" title={record.requestId}>{record.requestId || '—'}</code></TableCell>
+          <TableCell><TypeBadge type={record.type} /></TableCell><TableCell><GroupValue record={record} /></TableCell><TableCell className="max-w-40 truncate" title={record.tokenName}>{record.tokenName || '—'}</TableCell><TableCell className="max-w-56"><ModelProviderBadge model={record.modelName} /></TableCell><TableCell>{record.isStream == null ? '—' : record.isStream ? t('Yes') : t('No')}</TableCell><TableCell><TokenMetrics record={record} locale={locale} /></TableCell><TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{formatQuota(record.quota, locale, 6)}</TableCell><TableCell><DurationMetrics record={record} /></TableCell><TableCell className="pe-3 text-end"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="size-8" aria-label={t('View details {{request}}', { request: record.requestId || record.rowId })} onClick={(event) => openDetails(record, event)}><ChevronRight /></Button></TooltipTrigger><TooltipContent>{t('View details')}</TooltipContent></Tooltip></TableCell>
+        </TableRow>)}</TableBody></Table></div>
+        <div className="divide-y lg:hidden">{logs.data.records.map((record) => <article key={`${record.rowId}-${record.requestId || ''}`} className="space-y-4 p-4"><div className="flex min-w-0 items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><TypeBadge type={record.type} /><GroupValue record={record} /><time className="text-xs text-muted-foreground">{formatDate(record.createdAt, locale)}</time></div><code className="mt-2 block break-all font-mono text-xs">{record.requestId || '—'}</code></div><Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={t('View details {{request}}', { request: record.requestId || record.rowId })} onClick={(event) => openDetails(record, event)}><ChevronRight /></Button></div><dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Key name')}</dt><dd className="mt-1 break-words">{record.tokenName || '—'}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Model')}</dt><dd className="mt-1"><ModelProviderBadge model={record.modelName} /></dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Token')}</dt><dd className="mt-1"><TokenMetrics record={record} locale={locale} /></dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Cost')}</dt><dd className="mt-1 whitespace-nowrap font-mono text-xs tabular-nums">{formatQuota(record.quota, locale, 6)}</dd></div><div className="col-span-2 min-w-0"><dt className="text-xs text-muted-foreground">{t('Duration')}</dt><dd className="mt-1"><DurationMetrics record={record} /></dd></div></dl></article>)}</div>
       </> : <EmptyState filtered={hasFilters} onClear={clearFilters} />}
       <footer className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-t px-4 py-2 text-sm text-muted-foreground"><span>{t('Page {{page}} / {{pages}}', { page, pages: totalPages })}{logs.data ? ` · ${t('{{visible}} of {{total}} records', { visible: formatInteger(logs.data.records.length, locale), total: formatInteger(logs.data.total, locale) })} · ${updatedLabel(logs.dataUpdatedAt, locale, t)}` : ''}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page <= 1 || logs.isFetching} onClick={() => { setSelected(null); setPage((value) => Math.max(1, value - 1)) }}>{t('Previous')}</Button><Button variant="outline" size="sm" disabled={page >= totalPages || logs.isFetching} onClick={() => { setSelected(null); setPage((value) => value + 1) }}>{t('Next')}</Button></div></footer>
     </section>

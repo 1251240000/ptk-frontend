@@ -212,7 +212,7 @@ test('Studio shows create and open actions when no key exists, without a quota f
   await keyDialog.getByRole('button', { name: 'Create key' }).click()
   const createDialog = page.getByRole('dialog', { name: 'Create dedicated key' })
   await createDialog.getByLabel('Name').fill('On-demand image key')
-  await expect(createDialog.getByLabel('Quota (USD)')).toHaveCount(0)
+  await expect(createDialog.getByLabel('Quota limit')).toHaveCount(0)
   await createDialog.getByRole('button', { name: 'Create key' }).click()
 
   await expect(keyDialog).toBeVisible()

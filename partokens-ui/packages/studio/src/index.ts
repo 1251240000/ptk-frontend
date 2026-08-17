@@ -79,6 +79,7 @@ export type StudioModelCapabilities = {
   backgrounds: string[]
   maxCount: number
   supportsEdit: boolean
+  supportsCustomSize: boolean
 }
 
 export type StudioImageInput = {
@@ -99,21 +100,65 @@ export type StudioImageResult = {
 
 export const studioGroup = 'Image'
 
-const minCustomImageDimension = 64
-const maxCustomImageDimension = 4096
+export const studioCustomImageDimension = {
+  min: 480,
+  max: 3840,
+  step: 16,
+  minPixels: 655_360,
+  maxPixels: 8_294_400,
+  maxAspectRatio: 3,
+} as const
 
-export function isValidStudioImageSize(value: string): boolean {
-  if (value === 'auto') return true
+export type StudioImageSizeValidationCode =
+  | 'invalid-format'
+  | 'unsupported-size'
+  | 'dimension-range'
+  | 'dimension-step'
+  | 'pixel-area'
+  | 'aspect-ratio'
+
+export type StudioImageSizeValidation = {
+  ok: boolean
+  code?: StudioImageSizeValidationCode
+}
+
+function parseStudioImageSize(value: string): { width: number; height: number } | null {
   const match = /^(\d+)x(\d+)$/.exec(value.trim())
-  if (!match) return false
+  if (!match) return null
   const width = Number(match[1])
   const height = Number(match[2])
-  return Number.isSafeInteger(width)
-    && Number.isSafeInteger(height)
-    && width >= minCustomImageDimension
-    && height >= minCustomImageDimension
-    && width <= maxCustomImageDimension
-    && height <= maxCustomImageDimension
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)) return null
+  return { width, height }
+}
+
+export function validateStudioImageSize(value: string, model = ''): StudioImageSizeValidation {
+  if (value === 'auto') return { ok: true }
+  const capabilities = model ? studioModelCapabilities(model) : null
+  if (capabilities?.sizes.includes(value)) return { ok: true }
+  if (capabilities && !capabilities.supportsCustomSize) return { ok: false, code: 'unsupported-size' }
+
+  const dimensions = parseStudioImageSize(value)
+  if (!dimensions) return { ok: false, code: 'invalid-format' }
+  const { width, height } = dimensions
+  const {
+    min,
+    max,
+    step,
+    minPixels,
+    maxPixels,
+    maxAspectRatio,
+  } = studioCustomImageDimension
+
+  if (width < min || height < min || width > max || height > max) return { ok: false, code: 'dimension-range' }
+  if (width % step !== 0 || height % step !== 0) return { ok: false, code: 'dimension-step' }
+  const pixels = width * height
+  if (pixels < minPixels || pixels > maxPixels) return { ok: false, code: 'pixel-area' }
+  if (Math.max(width, height) / Math.min(width, height) > maxAspectRatio) return { ok: false, code: 'aspect-ratio' }
+  return { ok: true }
+}
+
+export function isValidStudioImageSize(value: string, model = ''): boolean {
+  return validateStudioImageSize(value, model).ok
 }
 
 type StudioNodeBounds = Pick<StudioNode, 'x' | 'y' | 'width' | 'height'>
@@ -218,6 +263,7 @@ export function studioModelCapabilities(model: string): StudioModelCapabilities 
       backgrounds: ['auto'],
       maxCount: 10,
       supportsEdit: true,
+      supportsCustomSize: false,
     }
   }
   if (name.includes('dall-e-3')) {
@@ -227,15 +273,17 @@ export function studioModelCapabilities(model: string): StudioModelCapabilities 
       backgrounds: ['auto'],
       maxCount: 1,
       supportsEdit: false,
+      supportsCustomSize: false,
     }
   }
   if (name.includes('gpt-image')) {
     return {
-      sizes: ['auto', '1024x1024', '1024x1536', '1536x1024'],
+      sizes: ['auto', '1024x1024', '1536x1024', '1024x1536', '1792x1024', '1024x1792', '2048x1152', '1152x2048'],
       qualities: ['auto', 'low', 'medium', 'high'],
       backgrounds: ['auto', 'opaque', 'transparent'],
       maxCount: 10,
       supportsEdit: true,
+      supportsCustomSize: true,
     }
   }
   return {
@@ -244,7 +292,13 @@ export function studioModelCapabilities(model: string): StudioModelCapabilities 
     backgrounds: ['auto'],
     maxCount: 1,
     supportsEdit: false,
+    supportsCustomSize: false,
   }
+}
+
+export function studioImageSizeErrorMessage(validation: StudioImageSizeValidation): string {
+  if (validation.code === 'unsupported-size') return 'Choose a size supported by the selected model'
+  return 'Enter a valid image size that follows the image model limits'
 }
 
 function appendOptional(form: FormData, key: string, value: string): void {
@@ -299,7 +353,8 @@ export async function generateStudioImages(
   if (!credential) throw new Error('Unlock an API key for this studio session')
   if (!input.prompt.trim()) throw new Error('Enter an image prompt')
   if (!input.model) throw new Error('Choose an image model')
-  if (!isValidStudioImageSize(input.size)) throw new Error('Enter a valid image size between 64x64 and 4096x4096')
+  const sizeValidation = validateStudioImageSize(input.size, input.model)
+  if (!sizeValidation.ok) throw new Error(studioImageSizeErrorMessage(sizeValidation))
 
   const capabilities = studioModelCapabilities(input.model)
   const count = Math.max(1, Math.min(Math.trunc(input.count), capabilities.maxCount))

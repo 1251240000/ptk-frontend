@@ -10,13 +10,13 @@ export function quotaUnitsToDollars(value: number | undefined): number {
   return value / quotaPerUnit
 }
 
-export function formatQuota(value: number | undefined, locale: string): string {
+export function formatQuota(value: number | undefined, locale: string, fractionDigits = 2): string {
   if (value == null || !Number.isFinite(value)) return '—'
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(value / quotaPerUnit)
 }
 

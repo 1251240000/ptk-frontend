@@ -1,0 +1,13 @@
+Use case: style-transfer
+Asset type: Partokens product avatar for dark-mode navigation, account UI, and assistant messages
+Input images: Image 1 is the current Partokens P-shaped SVG mark rendered as a square structural identity reference
+Primary request: redesign the Partokens avatar as an elegant, strictly monochrome dark-mode product icon; improve only the geometry, balance, and finish of the existing P-shaped identity
+Scene/backdrop: one flat rounded-square surface in near-black #0d1117
+Subject: one uninterrupted P-shaped ribbon mark based closely on Image 1; preserve the recognizable broad upper stroke, open counter, rounded outer bowl, and diagonal lower stem; refine the outer curve into a smooth compact arc; make the inner counter optically even; connect the curve to the diagonal stem with one clean continuous transition; use matching restrained diagonal cuts at the upper-left terminal and lower stem terminal so the form feels intentional and balanced
+Style/medium: minimal monochrome product mark; near-flat; crisp vector-like geometry rendered as a polished raster asset; quiet technical design; precise and timeless
+Composition/framing: exact 1:1 square; mark optically centered; 17% clear padding; consistent visual weight; strong silhouette at 16 px, 24 px, and 32 px
+Lighting/mood: almost completely flat; at most a barely perceptible same-color edge lift for separation; no directional lighting
+Color palette: only background #0d1117 and mark #f0f6fc; neutral grays caused by antialiasing are acceptable; absolutely no chromatic color
+Materials/textures: smooth matte surface; clean antialiased edges; no visible texture
+Constraints: keep the P identity and orientation from Image 1; one monolithic uninterrupted shape; exactly one foreground color; no internal lines, marks, inserts, gaps, seams, or decorative elements; no text; no wordmark; no watermark; no mockup frame
+Avoid: blue or any color accent; dots; squares; nodes; tokens; routing lines; inset lines; connectors; cutout decoration; multiple layers; gradients; glossy 3D; glassmorphism; neon glow; dramatic shadows; bevels; metallic material; circuitry; orbit lines; decorative background elements

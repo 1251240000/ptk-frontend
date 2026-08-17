@@ -92,6 +92,21 @@ test('Wallet renders only configured amounts and server-backed billing data', as
   await expect(page.getByText('Builder', { exact: true })).toBeVisible()
   await expect(page.getByText('FIXTURE-ORDER-19')).toBeVisible()
   await expect(page.getByText('$25.00')).toHaveCount(0)
+
+  const activeTrigger = page.getByRole('button', { name: 'View active (1)' })
+  await activeTrigger.click()
+  const activeDialog = page.getByRole('dialog', { name: 'Active subscriptions' })
+  await expect(activeDialog).toContainText('Builder')
+  await expect(activeDialog).toContainText('Total quota')
+  await activeDialog.getByRole('button', { name: 'Close', exact: true }).first().click()
+  await expect(activeTrigger).toBeFocused()
+
+  const subscribe = page.getByRole('button', { name: 'Subscribe' })
+  await subscribe.click()
+  const subscribeDialog = page.getByRole('dialog', { name: 'Confirm subscription' })
+  await expect(subscribeDialog.getByRole('combobox', { name: 'Payment method' })).toHaveText('Balance')
+  await subscribeDialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(subscribe).toBeFocused()
 })
 
 test('redacted notification secrets remain configured and are omitted when unchanged', async ({ page }) => {
