@@ -5,7 +5,9 @@
   "exports": {
     "./tokens.css": "./src/tokens.css",
     "./primitives.css": "./src/primitives.css",
+    "./partokens-avatar.css": "./src/partokens-avatar.css",
     "./components": "./src/components/index.ts",
+    "./partokens-avatar": "./src/components/partokens-avatar.tsx",
     "./metadata": "./src/metadata.ts"
   },
   "dependencies": {

@@ -14,6 +14,7 @@ export default async function LocaleLayout({ children, params }: { children: Rea
   if (!isDocsLocale(locale)) notFound()
   return (
     <html lang={locale} suppressHydrationWarning data-scroll-behavior="smooth">
+      <head><script src="/_ui/theme-init.v2.js" /></head>
       <body><DocsProvider locale={locale}>{children}</DocsProvider></body>
     </html>
   )

@@ -2,6 +2,7 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 @import "@partokens/design-system/tokens.css";
+@import "@partokens/design-system/partokens-avatar.css";
 
 @theme {
   --color-fd-background: var(--canvas);
@@ -67,15 +68,21 @@ button[data-search] { display: none !important; }
 .docs-brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   font-size: 15px;
   font-weight: 650;
 }
 
-.docs-brand img {
-  width: 25px;
-  height: 25px;
-  border-radius: 5px;
+.docs-brand-mark {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-muted);
 }
 
 .docs-page-header {

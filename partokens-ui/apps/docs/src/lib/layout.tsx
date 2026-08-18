@@ -1,5 +1,6 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared'
 import { BookOpen, CircleUserRound, House, Layers3, LayoutDashboard } from 'lucide-react'
+import { PartokensAvatar } from '@partokens/design-system/partokens-avatar'
 
 import { uiCopy } from '@/content/catalog'
 import { docsPath, i18n, type DocsLocale } from './locales'
@@ -12,7 +13,7 @@ export function baseOptions(locale: DocsLocale): BaseLayoutProps {
     nav: {
       title: (
         <span className="docs-brand">
-          <img src="https://oss.partokens.com/assets/icons/favicon-96x96.png" alt="" width={25} height={25} />
+          <span className="docs-brand-mark"><PartokensAvatar size={28} alt="" /></span>
           <span>{ui.brand}</span>
         </span>
       ),

@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   ArrowRight,
-  Bot,
   Check,
   ChevronDown,
   Copy,
@@ -52,6 +51,7 @@ import {
   DropdownMenuTrigger,
   Input,
   Label,
+  PartokensAvatar,
   Select,
   SelectContent,
   SelectItem,
@@ -818,8 +818,8 @@ function PlaygroundContent() {
                     {current.messages.map((message) => (
                       <article className='group py-5' key={message.id}>
                         <header className='mb-2 flex items-start gap-3'>
-                          <div className={`flex size-8 shrink-0 items-center justify-center rounded-md border ${message.role === 'assistant' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                            {message.role === 'assistant' ? <Bot className='size-4' /> : <UserRound className='size-4' />}
+                          <div className={`flex size-8 shrink-0 items-center justify-center rounded-md border ${message.role === 'assistant' ? 'bg-background' : 'bg-muted'}`}>
+                            {message.role === 'assistant' ? <PartokensAvatar size={24} alt='' /> : <UserRound className='size-4' />}
                           </div>
                           <div className='min-w-0 flex-1'>
                             <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>

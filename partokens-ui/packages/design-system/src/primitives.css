@@ -1,3 +1,5 @@
+@import './partokens-avatar.css';
+
 .pt-button,
 .pt-icon-button {
   border: var(--pt-border-width) solid transparent;

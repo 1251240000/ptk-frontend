@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import {
-  Bot,
   Check,
   ChevronDown,
   Copy,
@@ -52,6 +51,7 @@ import {
   DropdownMenuTrigger,
   Input,
   Label,
+  PartokensAvatar,
   Select,
   SelectContent,
   SelectItem,
@@ -897,7 +897,7 @@ export function PlaygroundPage() {
                     {current.messages.map((message) => (
                       <article className="group py-5" key={message.id}>
                         <header className="flex items-start gap-3">
-                          {message.role === 'assistant' ? <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-primary text-primary-foreground"><Bot className="size-4" /></div> : null}
+                          {message.role === 'assistant' ? <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background"><PartokensAvatar size={24} alt="" /></div> : null}
                           <div className={`min-w-0 flex-1 ${message.role === 'user' ? 'text-end' : ''}`}>
                             <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${message.role === 'user' ? 'justify-end' : ''}`}>
                               {message.role === 'assistant' ? <>

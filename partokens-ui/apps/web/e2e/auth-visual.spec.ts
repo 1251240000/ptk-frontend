@@ -54,7 +54,12 @@ test('authentication composition matches the active design-lab geometry across a
       await design.goto('http://127.0.0.1:4180/#signin')
       await settled(design)
 
-      await expect(page.locator('.r32-auth-brand svg.partokens-mark')).toBeVisible()
+      const productionLogo = page.locator('.r32-auth-brand .partokens-avatar')
+      const designLogo = design.locator('.r32-auth-brand .partokens-avatar')
+      await expect(productionLogo).toBeVisible()
+      await expect(designLogo).toBeVisible()
+      await expect(productionLogo.locator(`.partokens-avatar__image--${theme}`)).toBeVisible()
+      await expect(designLogo.locator(`.partokens-avatar__image--${theme}`)).toBeVisible()
       await expect(page.getByRole('checkbox')).toBeChecked()
 
       const productionBackground = page.locator('.r32-auth-rail-background')

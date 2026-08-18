@@ -45,7 +45,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { PartokensMark } from '@partokens/design-system/components'
+import { PartokensAvatar } from '@partokens/design-system/components'
 import { localeLabels, locales, resources, type AppLocale } from '@partokens/i18n'
 
 import { translateConsoleData } from './console-data-copy'
@@ -126,7 +126,7 @@ function translate(locale: AppLocale, key: string) {
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {
-  return <span className="r33-brand"><span><PartokensMark size={31} /></span>{compact ? null : <strong>Partokens</strong>}</span>
+  return <span className="r33-brand"><span><PartokensAvatar size={30} alt="" /></span>{compact ? null : <strong>Partokens</strong>}</span>
 }
 
 function ToolButton({ label, children, onClick, className = '' }: { label: string; children: ReactNode; onClick?: () => void; className?: string }) {

@@ -1,0 +1,25 @@
+.partokens-avatar {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.partokens-avatar__image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  grid-area: 1 / 1;
+  object-fit: contain;
+  transform: translateX(1px);
+}
+
+.partokens-avatar__image--dark { display: none; }
+
+:root[data-theme='dark'] .partokens-avatar__image--light,
+:root.dark .partokens-avatar__image--light { display: none; }
+
+:root[data-theme='dark'] .partokens-avatar__image--dark,
+:root.dark .partokens-avatar__image--dark { display: block; }

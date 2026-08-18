@@ -26,7 +26,7 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import { getStatus, type PartokensStatus } from '@partokens/api-client'
-import { PartokensMark, Toaster } from '@partokens/design-system/components'
+import { PartokensAvatar, Toaster } from '@partokens/design-system/components'
 import { isAppLocale, resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from '@/features/public/interface-tool-menus'
@@ -51,7 +51,7 @@ export function authErrorMessage(error: unknown, t: Translate, fallback: string)
 }
 
 function AuthBrand() {
-  return <span className="r32-auth-brand"><span><PartokensMark size={17} /></span><strong>Partokens</strong></span>
+  return <span className="r32-auth-brand"><span><PartokensAvatar size={28} alt="" /></span><strong>Partokens</strong></span>
 }
 
 function AuthRail(props: { locale: AppLocale; onHome: () => void; theme: 'light' | 'dark' }) {

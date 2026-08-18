@@ -40,6 +40,7 @@ export {
 } from './dropdown-menu'
 export { Input } from './input'
 export { Label } from './label'
+export { PartokensAvatar, type PartokensAvatarProps } from './partokens-avatar'
 export { PartokensMark } from './partokens-mark'
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover'
 export {

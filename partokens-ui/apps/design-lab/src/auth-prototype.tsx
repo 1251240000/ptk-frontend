@@ -27,7 +27,7 @@ import {
   type ReactNode,
 } from 'react'
 
-import { PartokensMark } from '@partokens/design-system/components'
+import { PartokensAvatar } from '@partokens/design-system/components'
 import { resources, type AppLocale } from '@partokens/i18n'
 import { authPrototypeCopy } from './auth-prototype-copy'
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from './interface-tool-menus'
@@ -60,7 +60,7 @@ function translate(locale: AppLocale, key: string) {
 }
 
 function AuthBrand() {
-  return <span className="r32-auth-brand"><span><PartokensMark size={17} /></span><strong>Partokens</strong></span>
+  return <span className="r32-auth-brand"><span><PartokensAvatar size={28} alt="" /></span><strong>Partokens</strong></span>
 }
 
 function RouteButton({ children, disabled = false, type = 'button', onClick }: { children: ReactNode; disabled?: boolean; type?: 'button' | 'submit'; onClick?: () => void }) {

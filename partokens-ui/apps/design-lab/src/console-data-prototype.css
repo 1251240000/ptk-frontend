@@ -7,8 +7,8 @@
 .r33-brand-button { height: 100%; display: flex; align-items: center; padding: 0 var(--pt-space-5); border: 0; border-right: 1px solid var(--pt-color-border-default); background: transparent; color: inherit; }
 .r33-brand-button:focus-visible, .r33-global-nav button:focus-visible, .r33-user:focus-visible, .r33-nav-group button:focus-visible, .r33-mobile-bottom button:focus-visible, .r33-search:focus-within, .r33-compact-select:focus-within, .r33-locale:focus-within { outline: 2px solid var(--pt-color-action-primary); outline-offset: -2px; }
 .r33-brand { display: inline-flex; align-items: center; gap: var(--pt-space-2); font-family: var(--pt-font-display); font-size: var(--pt-font-size-17); }
-.r33-brand > span { width: 34px; height: 34px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--pt-color-border-default); border-radius: var(--pt-radius-8); background: var(--pt-color-bg-surface); }
-.r33-brand .partokens-mark { width: 31px; height: 31px; color: var(--pt-color-action-primary); }
+.r33-brand > span { width: 34px; height: 34px; display: grid; place-items: center; overflow: hidden; border: 0; border-radius: var(--pt-radius-8); background: var(--pt-color-bg-subtle); }
+.r33-brand .partokens-avatar { width: 30px; height: 30px; }
 .r33-global-nav { min-width: 0; height: 100%; display: flex; align-items: stretch; padding-left: var(--pt-space-3); }
 .r33-global-nav button { min-width: 0; height: 100%; display: inline-flex; align-items: center; gap: var(--pt-space-2); padding: 0 var(--pt-space-3); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--pt-color-text-secondary); font-size: var(--pt-font-size-13); white-space: nowrap; }
 .r33-global-nav button:hover, .r33-global-nav button.active { color: var(--pt-color-text-primary); }
@@ -231,7 +231,7 @@
   .r33-topbar, .is-collapsed .r33-topbar { height: 60px; grid-template-columns: minmax(0, 1fr) auto; }
   .r33-brand-button { padding: 0 var(--pt-space-4); border-right: 0; }
   .r33-brand-button .r33-brand > span { width: 32px; height: 32px; }
-  .r33-brand-button .r33-brand .partokens-mark { width: 29px; height: 29px; }
+  .r33-brand-button .r33-brand .partokens-avatar { width: 29px; height: 29px; }
   .r33-global-nav, .r33-top-tools > .r33-locale, .r33-user-wrap { display: none; }
   .r33-top-tools { padding-right: var(--pt-space-3); }
   .r33-mobile-menu { display: inline-grid; }

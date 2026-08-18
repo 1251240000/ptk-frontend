@@ -48,9 +48,9 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 1px solid var(--pt-color-border-default);
+  border: 0;
   border-radius: var(--pt-radius-8);
-  background: var(--pt-color-bg-surface);
+  background: var(--pt-color-bg-subtle);
 }
 
 .r3-brand img { width: 30px; height: 30px; object-fit: contain; }
@@ -542,7 +542,6 @@
 .r3-public-footer { background: var(--pt-color-bg-footer); color: var(--pt-color-text-footer); }
 .r3-footer-main { max-width: calc(var(--pt-layout-public) + var(--pt-space-16)); display: grid; grid-template-columns: minmax(260px, .72fr) minmax(600px, 1.28fr); gap: var(--pt-space-20); margin: 0 auto; padding: var(--pt-space-20) var(--pt-space-8) var(--pt-space-16); }
 .r3-footer-brand > p { max-width: 360px; margin-top: var(--pt-space-5); color: var(--pt-color-text-footer-muted); line-height: var(--pt-line-height-body); }
-.r3-footer-brand .r3-brand > span { border-color: color-mix(in srgb, var(--pt-color-text-footer) 20%, transparent); }
 .r3-footer-links { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--pt-space-6); }
 .r3-footer-links > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--pt-space-3); }
 .r3-footer-links strong { margin-bottom: var(--pt-space-2); font-size: var(--pt-font-size-13); }
@@ -741,8 +740,8 @@
   height: 2rem;
   border: 0;
   border-radius: .5rem;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--muted);
+  color: var(--foreground);
 }
 .public-shadcn .r3-brand strong { font-family: inherit; font-size: var(--pt-lab-font-size-14); font-weight: 600; }
 .public-shadcn .r3-locale-control { border: 0; border-radius: .375rem; background: transparent; }
@@ -859,7 +858,7 @@
 .r3-home-page .r3-preview-shell { height: calc(100% - 36px); display: grid; grid-template-columns: 204px minmax(0, 1fr); }
 .r3-home-page .r3-preview-shell > aside { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0 var(--pt-space-3) var(--pt-space-3); border-right: 1px solid var(--r37-line); background: var(--r37-panel); color: var(--pt-color-text-primary); }
 .r3-home-page .r3-preview-brand { min-height: 52px; display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: var(--pt-space-2); padding: 0 var(--pt-space-2); border-bottom: 1px solid var(--r37-line); }
-.r3-home-page .r3-preview-brand > span { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--pt-radius-6); background: var(--r37-command); color: var(--r37-command-fg); }
+.r3-home-page .r3-preview-brand > span { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--pt-radius-6); background: var(--pt-color-bg-subtle); }
 .r3-home-page .r3-preview-brand p { min-width: 0; display: grid; gap: 2px; }
 .r3-home-page .r3-preview-brand strong { font-family: var(--pt-font-display); font-size: var(--pt-font-size-13); }
 .r3-home-page .r3-preview-brand small { overflow: hidden; color: var(--r37-muted); font-size: var(--pt-font-size-11); text-overflow: ellipsis; white-space: nowrap; }
@@ -888,7 +887,7 @@
 .r3-home-page .r3-preview-user p { max-width: 76%; grid-column: 2; padding: var(--pt-space-1) 0 0; border-radius: 0; background: transparent; color: var(--pt-color-text-primary); }
 .r3-home-page .r3-preview-user > svg { width: 28px; height: 28px; grid-column: 1; grid-row: 1; padding: 6px; border-radius: var(--pt-radius-6); background: var(--pt-color-bg-subtle); color: var(--pt-color-text-primary); }
 .r3-home-page .r3-preview-assistant { display: flex; align-items: flex-start; gap: var(--pt-space-2); }
-.r3-home-page .r3-preview-assistant > span { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border-radius: var(--pt-radius-6); background: var(--r37-command); color: var(--r37-command-fg); }
+.r3-home-page .r3-preview-assistant > span { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border-radius: var(--pt-radius-6); background: var(--pt-color-bg-subtle); }
 .r3-home-page .r3-preview-assistant p { max-width: 76%; padding-top: var(--pt-space-1); }
 .r3-home-page .r3-preview-composer { width: min(calc(100% - var(--pt-space-12)), 680px); min-height: 44px; display: flex; align-items: center; gap: var(--pt-space-2); margin: 0 auto; padding: 0 5px 0 var(--pt-space-3); border: 1px solid var(--r37-line); border-radius: var(--pt-radius-6); color: var(--r37-muted); font-size: var(--pt-font-size-12); }
 .r3-home-page .r3-preview-composer > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -968,7 +967,7 @@
 .r3-home-page .r3-home-chat-visual > section > header > span { display: inline-flex; align-items: center; gap: var(--pt-space-1); color: var(--r37-muted); font-size: var(--pt-font-size-11); }
 .r3-home-page .r3-home-chat-visual > section > div { display: grid; align-content: center; grid-template-columns: 28px minmax(0, 1fr); gap: var(--pt-space-3); font-size: var(--pt-font-size-12); line-height: var(--pt-line-height-ui); }
 .r3-home-page .r3-home-chat-visual > section > div > p:first-child { justify-self: end; grid-column: 1 / -1; max-width: 75%; padding: var(--pt-space-2) var(--pt-space-3); border-radius: var(--pt-radius-8) var(--pt-radius-2) var(--pt-radius-8) var(--pt-radius-8); background: var(--pt-color-action-primary); color: var(--pt-color-text-on-action); }
-.r3-home-page .r3-home-chat-visual > section > div > span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--pt-radius-6); background: var(--pt-color-band-mint); color: var(--pt-color-success); }
+.r3-home-page .r3-home-chat-visual > section > div > span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--pt-radius-6); background: var(--pt-color-bg-subtle); }
 .r3-home-page .r3-home-chat-visual > section > div > span { grid-column: 1; grid-row: 2; }
 .r3-home-page .r3-home-chat-visual > section > div > p:last-child { grid-column: 2; grid-row: 2; max-width: 88%; }
 .r3-home-page .r3-home-chat-visual > section > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--pt-space-2); padding: 0 var(--pt-space-3); border: 1px solid var(--r37-line-strong); border-radius: var(--pt-radius-8); color: var(--pt-color-text-tertiary); font-size: var(--pt-font-size-11); }

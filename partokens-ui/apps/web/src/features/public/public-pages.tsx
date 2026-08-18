@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Bell,
   BookOpen,
-  Bot,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -46,7 +45,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboa
 
 import {
   Button,
-  PartokensMark,
+  PartokensAvatar,
 } from '@partokens/design-system/components'
 import {
   getCurrentNotice,
@@ -249,7 +248,7 @@ function translate(locale: AppLocale, key: string) {
 }
 
 function Brand() {
-  return <span className="r3-brand"><span><PartokensMark size={17} /></span><strong>Partokens</strong></span>
+  return <span className="r3-brand"><span><PartokensAvatar size={30} alt="" /></span><strong>Partokens</strong></span>
 }
 
 function RouteButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
@@ -412,7 +411,7 @@ function HomeProductPreview({ locale, theme }: Pick<PublicPrototypeProps, 'local
     </div>
     <div className="r3-preview-shell">
       <aside>
-        <div className="r3-preview-brand"><span><PartokensMark size={15} /></span><p><strong>Partokens</strong><small>{copy.preview.developerConsole}</small></p></div>
+        <div className="r3-preview-brand"><span><PartokensAvatar size={28} alt="" /></span><p><strong>Partokens</strong><small>{copy.preview.developerConsole}</small></p></div>
         <nav role="tablist" aria-label={copy.preview.workspace}>
           <small>{copy.preview.workspace}</small>
           {modes.map(({ id, label, icon: Icon }, index) => <button type="button" key={id} role="tab" aria-selected={mode === id} aria-controls="r37-preview-panel" tabIndex={mode === id ? 0 : -1} onKeyDown={(event) => onTabKeyDown(event, index)} onClick={() => setMode(id)}><Icon size={16} /><span>{label}</span></button>)}
@@ -423,7 +422,7 @@ function HomeProductPreview({ locale, theme }: Pick<PublicPrototypeProps, 'local
       <section id="r37-preview-panel" className="r3-preview-panel" role="tabpanel" aria-label={modes.find((item) => item.id === mode)?.label} data-preview={mode} key={mode}>
         {mode === 'chat' ? <>
           <header><div><span>{copy.preview.tabs.chat}</span><strong>{copy.preview.newChat}</strong></div><span><ShieldCheck size={14} />{copy.preview.localHistory}</span></header>
-          <div className="r3-preview-messages"><div className="r3-preview-user"><p>{copy.samples.question}</p><CircleUserRound size={22} /></div><div className="r3-preview-assistant"><span><Bot size={16} /></span><p>{copy.samples.answer}</p></div></div>
+          <div className="r3-preview-messages"><div className="r3-preview-user"><p>{copy.samples.question}</p><CircleUserRound size={22} /></div><div className="r3-preview-assistant"><span><PartokensAvatar size={22} alt="" /></span><p>{copy.samples.answer}</p></div></div>
           <div className="r3-preview-composer"><span>{copy.samples.composer}</span><button type="button" aria-label={copy.preview.sendLabel} title={copy.preview.sendLabel}><Send size={15} /></button></div>
           <small><ShieldCheck size={14} />{copy.preview.localHistory}</small>
         </> : null}
@@ -462,7 +461,7 @@ function HomeFeatureCopy({ item, icon: Icon }: { item: HomePageCopy['workflow'][
 function HomeChatVisual({ copy }: { copy: HomePageCopy }) {
   return <div className="r3-home-product-frame r3-home-chat-visual">
     <aside><header><strong>{copy.preview.recentChats}</strong><Plus size={16} /></header><small>{copy.preview.today}</small><span className="is-active"><MessageSquare size={15} />{copy.samples.chatTitle}</span><span><MessageSquare size={15} />{copy.samples.chatSecond}</span><footer><ShieldCheck size={14} />{copy.preview.localHistory}</footer></aside>
-    <section><header><strong>{copy.samples.chatTitle}</strong><span><ShieldCheck size={14} />{copy.preview.localHistory}</span></header><div><p>{copy.samples.question}</p><span><Bot size={15} /></span><p>{copy.samples.answer}</p></div><footer><span>{copy.samples.composer}</span><Send size={15} /></footer></section>
+    <section><header><strong>{copy.samples.chatTitle}</strong><span><ShieldCheck size={14} />{copy.preview.localHistory}</span></header><div><p>{copy.samples.question}</p><span><PartokensAvatar size={22} alt="" /></span><p>{copy.samples.answer}</p></div><footer><span>{copy.samples.composer}</span><Send size={15} /></footer></section>
   </div>
 }
 

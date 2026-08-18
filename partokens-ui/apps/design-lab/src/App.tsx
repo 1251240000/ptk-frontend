@@ -5,7 +5,6 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  Bot,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -50,7 +49,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { PartokensMark } from '@partokens/design-system/components'
+import { PartokensAvatar } from '@partokens/design-system/components'
 import { resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 import { AuthPrototype, type AuthPrototypeScreen } from './auth-prototype'
 import { PublicPrototype, type PublicPrototypeScreen } from './public-prototype'
@@ -68,14 +67,15 @@ import type { ConsoleRoute } from './shadcn-console-shell'
 type Screen = 'system' | PublicPrototypeScreen | AuthPrototypeScreen | ConsoleRoute
 type Locale = 'zh-CN' | 'fr' | 'ru'
 type Theme = 'light' | 'dark'
+type ThemePreference = Theme | 'system'
 const publicScreens: PublicPrototypeScreen[] = ['home', 'models', 'docs', 'about', 'notices', 'status', 'legal-user', 'legal-service', 'legal-privacy']
 const authScreens: AuthPrototypeScreen[] = ['signin', 'signup', 'verify-email', 'forgot-password', 'reset-password', 'oauth-callback', 'auth-otp']
 const consoleScreens: ConsoleRoute[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile']
 const legacyProfileScreens = ['console-security', 'console-connections', 'console-notifications']
 
-function initialTheme(): Theme {
+function initialThemePreference(): ThemePreference {
   const saved = window.localStorage.getItem('partokens-theme')
-  return saved === 'dark' ? 'dark' : 'light'
+  return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system'
 }
 
 const zh = {
@@ -144,7 +144,7 @@ function screenFromHash(): Screen {
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {
-  return <span className="brand-lockup"><span className="brand-mark"><PartokensMark size={30} /></span>{compact ? null : <span>Partokens</span>}</span>
+  return <span className="brand-lockup"><span className="brand-mark"><PartokensAvatar size={30} alt="" /></span>{compact ? null : <span>Partokens</span>}</span>
 }
 
 function IconButton({ label, onClick, children, className = '' }: { label: string; onClick?: () => void; children: React.ReactNode; className?: string }) {
@@ -193,12 +193,12 @@ function ProductPreview({ t, online, version }: { t: Copy; online: boolean | nul
       <span className={online ? 'live-status online' : 'live-status'}><i />{online ? t.serviceOnline : t.serviceWaiting}{version ? ` / ${version}` : ''}</span>
     </div>
     <div className="preview-app-shell">
-      <aside className="preview-rail" aria-hidden="true"><span className="mini-brand"><PartokensMark size={25} /></span><MessageSquare className="active" size={18} /><ImageIcon size={18} /><KeyRound size={18} /><LayoutDashboard size={18} /></aside>
+      <aside className="preview-rail" aria-hidden="true"><span className="mini-brand"><PartokensAvatar size={25} alt="" /></span><MessageSquare className="active" size={18} /><ImageIcon size={18} /><KeyRound size={18} /><LayoutDashboard size={18} /></aside>
       <section className="preview-chat">
         <header><div><span>{t.previewWorkspace}</span><strong>{t.previewNewChat}</strong></div><span className="preview-model-control"><ShieldCheck size={15} />{t.localConversation}</span></header>
         <div className="preview-messages">
           <div className="preview-message user-message"><span>{t.previewQuestion}</span><CircleUserRound size={22} /></div>
-          <div className="preview-message assistant-message"><span className="assistant-avatar"><Bot size={16} /></span><p>{t.previewAnswer}</p></div>
+          <div className="preview-message assistant-message"><span className="assistant-avatar"><PartokensAvatar size={22} alt="" /></span><p>{t.previewAnswer}</p></div>
         </div>
         <div className="preview-composer"><span>{t.previewPrompt}</span><span className="preview-send"><Send size={16} /></span></div>
         <div className="preview-local-note"><ShieldCheck size={14} />{t.localConversation}</div>
@@ -214,7 +214,7 @@ function FeatureCopy({ kicker, title, body, note, icon: Icon }: { kicker: string
 function ChatFeatureVisual({ t }: { t: Copy }) {
   return <div className="feature-product-frame chat-feature-ui">
     <aside><header><span>{t.recentChats}</span><Plus size={16} /></header><small>{t.today}</small><div className="chat-history-item active"><MessageSquare size={15} />{t.chatDraft}</div><div className="chat-history-item"><MessageSquare size={15} />{t.chatResearch}</div><div className="local-data-label"><ShieldCheck size={14} />{t.localConversation}</div></aside>
-    <section><header><strong>{t.chatDraft}</strong><span><ShieldCheck size={14} />{t.localConversation}</span></header><div className="mini-conversation"><p className="mini-user">{t.previewQuestion}</p><div><span><Bot size={15} /></span><p>{t.previewAnswer}</p></div></div><div className="mini-composer"><span>{t.previewPrompt}</span><Send size={15} /></div></section>
+    <section><header><strong>{t.chatDraft}</strong><span><ShieldCheck size={14} />{t.localConversation}</span></header><div className="mini-conversation"><p className="mini-user">{t.previewQuestion}</p><div><span><PartokensAvatar size={22} alt="" /></span><p>{t.previewAnswer}</p></div></div><div className="mini-composer"><span>{t.previewPrompt}</span><Send size={15} /></div></section>
   </div>
 }
 
@@ -336,7 +336,9 @@ export function App() {
   const [screen, setScreen] = useState<Screen>(screenFromHash)
   const [locale, setLocale] = useState<Locale>('zh-CN')
   const [publicLocale, setPublicLocale] = useState<AppLocale>(resolvePreferredLocale)
-  const [theme, setTheme] = useState<Theme>(initialTheme)
+  const [themePreference, setThemePreference] = useState<ThemePreference>(initialThemePreference)
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const theme: Theme = themePreference === 'system' ? (systemDark ? 'dark' : 'light') : themePreference
   const [online, setOnline] = useState<boolean | null>(null)
   const [version, setVersion] = useState<string>()
   const [notice, setNotice] = useState('')
@@ -359,8 +361,15 @@ export function App() {
     const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--pt-lab-meta-theme-color').trim()
     document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute('content', themeColor)
     window.localStorage.setItem('partokens-locale', usesSharedLocale ? publicLocale : locale)
-    window.localStorage.setItem('partokens-theme', theme)
-  }, [theme, locale, publicLocale, usesSharedLocale])
+    window.localStorage.setItem('partokens-theme', themePreference)
+  }, [theme, themePreference, locale, publicLocale, usesSharedLocale])
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const update = () => setSystemDark(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
 
   useEffect(() => {
     const onHash = () => setScreen(screenFromHash())
@@ -378,7 +387,7 @@ export function App() {
 
   const go = (target: Screen) => { window.location.hash = target; setScreen(target); window.scrollTo({ top: 0 }) }
   const onLegacyLocale = (nextLocale: Locale) => { setLocale(nextLocale); setPublicLocale(nextLocale) }
-  const common = useMemo<CommonScreenProps>(() => ({ t, locale, theme, onLocale: onLegacyLocale, onTheme: () => setTheme((value) => value === 'light' ? 'dark' : 'light'), go, onNotice: () => setNotice(t.prototypeNotice) }), [t, locale, theme])
+  const common = useMemo<CommonScreenProps>(() => ({ t, locale, theme, onLocale: onLegacyLocale, onTheme: () => setThemePreference(theme === 'light' ? 'dark' : 'light'), go, onNotice: () => setNotice(t.prototypeNotice) }), [t, locale, theme])
 
   return <>
     {isAuthPrototype ? <AuthPrototype screen={screen as AuthPrototypeScreen} locale={publicLocale} theme={theme} online={online} version={version} onLocale={setPublicLocale} onTheme={common.onTheme} go={go} /> : null}
