@@ -1,10 +1,12 @@
-Apology and Service Restored
+PARTOKENS / SERVICE UPDATE
+
+Service restored
 
 Dear Partokens User,
 
-We sincerely apologize for the inconvenience. Due to an internal issue, our services experienced intermittent disruptions over the past {{ params.outage_duration }}.
+We are sorry for the disruption. Due to an internal issue, our services experienced intermittent interruptions over the past {{ params.outage_duration }}.
 
-To express our genuine apologies for this disturbance, we have added a {{ params.credit_amount }} credit to your account balance.
+To express our genuine apologies, a {{ params.credit_amount }} credit has been added to your account balance.
 
 Our systems are now fully restored and operating normally. Thank you for your understanding and continued support.
 
@@ -14,4 +16,5 @@ The Partokens Team
 
 {{ params.notice_date }}
 
+Service notice from Partokens (https://partokens.com/).
 Need help? support@partokens.com
