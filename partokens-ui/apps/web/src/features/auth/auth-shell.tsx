@@ -26,7 +26,7 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import { getStatus, type PartokensStatus } from '@partokens/api-client'
-import { PartokensMark } from '@partokens/design-system/components'
+import { PartokensMark, Toaster } from '@partokens/design-system/components'
 import { isAppLocale, resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from '@/features/public/interface-tool-menus'
@@ -125,6 +125,7 @@ export function AuthFrame(props: { children: ReactNode; screen: string; locale?:
         <div className="r32-auth-form-shell">{props.children}</div>
       </section>
     </main>
+    <Toaster theme={theme} position="top-right" richColors closeButton />
   </div>
 }
 

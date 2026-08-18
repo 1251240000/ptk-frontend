@@ -57,6 +57,7 @@ type MockApiOptions = {
   activeSubscriptions?: boolean
   statusResponses?: Array<{ status?: number; body: unknown }>
   tokenCreateOmitsData?: boolean
+  user?: Partial<typeof standardUser>
   userSetting?: Record<string, unknown>
   tokens?: FixtureToken[]
   playgroundFailure?: boolean
@@ -97,6 +98,7 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
   const user = {
     ...standardUser,
     role: options.role ?? standardUser.role,
+    ...options.user,
     ...(options.userSetting ? { setting: JSON.stringify(options.userSetting) } : {}),
   }
   let authVersion = 1
@@ -344,6 +346,13 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
     }
     if (path === '/api/user/aff') {
       await json(route, envelope('fixture-affiliate'))
+      return
+    }
+    if (path === '/api/user/aff_transfer' && method === 'POST') {
+      const amount = Number((request.postDataJSON() as { quota?: number } | null)?.quota || 0)
+      user.quota = (user.quota || 0) + amount
+      user.aff_quota = Math.max(0, (user.aff_quota || 0) - amount)
+      await json(route, envelope(null))
       return
     }
     if (path === '/api/user/oauth/bindings' && method === 'GET') {

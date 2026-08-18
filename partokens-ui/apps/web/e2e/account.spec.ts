@@ -103,7 +103,7 @@ test('Connections merges configured providers with bindings and confirms account
 
 test('Wallet renders only configured amounts and server-backed billing data', async ({ page }) => {
   await primeUserSession(page)
-  await installMockApi(page)
+  await installMockApi(page, { user: { aff_quota: 500_000, aff_history_quota: 1_500_000, aff_count: 3 } })
   await page.goto('/en/console/wallet')
 
   await expect(page.getByRole('heading', { name: 'Wallet', level: 1 })).toBeVisible()
@@ -128,6 +128,21 @@ test('Wallet renders only configured amounts and server-backed billing data', as
   await expect(rewardCells).toHaveCount(3)
   const rewardHeights = await rewardCells.evaluateAll((cells) => cells.map((cell) => Math.round(cell.getBoundingClientRect().height)))
   expect(new Set(rewardHeights).size).toBe(1)
+
+  await page.getByRole('button', { name: 'Copy' }).click()
+  await expect(page.getByText('Referral link copied.', { exact: true })).toBeVisible()
+
+  const transferTrigger = page.getByRole('button', { name: 'Transfer to balance' })
+  await transferTrigger.click()
+  const transferDialog = page.getByRole('dialog', { name: 'Transfer all pending rewards to balance?' })
+  await expect(transferDialog).toContainText('$1')
+  await transferDialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(transferTrigger).toBeFocused()
+  await transferTrigger.click()
+  await page.getByRole('dialog', { name: 'Transfer all pending rewards to balance?' }).getByRole('button', { name: 'Transfer to balance' }).click()
+  await expect(page.getByText('Rewards transferred', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Account balance')).toContainText('$5')
+  await expect(rewardCells.nth(0)).toContainText('$0')
 
   const activeTrigger = page.getByRole('button', { name: 'View active (1)' })
   await activeTrigger.click()

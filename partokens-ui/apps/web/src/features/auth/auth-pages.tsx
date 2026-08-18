@@ -21,6 +21,7 @@ import {
   sendPasswordReset,
   type CurrentUser,
 } from '@partokens/api-client'
+import { toast } from '@partokens/design-system/components'
 import { isAppLocale, resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 
 import { canonicalConsolePath } from '@/lib/routes'
@@ -146,7 +147,6 @@ export function SignUpPage() {
   const clearRegistration = useAuthFlowStore((state) => state.clearRegistration)
   const [busy, setBusy] = useState(false)
   const [sending, setSending] = useState(false)
-  const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [turnstile, setTurnstile] = useState('')
   const [turnstileEpoch, setTurnstileEpoch] = useState(0)
@@ -174,7 +174,10 @@ export function SignUpPage() {
       const result = await sendEmailVerification({ email: fields.email.trim(), turnstile: turnstile || undefined })
       if (!result.success) throw new Error(result.message || t('Unable to send code'))
       writeRegistrationContext({ email: fields.email.trim(), sentAt: Date.now() })
-      setMessage(t('Verification code sent. Check your inbox.'))
+      toast.success(t('Verification code sent. Check your inbox.'), {
+        duration: 6000,
+        action: { label: t('Verify'), onClick: () => void navigate({ to: '/$locale/auth/verify-email', params: { locale } }) },
+      })
       setCooldown(60)
       if (turnstileRequired) {
         setTurnstile('')
@@ -248,7 +251,6 @@ export function SignUpPage() {
           name="verification-code"
           action={<button type="button" className="pt-button r32-send-code" data-variant="quiet" data-size="small" disabled={!fields.email || sending || cooldown > 0 || (turnstileRequired && !turnstile)} onClick={() => void sendCode()}>{sending ? <LoaderCircle className="r32-spin" size={14} /> : cooldown > 0 ? `${cooldown}s` : t('Send code')}</button>}
         />
-        {message ? <InlineStatus action={<button type="button" onClick={() => void navigate({ to: '/$locale/auth/verify-email', params: { locale } })}>{t('Verify')}</button>}>{message}</InlineStatus> : null}
       </> : null}
       <div className="r32-auth-field-grid">
         <PasswordField label={t('Password')} value={fields.password} onChange={(password) => updateFields({ password })} autoComplete="new-password" name="new-password" />
@@ -280,10 +282,14 @@ export function VerifyEmailPage() {
   const [code, setCode] = useState(registration.verificationCode)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const [message, setMessage] = useState(email ? t('Verification code sent. Check your inbox.') : '')
   const [turnstile, setTurnstile] = useState('')
   const [cooldown, setCooldown] = useState(() => registrationCooldown(context))
   const turnstileRequired = Boolean(status.data?.data.turnstile_check)
+
+  useEffect(() => {
+    if (!email) return
+    toast.success(t('Verification code sent. Check your inbox.'), { id: 'auth-verification-code-sent', duration: 6000 })
+  }, [email, t])
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -299,7 +305,7 @@ export function VerifyEmailPage() {
       const result = await sendEmailVerification({ email, turnstile: turnstile || undefined })
       if (!result.success) throw new Error(result.message || t('Unable to send code'))
       writeRegistrationContext({ email, sentAt: Date.now() })
-      setMessage(t('Verification code sent. Check your inbox.'))
+      toast.success(t('Verification code sent. Check your inbox.'), { id: 'auth-verification-code-sent', duration: 6000 })
       setCooldown(60)
     } catch (cause) {
       setError(authErrorMessage(cause, t, t('Unable to send code')))
@@ -320,7 +326,6 @@ export function VerifyEmailPage() {
     <form className="r32-auth-form" onSubmit={verify}>
       <AuthField label={t('Email')} value={email} icon={Mail} type="email" readOnly name="email" />
       <AuthField label={t('Verification code')} value={code} onChange={setCode} icon={ShieldCheck} inputMode="numeric" autoComplete="one-time-code" required autoFocus name="verification-code" />
-      {message ? <InlineStatus>{message}</InlineStatus> : null}
       {error ? <InlineStatus error>{error}</InlineStatus> : null}
       {!email ? <InlineStatus error>{t('Start registration before verifying an email address.')}</InlineStatus> : null}
       <RouteButton type="submit" disabled={!email || !code.trim()}><ShieldCheck size={16} />{t('Verify')}</RouteButton>
@@ -352,6 +357,7 @@ export function ForgotPasswordPage() {
       const result = await sendPasswordReset(email.trim(), turnstile || undefined)
       if (!result.success) throw new Error(result.message || t('Unable to send reset email'))
       setSent(true)
+      toast.success(t('If the account exists, a password reset link has been sent.'), { duration: 6000 })
     } catch (cause) {
       setError(authErrorMessage(cause, t, t('Unable to send reset email')))
     } finally {
@@ -364,7 +370,6 @@ export function ForgotPasswordPage() {
     <form className="r32-auth-form" onSubmit={(event) => void submit(event)}>
       <AuthField label={t('Email')} value={email} onChange={setEmail} icon={Mail} type="email" autoComplete="email" required autoFocus name="email" />
       {turnstileRequired ? <TurnstileField siteKey={status.data?.data.turnstile_site_key} onToken={setTurnstile} /> : null}
-      {sent ? <InlineStatus>{t('If the account exists, a password reset link has been sent.')}</InlineStatus> : null}
       {error ? <InlineStatus error>{error}</InlineStatus> : null}
       <RouteButton type="submit" disabled={!email || busy || sent || status.isPending || (turnstileRequired && !turnstile)}>
         {busy ? <LoaderCircle className="r32-spin" size={16} /> : <Mail size={16} />}{t('Send reset link')}
@@ -492,14 +497,24 @@ export function ResetPasswordPage() {
     }
   }
 
-  const copyPassword = async () => setCopied(await copyText(password))
+  const copyPassword = async () => {
+    try {
+      const didCopy = await copyText(password)
+      if (!didCopy) throw new Error('Copy failed')
+      setCopied(true)
+      toast.success(t('Password copied.'), { duration: 6000 })
+    } catch {
+      setCopied(false)
+      toast.error(t('Copy failed'), { duration: 6000 })
+    }
+  }
 
   return <AuthFrame screen="reset-password">
     <PageHeading eyebrow="RECOVERY" title={t('Reset password')} body={password ? t('The full new password is shown only once on this page. Store it now.') : t('After the reset link is confirmed, the service will issue a new account password.')} backLabel={t('Return to sign in')} onBack={() => window.location.assign(`/${locale}/auth/sign-in`)} />
     {password ? <div className="r32-generated-password">
       <span><Check size={16} />{t('New password')}</span>
       <div><code>{password}</code><button type="button" className="pt-icon-button" aria-label={copied ? t('Password copied.') : t('Copy password')} title={copied ? t('Password copied.') : t('Copy password')} onClick={() => void copyPassword()}>{copied ? <Check size={17} /> : <Copy size={17} />}</button></div>
-      <small role="status" aria-live="polite" data-copied={copied || undefined}>{copied ? t('Password copied.') : t('The full new password is shown only once on this page. Store it now.')}</small>
+      <small>{t('The full new password is shown only once on this page. Store it now.')}</small>
       <button type="button" className="pt-button r32-auth-secondary-command" data-variant="secondary" onClick={() => window.location.assign(`/${locale}/auth/sign-in`)}>{t('Return to sign in')}</button>
     </div> : <div className="r32-reset-confirm">
       {validLink ? <div><Mail size={17} /><span><small>{t('Email')}</small><strong>{maskEmail(email)}</strong></span></div> : <InlineStatus error>{t('This reset link is incomplete or invalid.')}</InlineStatus>}

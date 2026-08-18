@@ -359,6 +359,7 @@ test('canonical console analytics uses real-shaped aggregates and preserves keyb
   const initialUsageRequests = requests.filter((url) => new URL(url).pathname === '/api/data/self').length
   await page.getByRole('button', { name: 'Refresh' }).click()
   await expect.poll(() => requests.filter((url) => new URL(url).pathname === '/api/data/self').length).toBeGreaterThan(initialUsageRequests)
+  await expect(page.getByText('Analytics refreshed', { exact: true })).toBeVisible()
 
   await page.getByRole('tab', { name: 'Tokens' }).click()
   await expect(page.getByRole('tabpanel', { name: 'Trend' }).getByRole('img').first()).toBeVisible()
@@ -476,7 +477,8 @@ test('canonical console usage logs uses self-scoped list and statistics queries 
 
   await expect(page.getByRole('heading', { name: 'Usage logs', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Usage logs' })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByText('req_fixture_123456789').first()).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'Request time' })).toBeVisible()
+  await expect(page.getByText('req_fixture_123456789')).toHaveCount(0)
   await expect(page.getByLabel('Usage statistics')).toContainText('$0.02')
   await expect(page.getByText('1.25x Ratio', { exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('OpenAI').first()).toBeVisible()
@@ -507,6 +509,7 @@ test('canonical console usage logs uses self-scoped list and statistics queries 
   await page.getByRole('button', { name: 'Refresh' }).click()
   await expect.poll(() => requests.filter((url) => new URL(url).pathname === '/api/log/self').length).toBeGreaterThan(initialLogRequests)
   await expect.poll(() => requests.filter((url) => new URL(url).pathname === '/api/log/self/stat').length).toBeGreaterThan(initialStatRequests)
+  await expect(page.getByText('Usage logs refreshed', { exact: true })).toBeVisible()
 
   await page.getByRole('textbox', { name: 'Request ID' }).fill('req_fixture_123456789')
   await page.getByRole('textbox', { name: 'Request ID' }).press('Enter')
@@ -537,9 +540,9 @@ test('canonical console usage logs supports exact upstream filtering and server 
   })
   await page.goto('/en/console/usage-logs')
 
-  await expect(page.getByText('req_page_1').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'View details req_page_1' })).toBeVisible()
   await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.getByText('req_page_2').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'View details req_page_2' })).toBeVisible()
   expect(new URL(requests.filter((url) => new URL(url).pathname === '/api/log/self').at(-1) || '').searchParams.get('p')).toBe('2')
 
   await page.getByRole('button', { name: 'Search field: Request ID' }).click()
@@ -806,7 +809,7 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
   await expect(page.getByLabel('IP allowlist')).toHaveCount(0)
   await page.getByRole('button', { name: 'Create key' }).last().click()
   await expect(page.getByText('Build worker', { exact: true }).first()).toBeVisible()
-  await expect(page.getByRole('status').filter({ hasText: 'server did not return its id' })).toBeVisible()
+  await expect(page.getByText('API key created.', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Actions Build worker' }).click()
   await page.getByRole('menuitem', { name: 'Delete' }).click()

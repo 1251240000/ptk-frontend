@@ -484,6 +484,7 @@ export function ConsoleUsageLogsPage() {
   const [page, setPage] = useState(1)
   const [filterError, setFilterError] = useState<string | null>(null)
   const [selected, setSelected] = useState<SafeLogRecord | null>(null)
+  const [manualRefreshing, setManualRefreshing] = useState(false)
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null)
   const params = useMemo(() => makeListParams(applied, appliedAt, page), [applied, appliedAt, page])
   const statParams = useMemo(() => makeStatsParams(params), [params])
@@ -544,10 +545,15 @@ export function ConsoleUsageLogsPage() {
     setSelected(null)
   }
   const refresh = async () => {
+    const toastId = toast.loading(t('Refreshing usage logs...'), { duration: Infinity })
+    setManualRefreshing(true)
     try {
       await refreshConsoleQueries(queryClient, consoleQueryKeys.usageLogs.all)
+      toast.success(t('Usage logs refreshed'), { id: toastId, description: t('Usage logs are up to date.'), duration: 6000 })
     } catch {
-      toast.error(t('Usage logs are unavailable'), { description: t('Available account data remains visible.') })
+      toast.error(t('Usage logs refresh failed'), { id: toastId, description: t('Available account data remains visible.'), duration: 6000 })
+    } finally {
+      setManualRefreshing(false)
     }
   }
   const openDetails = (record: SafeLogRecord, event: MouseEvent<HTMLButtonElement>) => {
@@ -555,7 +561,7 @@ export function ConsoleUsageLogsPage() {
     setSelected(record)
   }
   const partial = logs.data && (logs.data.invalidCount > 0 || logs.data.partialCount > 0 || logs.data.redactedCount > 0 || logs.data.paginationPartial)
-  const refreshing = logs.isFetching || (!statsTraceBlocked && stats.isFetching) || tokenTotals.isFetching
+  const refreshing = manualRefreshing || logs.isFetching || (!statsTraceBlocked && stats.isFetching) || tokenTotals.isFetching
 
   return <div className="flex flex-col gap-6 pb-8">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -588,13 +594,13 @@ export function ConsoleUsageLogsPage() {
     <section aria-label={t('Usage logs')} className="overflow-hidden rounded-md border">
       {logs.isLoading ? <ListSkeleton /> : logs.isError ? <ListState error={logs.error} onRetry={() => void logs.refetch()} /> : logs.data?.records.length ? <>
         {partial ? <p role="status" className="border-b bg-muted/20 px-4 py-3 text-xs text-muted-foreground">{t('Some log records or fields were unavailable or redacted. Usable fields remain visible.')}</p> : null}
-        <div className="hidden overflow-x-auto lg:block"><Table className="min-w-[1260px]"><TableHeader><TableRow className="hover:bg-transparent">
-          <TableHead className="ps-4">{t('Time / request')}</TableHead><TableHead>{t('Type')}</TableHead><TableHead>{t('Group')}</TableHead><TableHead>{t('Key name')}</TableHead><TableHead>{t('Model')}</TableHead><TableHead>{t('Streaming')}</TableHead><TableHead>{t('Token')}</TableHead><TableHead>{t('Cost')}</TableHead><TableHead>{t('Duration')}</TableHead><TableHead><span className="sr-only">{t('Details')}</span></TableHead>
+        <div className="hidden overflow-x-auto lg:block"><Table className="min-w-[1120px]"><TableHeader><TableRow className="hover:bg-transparent">
+          <TableHead className="ps-4">{t('Request time')}</TableHead><TableHead>{t('Type')}</TableHead><TableHead>{t('Group')}</TableHead><TableHead>{t('Key name')}</TableHead><TableHead>{t('Model')}</TableHead><TableHead>{t('Streaming')}</TableHead><TableHead>{t('Token')}</TableHead><TableHead>{t('Cost')}</TableHead><TableHead>{t('Duration')}</TableHead><TableHead><span className="sr-only">{t('Details')}</span></TableHead>
         </TableRow></TableHeader><TableBody>{logs.data.records.map((record) => <TableRow key={`${record.rowId}-${record.requestId || ''}`}>
-          <TableCell className="ps-4"><div className="whitespace-nowrap font-medium">{formatDate(record.createdAt, locale)}</div><code className="mt-0.5 block max-w-48 truncate font-mono text-xs text-muted-foreground" title={record.requestId}>{record.requestId || '—'}</code></TableCell>
+          <TableCell className="whitespace-nowrap ps-4 font-medium">{formatDate(record.createdAt, locale)}</TableCell>
           <TableCell><TypeBadge type={record.type} /></TableCell><TableCell><GroupValue record={record} /></TableCell><TableCell className="max-w-40 truncate" title={record.tokenName}>{record.tokenName || '—'}</TableCell><TableCell className="max-w-56"><ModelProviderBadge model={record.modelName} /></TableCell><TableCell>{record.isStream == null ? '—' : record.isStream ? t('Yes') : t('No')}</TableCell><TableCell><TokenMetrics record={record} locale={locale} /></TableCell><TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{formatQuota(record.quota, locale, 6)}</TableCell><TableCell><DurationMetrics record={record} /></TableCell><TableCell className="pe-3 text-end"><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="size-8" aria-label={t('View details {{request}}', { request: record.requestId || record.rowId })} onClick={(event) => openDetails(record, event)}><ChevronRight /></Button></TooltipTrigger><TooltipContent>{t('View details')}</TooltipContent></Tooltip></TableCell>
         </TableRow>)}</TableBody></Table></div>
-        <div className="divide-y lg:hidden">{logs.data.records.map((record) => <article key={`${record.rowId}-${record.requestId || ''}`} className="space-y-4 p-4"><div className="flex min-w-0 items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><TypeBadge type={record.type} /><GroupValue record={record} /><time className="text-xs text-muted-foreground">{formatDate(record.createdAt, locale)}</time></div><code className="mt-2 block break-all font-mono text-xs">{record.requestId || '—'}</code></div><Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={t('View details {{request}}', { request: record.requestId || record.rowId })} onClick={(event) => openDetails(record, event)}><ChevronRight /></Button></div><dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Key name')}</dt><dd className="mt-1 break-words">{record.tokenName || '—'}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Model')}</dt><dd className="mt-1"><ModelProviderBadge model={record.modelName} /></dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Token')}</dt><dd className="mt-1"><TokenMetrics record={record} locale={locale} /></dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Cost')}</dt><dd className="mt-1 whitespace-nowrap font-mono text-xs tabular-nums">{formatQuota(record.quota, locale, 6)}</dd></div><div className="col-span-2 min-w-0"><dt className="text-xs text-muted-foreground">{t('Duration')}</dt><dd className="mt-1"><DurationMetrics record={record} /></dd></div></dl></article>)}</div>
+        <div className="divide-y lg:hidden">{logs.data.records.map((record) => <article key={`${record.rowId}-${record.requestId || ''}`} className="space-y-4 p-4"><div className="flex min-w-0 items-start gap-3"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><TypeBadge type={record.type} /><GroupValue record={record} /><time className="text-xs text-muted-foreground">{formatDate(record.createdAt, locale)}</time></div></div><Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={t('View details {{request}}', { request: record.requestId || record.rowId })} onClick={(event) => openDetails(record, event)}><ChevronRight /></Button></div><dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Key name')}</dt><dd className="mt-1 break-words">{record.tokenName || '—'}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Model')}</dt><dd className="mt-1"><ModelProviderBadge model={record.modelName} /></dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Token')}</dt><dd className="mt-1"><TokenMetrics record={record} locale={locale} /></dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Cost')}</dt><dd className="mt-1 whitespace-nowrap font-mono text-xs tabular-nums">{formatQuota(record.quota, locale, 6)}</dd></div><div className="col-span-2 min-w-0"><dt className="text-xs text-muted-foreground">{t('Duration')}</dt><dd className="mt-1"><DurationMetrics record={record} /></dd></div></dl></article>)}</div>
       </> : <EmptyState filtered={hasFilters} onClear={clearFilters} />}
       <footer className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-t px-4 py-2 text-sm text-muted-foreground"><span>{t('Page {{page}} / {{pages}}', { page, pages: totalPages })}{logs.data ? ` · ${t('{{visible}} of {{total}} records', { visible: formatInteger(logs.data.records.length, locale), total: formatInteger(logs.data.total, locale) })} · ${updatedLabel(logs.dataUpdatedAt, locale, t)}` : ''}</span><div className="flex gap-2"><Button variant="outline" size="sm" disabled={page <= 1 || logs.isFetching} onClick={() => { setSelected(null); setPage((value) => Math.max(1, value - 1)) }}>{t('Previous')}</Button><Button variant="outline" size="sm" disabled={page >= totalPages || logs.isFetching} onClick={() => { setSelected(null); setPage((value) => value + 1) }}>{t('Next')}</Button></div></footer>
     </section>

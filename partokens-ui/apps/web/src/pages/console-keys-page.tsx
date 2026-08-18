@@ -631,7 +631,7 @@ function KeyEditor({
       if (!Number.isFinite(quota) || quota < 0 || quota > 10_000_000) nextErrors.quota = t('Quota must be between $0 and $10,000,000.')
       if (form.expiration === 'custom' && (!form.expiresAt || !Number.isFinite(customExpiry))) nextErrors.expiry = t('Enter a valid expiration date.')
       setErrors(nextErrors)
-      if (Object.keys(nextErrors).length) throw new KeyContractError('Fix the highlighted fields before saving.')
+      if (Object.keys(nextErrors).length) throw new KeyContractError(t('Fix the highlighted fields before saving.'))
 
       const presetDays = form.expiration === 'never' || form.expiration === 'custom' ? 0 : Number(form.expiration)
       const expiredTime = form.expiration === 'never'
@@ -925,7 +925,6 @@ export function ConsoleKeysPage() {
   const [batchOpen, setBatchOpen] = useState(false)
   const [secret, setSecret] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
   const createTrigger = useRef<HTMLButtonElement>(null)
   const batchTrigger = useRef<HTMLButtonElement>(null)
@@ -982,7 +981,7 @@ export function ConsoleKeysPage() {
     mutationFn: ({ id, nextStatus }: { id: number; nextStatus: number }) => projectEnvelope(() => updateTokenStatus(id, nextStatus), () => undefined),
     onSuccess: async (_, variables) => {
       setStatusTarget(null)
-      setNotice(variables.nextStatus === 1 ? t('API key enabled.') : t('API key disabled.'))
+      toast.success(variables.nextStatus === 1 ? t('API key enabled.') : t('API key disabled.'), { duration: 6000 })
       await invalidate()
     },
     onError: (error) => {
@@ -993,7 +992,7 @@ export function ConsoleKeysPage() {
     mutationFn: (id: number) => projectEnvelope(() => deleteToken(id), () => undefined),
     onSuccess: async () => {
       setDeleteTarget(null)
-      setNotice(t('API key deleted.'))
+      toast.success(t('API key deleted.'), { duration: 6000 })
       await invalidate()
     },
     onError: (error) => {
@@ -1015,7 +1014,7 @@ export function ConsoleKeysPage() {
     onSuccess: async ({ deleted, requested }) => {
       setBatchOpen(false)
       if (deleted === requested) setSelected([])
-      setNotice(deleted === requested ? t('Selected API keys deleted.') : t('The server deleted {{deleted}} of {{requested}} selected API keys.', { deleted, requested }))
+      toast.success(deleted === requested ? t('Selected API keys deleted.') : t('The server deleted {{deleted}} of {{requested}} selected API keys.', { deleted, requested }), { duration: 6000 })
       await invalidate()
     },
     onError: (error) => {
@@ -1094,8 +1093,6 @@ export function ConsoleKeysPage() {
         <Button ref={createTrigger} onClick={() => createTrigger.current && openEdit(null, createTrigger.current)}><Plus />{t('Create key')}</Button>
       </header>
 
-      {notice ? <div role="status" className="flex items-center justify-between gap-3 rounded-md border bg-muted/20 px-3 py-2 text-sm"><span>{notice}</span><Button variant="ghost" size="sm" onClick={() => setNotice(null)}>{t('Close')}</Button></div> : null}
-
       <section aria-label={t('API key filters')} className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="min-w-0 flex-1 lg:max-w-sm">
           <div className="relative"><Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('Search by name or key...')} aria-label={t('Search API keys')} aria-invalid={searchBlocked} className="ps-9" /></div>
@@ -1163,7 +1160,7 @@ export function ConsoleKeysPage() {
 
       {editing !== undefined ? <KeyEditor token={editing} defaultGroup={safeLabel(user?.group, 64) || 'default'} groups={groups.data || []} groupsUnavailable={groups.isError} returnFocus={returnFocus} onClose={() => setEditing(undefined)} onSaved={(result) => {
         setEditing(undefined)
-        setNotice(result.created ? result.id ? t('API key created. Confirm reveal before leaving this session if you need the full value.') : t('API key created. The server did not return its id; reveal it from the refreshed list.') : t('API key updated.'))
+        toast.success(result.created ? t('API key created.') : t('API key updated.'), { duration: 6000 })
         if (result.created && result.id) setRevealTarget({ id: result.id, name: result.name, maskedKey: null, partial: true, editable: false })
       }} /> : null}
 

@@ -17,7 +17,7 @@ import {
   Sun,
   WalletCards,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -403,10 +403,6 @@ export function ConsoleShell() {
   const sidebarCollapsed = usePreferenceStore((state) => state.sidebarCollapsed)
   const toggleSidebar = usePreferenceStore((state) => state.toggleSidebar)
   const activePage = consolePageFromPathname(pathname)
-  const toasterTheme = useMemo(() => {
-    if (theme !== 'system') return theme
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }, [theme])
 
   useEffect(() => {
     document.body.classList.add('console-portal')
@@ -445,7 +441,7 @@ export function ConsoleShell() {
           </main>
         </div>
       </SidebarProvider>
-      <Toaster theme={toasterTheme} position="bottom-right" richColors closeButton />
+      <Toaster theme={theme} position="top-right" richColors closeButton />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
-import { AlertCircle, ArrowRightLeft, Check, CheckCircle2, CircleDollarSign, Copy, CreditCard, Gift, LoaderCircle, ReceiptText, RefreshCw, Share2, Star, WalletCards } from 'lucide-react'
+import { ArrowRightLeft, Check, CheckCircle2, CircleDollarSign, Copy, CreditCard, Gift, LoaderCircle, ReceiptText, RefreshCw, Share2, Star, WalletCards } from 'lucide-react'
 import { type FormEvent, type MouseEvent, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,6 +9,7 @@ import {
   calculateTopupAmount,
   getAffiliateCode,
   getBillingHistory,
+  getSelf,
   getSelfSubscriptions,
   getSubscriptionPlans,
   getTopupInfo,
@@ -54,10 +55,11 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  toast,
 } from '@partokens/design-system/components'
 import { isAppLocale } from '@partokens/i18n'
 
-import { AccountDataState, AccountFeedback, AccountPageHeader, AccountSectionHeading } from '@/features/account/account-ui'
+import { AccountDataState, AccountPageHeader, AccountSectionHeading } from '@/features/account/account-ui'
 import { extractItems, formatCurrency, formatDate, formatInteger, quotaUnitsToDollars } from '@/lib/format'
 import { isConfiguredTopupAmount, starterPlanId } from '@/lib/wallet'
 import { useSessionStore } from '@/stores/session'
@@ -95,6 +97,25 @@ function responseMessage(error: unknown, fallback: string) {
     if (data?.message) return data.message
   }
   return error instanceof Error ? error.message : fallback
+}
+
+async function copyText(value: string): Promise<boolean> {
+  try {
+    if (!navigator.clipboard) throw new Error('Clipboard unavailable')
+    await navigator.clipboard.writeText(value)
+    return true
+  } catch {
+    const input = document.createElement('textarea')
+    input.value = value
+    input.setAttribute('readonly', '')
+    input.style.position = 'fixed'
+    input.style.opacity = '0'
+    document.body.appendChild(input)
+    input.select()
+    const copied = document.execCommand('copy')
+    input.remove()
+    return copied
+  }
 }
 
 function safeHttpUrl(value: unknown): string | null {
@@ -519,19 +540,18 @@ export function WalletPage() {
   const params = useParams({ strict: false }) as { locale?: string }
   const locale = getLocale(params.locale)
   const client = useQueryClient()
-  const { user, resolve } = useSessionStore()
+  const { user, resolve, setUser } = useSessionStore()
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null)
   const [intent, setIntent] = useState<PurchaseIntent | null>(null)
   const [subscriptionsOpen, setSubscriptionsOpen] = useState(false)
-  const [notice, setNotice] = useState('')
-  const [error, setError] = useState('')
+  const [transferOpen, setTransferOpen] = useState(false)
   const [redemption, setRedemption] = useState('')
-  const [redemptionError, setRedemptionError] = useState('')
   const [billingPage, setBillingPage] = useState(1)
   const [billingSearch, setBillingSearch] = useState('')
   const compactOverlay = useCompactOverlay()
   const purchaseTriggerRef = useRef<HTMLElement | null>(null)
   const subscriptionsTriggerRef = useRef<HTMLElement | null>(null)
+  const transferTriggerRef = useRef<HTMLButtonElement | null>(null)
 
   const topup = useQuery({ queryKey: ['topup-info'], queryFn: getTopupInfo, retry: false })
   const plans = useQuery({ queryKey: ['subscription-plans'], queryFn: getSubscriptionPlans, retry: false })
@@ -607,19 +627,18 @@ export function WalletPage() {
       if (!response.success && response.message !== 'success') throw new Error(response.message || t('Payment request failed'))
       return { response, balance: nextIntent.method.provider === 'balance' }
     },
-    onMutate: () => { setError(''); setNotice('') },
     onSuccess: ({ response, balance }) => {
       setIntent(null)
       if (balance) {
-        setNotice(t('Subscription purchased'))
+        toast.success(t('Subscription purchased'), { duration: 6000 })
         void Promise.all([subscriptions.refetch(), resolve()])
         return
       }
-      if (!continueCheckout(response)) setError(t('Payment destination unavailable'))
+      if (!continueCheckout(response)) toast.error(t('Payment destination unavailable'), { duration: 6000 })
     },
     onError: (cause) => {
       setIntent(null)
-      setError(responseMessage(cause, t('Payment request failed')))
+      toast.error(responseMessage(cause, t('Payment request failed')), { duration: 6000 })
     },
   })
 
@@ -629,13 +648,12 @@ export function WalletPage() {
       if (!response.success) throw new Error(response.message || t('Redemption failed'))
       return response
     },
-    onMutate: () => { setError(''); setNotice(''); setRedemptionError('') },
     onSuccess: (response) => {
       setRedemption('')
-      setNotice(`${t('Redemption successful')}: ${formatWalletQuota(response.data, locale)}`)
+      toast.success(`${t('Redemption successful')}: ${formatWalletQuota(response.data, locale)}`, { duration: 6000 })
       void Promise.all([billing.refetch(), resolve()])
     },
-    onError: (cause) => setRedemptionError(responseMessage(cause, t('Redemption failed'))),
+    onError: (cause) => toast.error(responseMessage(cause, t('Redemption failed')), { duration: 6000 }),
   })
 
   const transfer = useMutation({
@@ -644,21 +662,26 @@ export function WalletPage() {
       if (amount <= 0) throw new Error(t('No rewards available'))
       const response = await transferAffiliateQuota(amount)
       if (!response.success) throw new Error(response.message || t('Transfer failed'))
-      return response
+      return { amount }
     },
-    onMutate: () => { setError(''); setNotice('') },
-    onSuccess: () => { setNotice(t('Rewards transferred')); void Promise.all([affiliate.refetch(), resolve()]) },
-    onError: (cause) => setError(responseMessage(cause, t('Transfer failed'))),
+    onSuccess: ({ amount }) => {
+      setTransferOpen(false)
+      if (user) setUser({ ...user, quota: (user.quota || 0) + amount, aff_quota: Math.max(0, (user.aff_quota || 0) - amount) })
+      toast.success(t('Rewards transferred'), { duration: 6000 })
+      void affiliate.refetch()
+      void getSelf().then((response) => { if (response.success) setUser(response.data) }).catch(() => undefined)
+    },
+    onError: (cause) => toast.error(responseMessage(cause, t('Transfer failed')), { duration: 6000 }),
   })
 
   const preference = useMutation({
     mutationFn: updateSubscriptionPreference,
     onSuccess: (response) => {
-      if (!response.success) { setError(response.message || t('Unable to save preference')); return }
-      setNotice(t('Billing preference updated'))
+      if (!response.success) { toast.error(response.message || t('Unable to save preference'), { duration: 6000 }); return }
+      toast.success(t('Billing preference updated'), { duration: 6000 })
       void subscriptions.refetch()
     },
-    onError: (cause) => setError(responseMessage(cause, t('Unable to save preference'))),
+    onError: (cause) => toast.error(responseMessage(cause, t('Unable to save preference')), { duration: 6000 }),
   })
 
   const calculationRequired = Boolean(calculationMethod && ['epay', 'stripe', 'waffo', 'waffo-pancake'].includes(calculationMethod.provider))
@@ -673,6 +696,15 @@ export function WalletPage() {
   const openActiveSubscriptions = (event: MouseEvent<HTMLButtonElement>) => {
     subscriptionsTriggerRef.current = event.currentTarget
     setSubscriptionsOpen(true)
+  }
+  const copyAffiliateLink = async () => {
+    try {
+      const copied = await copyText(affiliateLink)
+      if (!copied) throw new Error('Copy failed')
+      toast.success(t('Referral link copied.'), { duration: 6000 })
+    } catch {
+      toast.error(t('Unable to copy referral link.'), { duration: 6000 })
+    }
   }
 
   const openSubscription = (plan: SubscriptionPlan, event: MouseEvent<HTMLButtonElement>) => {
@@ -699,9 +731,6 @@ export function WalletPage() {
   return (
     <div className="space-y-6" data-account-page="wallet">
       <AccountPageHeader title={t('Wallet')} description={t('Manage balance, subscriptions, payments, and account rewards.')} />
-
-      {notice ? <AccountFeedback kind="success">{notice}</AccountFeedback> : null}
-      {error ? <AccountFeedback kind="error">{error}</AccountFeedback> : null}
 
       <section aria-label={t('Account balance')} className="grid overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-4 lg:divide-x">
         {[
@@ -814,17 +843,14 @@ export function WalletPage() {
                   id="redemption-code"
                   value={redemption}
                   disabled={redeem.isPending}
-                  aria-invalid={Boolean(redemptionError)}
                   aria-label={t('Redemption code')}
                   aria-describedby="redemption-guidance"
                   autoComplete="off"
                   placeholder="xxxxxxxx"
                   required
-                  onChange={(event) => { setRedemption(event.target.value); setRedemptionError('') }}
+                  onChange={(event) => setRedemption(event.target.value)}
                 />
-                {redemptionError
-                  ? <p id="redemption-guidance" role="alert" className="flex items-center gap-2 text-xs text-destructive"><AlertCircle className="size-4" />{redemptionError}</p>
-                  : <p id="redemption-guidance" className="text-xs text-muted-foreground">{t('Codes are applied directly to your account balance.')}</p>}
+                <p id="redemption-guidance" className="text-xs text-muted-foreground">{t('Codes are applied directly to your account balance.')}</p>
               </div>
               <Button type="submit" variant="outline" className="mt-auto w-full sm:w-auto sm:self-start" disabled={!redemption.trim() || redeem.isPending}>
                 {redeem.isPending ? <LoaderCircle className="animate-spin" /> : <CircleDollarSign />}
@@ -844,7 +870,7 @@ export function WalletPage() {
                 action: (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0" disabled={!user?.aff_quota || transfer.isPending} aria-label={t('Transfer to balance')} onClick={() => { if (window.confirm(t('Transfer all pending rewards to balance?'))) transfer.mutate() }}>
+                      <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0" disabled={!user?.aff_quota || transfer.isPending} aria-label={t('Transfer to balance')} onClick={(event) => { transferTriggerRef.current = event.currentTarget; setTransferOpen(true) }}>
                         {transfer.isPending ? <LoaderCircle className="animate-spin" /> : <ArrowRightLeft />}
                       </Button>
                     </TooltipTrigger>
@@ -868,7 +894,7 @@ export function WalletPage() {
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1 space-y-2"><Label htmlFor="referral-link">{t('Referral link')}</Label><Input id="referral-link" value={affiliateLink || '—'} readOnly className="min-w-0 font-mono text-xs" /></div>
               <Tooltip>
-                <TooltipTrigger asChild><Button type="button" variant="outline" size="icon" className="shrink-0" disabled={!affiliateLink} aria-label={t('Copy')} onClick={() => void navigator.clipboard.writeText(affiliateLink)}><Copy /></Button></TooltipTrigger>
+                <TooltipTrigger asChild><Button type="button" variant="outline" size="icon" className="shrink-0" disabled={!affiliateLink} aria-label={t('Copy')} onClick={() => void copyAffiliateLink()}><Copy /></Button></TooltipTrigger>
                 <TooltipContent>{t('Copy')}</TooltipContent>
               </Tooltip>
             </div>
@@ -884,6 +910,29 @@ export function WalletPage() {
           <footer className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><span className="text-xs text-muted-foreground">{t('Page')} {billingPage} / {billingPages}</span><div className="flex gap-2"><Button type="button" variant="outline" size="sm" disabled={billingPage <= 1} onClick={() => setBillingPage((page) => page - 1)}>{t('Previous')}</Button><Button type="button" variant="outline" size="sm" disabled={billingPage >= billingPages} onClick={() => setBillingPage((page) => page + 1)}>{t('Next')}</Button></div></footer>
         </AccountDataState>
       </section>
+
+      {transferOpen ? (
+        <Dialog open onOpenChange={(open) => { if (!open && !transfer.isPending) setTransferOpen(false) }}>
+          <DialogContent
+            className="sm:max-w-md"
+            onCloseAutoFocus={(event) => { event.preventDefault(); transferTriggerRef.current?.focus() }}
+            onEscapeKeyDown={(event) => { if (transfer.isPending) event.preventDefault() }}
+            onInteractOutside={(event) => { if (transfer.isPending) event.preventDefault() }}
+          >
+            <DialogHeader>
+              <DialogTitle>{t('Transfer all pending rewards to balance?')}</DialogTitle>
+              <DialogDescription>{t('The pending reward amount will be added to your account balance.')}</DialogDescription>
+            </DialogHeader>
+            <dl className="rounded-md border px-4 py-3">
+              <div className="flex items-center justify-between gap-4 text-sm"><dt className="text-muted-foreground">{t('Pending rewards')}</dt><dd className="font-mono font-semibold tabular-nums">{formatWalletQuota(user?.aff_quota, locale)}</dd></div>
+            </dl>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={transfer.isPending} onClick={() => setTransferOpen(false)}>{t('Cancel')}</Button>
+              <Button type="button" disabled={transfer.isPending} onClick={() => transfer.mutate()}>{transfer.isPending ? <LoaderCircle className="animate-spin" /> : <ArrowRightLeft />}{t('Transfer to balance')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
 
       {subscriptionsOpen ? (
         <ActiveSubscriptionsOverlay

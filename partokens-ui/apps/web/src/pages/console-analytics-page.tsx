@@ -414,6 +414,7 @@ export function ConsoleAnalyticsPage() {
   const [granularity, setGranularity] = useState<AnalyticsGranularity>('day')
   const [measure, setMeasure] = useState<AnalyticsMeasure>('requests')
   const [view, setView] = useState<AnalyticsView>('trend')
+  const [manualRefreshing, setManualRefreshing] = useState(false)
 
   const usage = useQuery({ queryKey: consoleQueryKeys.analytics.usage(range, granularity), queryFn: ({ signal }) => loadUsage(range, granularity, signal), retry: false })
   const flow = useQuery({ queryKey: consoleQueryKeys.analytics.flow(range, granularity), queryFn: ({ signal }) => safeRequest(() => getFlowQuotaData({ ...requestBounds(range), default_time: requestGranularity(granularity) }, signal), projectFlow), retry: false })
@@ -426,7 +427,7 @@ export function ConsoleAnalyticsPage() {
   const trend = useMemo(() => buildTrend(currentRows, previousRows, granularity, locale), [currentRows, granularity, locale, previousRows])
   const ranking = useMemo(() => buildRanking(currentRows), [currentRows])
   const flows = useMemo(() => buildFlows(flowRows, t), [flowRows, t])
-  const refreshing = usage.isFetching || flow.isFetching
+  const refreshing = manualRefreshing || usage.isFetching || flow.isFetching
   const initialLoading = usage.isPending || flow.isPending
   const lastUpdated = Math.max(usage.dataUpdatedAt, flow.dataUpdatedAt)
   const usagePartial = Boolean(usage.data?.current.partial || usage.data?.previous.partial)
@@ -440,9 +441,18 @@ export function ConsoleAnalyticsPage() {
     else if (next === '90') setGranularity('week')
     else if (granularity === 'hour' || granularity === 'week') setGranularity('day')
   }
-  const refresh = () => void refreshConsoleQueries(queryClient, consoleQueryKeys.analytics.all).catch(() => {
-    toast.error(t('Analytics data is unavailable'), { description: t('Available account data remains visible.') })
-  })
+  const refresh = async () => {
+    const toastId = toast.loading(t('Refreshing analytics...'), { duration: Infinity })
+    setManualRefreshing(true)
+    try {
+      await refreshConsoleQueries(queryClient, consoleQueryKeys.analytics.all)
+      toast.success(t('Analytics refreshed'), { id: toastId, description: t('Analytics data is up to date.'), duration: 6000 })
+    } catch {
+      toast.error(t('Analytics refresh failed'), { id: toastId, description: t('Available account data remains visible.'), duration: 6000 })
+    } finally {
+      setManualRefreshing(false)
+    }
+  }
   const viewTitles: Record<AnalyticsView, [string, string]> = {
     trend: [t('Usage trend'), t('Compare the selected measure with the immediately preceding period.')],
     ranking: [t('Models by usage'), t('Compare model share for the selected measure.')],
@@ -453,7 +463,7 @@ export function ConsoleAnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6 pb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h1 id="console-title" className="text-2xl font-bold tracking-tight">{t('Analytics')}</h1><p className="text-muted-foreground">{t('Inspect usage trends, model share, cost, and request routes.')}</p></div><Button variant="outline" className="self-start sm:self-auto" disabled={refreshing} onClick={refresh}>{refreshing ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}{refreshing ? t('Refreshing...') : t('Refresh')}</Button></div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h1 id="console-title" className="text-2xl font-bold tracking-tight">{t('Analytics')}</h1><p className="text-muted-foreground">{t('Inspect usage trends, model share, cost, and request routes.')}</p></div><Button variant="outline" className="self-start sm:self-auto" disabled={refreshing} onClick={() => void refresh()}>{refreshing ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}{refreshing ? t('Refreshing...') : t('Refresh')}</Button></div>
 
       <section aria-label={t('Analytics filters')} className="flex flex-col gap-3 lg:flex-row lg:items-center"><div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap"><Select value={range} onValueChange={changeRange} disabled={refreshing}><SelectTrigger className="w-full sm:w-44" aria-label={t('Time range')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">{t('Last 24 hours')}</SelectItem><SelectItem value="7">{t('Last 7 days')}</SelectItem><SelectItem value="30">{t('Last 30 days')}</SelectItem><SelectItem value="90">{t('Last 90 days')}</SelectItem></SelectContent></Select><Select value={granularity} onValueChange={(value) => setGranularity(value as AnalyticsGranularity)} disabled={refreshing}><SelectTrigger className="w-full sm:w-36" aria-label={t('Granularity')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="hour" disabled={range !== '1'}>{t('Hourly')}</SelectItem><SelectItem value="day" disabled={range === '1' || range === '90'}>{t('Daily')}</SelectItem><SelectItem value="week" disabled={range === '1' || range === '7'}>{t('Weekly')}</SelectItem></SelectContent></Select></div><Tabs value={measure} onValueChange={(value) => setMeasure(value as AnalyticsMeasure)} className="min-w-0 sm:w-auto"><TabsList aria-label={t('Measure')} className="analytics-segmented grid w-full grid-cols-3 sm:w-auto"><TabsTrigger value="requests">{t('Requests')}</TabsTrigger><TabsTrigger value="tokens">{t('Tokens')}</TabsTrigger><TabsTrigger value="quota">{t('Cost')}</TabsTrigger></TabsList></Tabs><span className="text-xs text-muted-foreground lg:ms-auto">{lastUpdated ? t('Updated at {{time}}', { time: new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(lastUpdated) }) : t('Waiting for analytics data')}</span></section>
 

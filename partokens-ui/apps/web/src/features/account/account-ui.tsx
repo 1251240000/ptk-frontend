@@ -47,21 +47,6 @@ export function AccountSectionHeading({
   )
 }
 
-export function AccountFeedback({ kind, children }: { kind: 'success' | 'error'; children: ReactNode }) {
-  return (
-    <div
-      className={kind === 'success'
-        ? 'flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm text-foreground'
-        : 'flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-foreground'}
-      role={kind === 'error' ? 'alert' : 'status'}
-      aria-live="polite"
-    >
-      <AlertCircle className={kind === 'success' ? 'mt-0.5 size-4 shrink-0 text-success' : 'mt-0.5 size-4 shrink-0 text-destructive'} />
-      <span className="min-w-0">{children}</span>
-    </div>
-  )
-}
-
 export function AccountDataState({
   loading,
   error,

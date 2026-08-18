@@ -1549,6 +1549,20 @@ const r59ConsoleTranslationRows: Array<[string, ...string[]]> = [
   ["Duration", "耗时", "耗時", "Duration", "所要時間", "Длительность", "Durée", "Thời lượng"],
   ["RPM", "每分钟请求数", "每分鐘請求數", "RPM", "毎分リクエスト数", "Запросов в минуту", "Requêtes par minute", "Số yêu cầu mỗi phút"],
   ["TPM", "每分钟 Token 数", "每分鐘 Token 數", "TPM", "毎分トークン数", "Токенов в минуту", "Jetons par minute", "Số token mỗi phút"],
+  ["API key created.", "API 密钥已创建。", "API 金鑰已建立。", "API key created.", "API キーを作成しました。", "Ключ API создан.", "Clé API créée.", "Đã tạo khóa API."],
+  ["Analytics data is up to date.", "数据看板已更新。", "資料看板已更新。", "Analytics data is up to date.", "分析データは最新です。", "Данные аналитики обновлены.", "Les données d’analyse sont à jour.", "Dữ liệu phân tích đã được cập nhật."],
+  ["Analytics refresh failed", "数据看板刷新失败", "資料看板重新整理失敗", "Analytics refresh failed", "分析データを更新できませんでした", "Не удалось обновить аналитику", "Échec de l’actualisation des analyses", "Làm mới dữ liệu phân tích thất bại"],
+  ["Analytics refreshed", "数据看板已刷新", "資料看板已重新整理", "Analytics refreshed", "分析データを更新しました", "Аналитика обновлена", "Analyses actualisées", "Đã làm mới dữ liệu phân tích"],
+  ["Fix the highlighted fields before saving.", "请修正标记的字段后再保存。", "請修正標示的欄位後再儲存。", "Fix the highlighted fields before saving.", "強調表示された項目を修正してから保存してください。", "Исправьте выделенные поля перед сохранением.", "Corrigez les champs signalés avant d’enregistrer.", "Hãy sửa các trường được đánh dấu trước khi lưu."],
+  ["Referral link copied.", "邀请链接已复制。", "邀請連結已複製。", "Referral link copied.", "紹介リンクをコピーしました。", "Реферальная ссылка скопирована.", "Lien de parrainage copié.", "Đã sao chép liên kết giới thiệu."],
+  ["Request time", "请求时间", "請求時間", "Request time", "リクエスト時刻", "Время запроса", "Heure de la requête", "Thời gian yêu cầu"],
+  ["Refreshing analytics...", "正在刷新数据看板...", "正在重新整理資料看板...", "Refreshing analytics...", "分析データを更新しています...", "Обновление аналитики...", "Actualisation des analyses...", "Đang làm mới dữ liệu phân tích..."],
+  ["Refreshing usage logs...", "正在刷新使用日志...", "正在重新整理使用記錄...", "Refreshing usage logs...", "使用ログを更新しています...", "Обновление журналов использования...", "Actualisation des journaux d’utilisation...", "Đang làm mới nhật ký sử dụng..."],
+  ["The pending reward amount will be added to your account balance.", "待转奖励将全部加入账户余额。", "待轉獎勵將全部加入帳戶餘額。", "The pending reward amount will be added to your account balance.", "保留中の報酬はすべてアカウント残高に追加されます。", "Все ожидающие награды будут добавлены к балансу аккаунта.", "Le montant des récompenses en attente sera ajouté au solde de votre compte.", "Toàn bộ phần thưởng đang chờ sẽ được cộng vào số dư tài khoản."],
+  ["Unable to copy referral link.", "无法复制邀请链接。", "無法複製邀請連結。", "Unable to copy referral link.", "紹介リンクをコピーできませんでした。", "Не удалось скопировать реферальную ссылку.", "Impossible de copier le lien de parrainage.", "Không thể sao chép liên kết giới thiệu."],
+  ["Usage logs are up to date.", "使用日志已更新。", "使用記錄已更新。", "Usage logs are up to date.", "使用ログは最新です。", "Журналы использования обновлены.", "Les journaux d’utilisation sont à jour.", "Nhật ký sử dụng đã được cập nhật."],
+  ["Usage logs refresh failed", "使用日志刷新失败", "使用記錄重新整理失敗", "Usage logs refresh failed", "使用ログを更新できませんでした", "Не удалось обновить журналы использования", "Échec de l’actualisation des journaux d’utilisation", "Làm mới nhật ký sử dụng thất bại"],
+  ["Usage logs refreshed", "使用日志已刷新", "使用記錄已重新整理", "Usage logs refreshed", "使用ログを更新しました", "Журналы использования обновлены", "Journaux d’utilisation actualisés", "Đã làm mới nhật ký sử dụng"],
 ]
 
 for (const [key, ...values] of r59ConsoleTranslationRows) {
