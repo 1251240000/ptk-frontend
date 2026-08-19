@@ -8,7 +8,6 @@ import {
   CircleUserRound,
   Eye,
   EyeOff,
-  Github,
   LoaderCircle,
   LockKeyhole,
   type LucideIcon,
@@ -34,6 +33,7 @@ import { i18n } from '@/lib/i18n'
 import { usePreferenceStore } from '@/stores/preferences'
 
 import { localizedAuthError, startOAuthAuthorization } from './auth-flow'
+import { GitHubIcon, GoogleIcon, LinuxDoIcon } from './provider-icons'
 
 type Translate = (key: string) => string
 
@@ -305,19 +305,19 @@ export function OAuthButtons(props: { status?: PartokensStatus; allowed: boolean
       slug: 'github',
       label: 'GitHub',
       available: registrationAllowed && props.status?.github_oauth !== false && Boolean(props.status?.github_client_id),
-      icon: <Github size={17} aria-hidden="true" />,
-    },
-    {
-      slug: 'linuxdo',
-      label: 'LinuxDO',
-      available: registrationAllowed && props.status?.linuxdo_oauth !== false && Boolean(props.status?.linuxdo_client_id),
-      icon: <span className="r32-provider-glyph" aria-hidden="true">L</span>,
+      icon: <GitHubIcon />,
     },
     {
       slug: google?.slug || 'oidc',
       label: 'Google',
       available: registrationAllowed && Boolean(google || (props.status?.oidc_enabled !== false && props.status?.oidc_client_id)),
-      icon: <span className="r32-provider-glyph" aria-hidden="true">G</span>,
+      icon: <GoogleIcon />,
+    },
+    {
+      slug: 'linuxdo',
+      label: 'LinuxDO',
+      available: registrationAllowed && props.status?.linuxdo_oauth !== false && Boolean(props.status?.linuxdo_client_id),
+      icon: <LinuxDoIcon />,
     },
   ]
   const visibleProviders = providers.filter((provider) => provider.available)

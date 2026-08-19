@@ -36,6 +36,10 @@ test('legal consent defaults checked and still gates password and OAuth sign-in'
   await expect(page.getByRole('button', { name: 'Continue with GitHub' })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Continue with LinuxDO' })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Continue with GitHub' }).locator('[data-provider-icon="github"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continue with LinuxDO' }).locator('[data-provider-icon="linuxdo"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continue with Google' }).locator('[data-provider-icon="google"]')).toBeVisible()
+  await expect(page.locator('.r32-oauth-grid .pt-button')).toHaveText(['GitHub', 'Google', 'LinuxDO'])
 
   await submit.click()
   await page.waitForURL('**/en/console/overview')
@@ -101,6 +105,10 @@ test('email verification is limited to registration and the submitted code is pr
   })
   await page.goto('/en/auth/sign-up')
   await expect(page.getByRole('checkbox')).toBeChecked()
+  await expect(page.getByRole('button', { name: 'Continue with GitHub' }).locator('[data-provider-icon="github"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continue with LinuxDO' }).locator('[data-provider-icon="linuxdo"]')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continue with Google' }).locator('[data-provider-icon="google"]')).toBeVisible()
+  await expect(page.locator('.r32-oauth-grid .pt-button')).toHaveText(['GitHub', 'Google', 'LinuxDO'])
 
   await page.getByLabel('Username', { exact: true }).fill('new-fixture-user')
   await page.getByLabel('Email', { exact: true }).fill('new@example.test')
