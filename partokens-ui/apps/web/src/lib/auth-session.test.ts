@@ -123,6 +123,22 @@ describe('authentication bundle parsing', () => {
 })
 
 describe('authentication lifecycle', () => {
+  it('installs an anonymous 2FA challenge without a transient empty state', () => {
+    const pendingStates: Array<string | null> = []
+    const unsubscribe = useSessionStore.subscribe((state) => {
+      pendingStates.push(state.pendingTwoFactor?.flow_token ?? null)
+    })
+
+    useSessionStore.getState().setPendingTwoFactor({
+      require_2fa: true,
+      flow_token: 'unit-flow',
+      expires_at: Math.floor(Date.now() / 1000) + 300,
+    })
+
+    unsubscribe()
+    expect(pendingStates).toEqual(['unit-flow'])
+  })
+
   it('installs password login atomically and sends the bearer on same-origin requests', async () => {
     let authorization = ''
     api.defaults.adapter = async (config) => {
@@ -555,6 +571,45 @@ describe('authentication lifecycle', () => {
     expect(exchangeCalls).toBe(1)
     expect(close).toHaveBeenCalledTimes(1)
     expect(window.localStorage.length).toBe(0)
+  })
+
+  it('propagates an OAuth bind cancellation from the provider popup', async () => {
+    const close = vi.fn()
+    const assign = vi.fn()
+    const popup = { close, closed: false, location: { assign }, sessionStorage: memoryStorage() }
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
+    let exchangeCalls = 0
+    api.defaults.adapter = async (config) => {
+      if (config.url === '/api/oauth/state') return response(config, {
+        success: true,
+        data: { flow_token: 'unit-oauth-cancel-state', expires_at: Math.floor(Date.now() / 1000) + 300 },
+      })
+      exchangeCalls += 1
+      return response(config, { success: false, message: 'access_denied' })
+    }
+
+    const binding = startOAuthAuthorization({
+      provider: 'github',
+      status: { github_client_id: 'unit-client' },
+      locale: 'en',
+      intent: 'bind',
+    })
+    await vi.waitFor(() => expect(assign).toHaveBeenCalledTimes(1))
+    window.dispatchEvent(new MessageEvent('message', {
+      origin: window.location.origin,
+      source: popup as unknown as Window,
+      data: {
+        source: 'partokens-oauth-bind',
+        provider: 'github',
+        state: 'unit-oauth-cancel-state',
+        error: 'access_denied',
+        error_description: 'The user denied access',
+      },
+    }))
+
+    await expect(binding).rejects.toThrow('access_denied')
+    expect(exchangeCalls).toBe(1)
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   it('does not persist or print access credentials', () => {

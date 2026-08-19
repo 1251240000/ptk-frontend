@@ -292,6 +292,21 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent);
 }
 
+.r32-auth-field[data-state='error'] .pt-field-control,
+.r32-auth-field[data-state='error'] .pt-field-control:hover,
+.r32-auth-field[data-state='error'] .pt-field-control:focus-within {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--destructive) 58%, #ffb6b6),
+      var(--destructive) 48%,
+      color-mix(in srgb, var(--destructive) 78%, #7f1018)
+    ) border-box;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--destructive) 18%, transparent), 0 2px 8px color-mix(in srgb, var(--destructive) 14%, transparent);
+}
+
 .r32-auth-field .pt-field-leading { display: none; }
 .r32-auth-field .pt-field-control input {
   padding: 0 .75rem;

@@ -92,6 +92,20 @@ function checkPackage() {
   if (sourceMapReferences.length) fail(`Packaged Web assets reference source maps: ${sourceMapReferences.join(', ')}`)
 
   const webRoot = join(root, 'web')
+  const publicContentRoot = join(webRoot, 'public-content')
+  const publicContentManifestPath = join(publicContentRoot, 'manifest.json')
+  if (!existsSync(publicContentManifestPath)) fail('Packaged Web release is missing public-content/manifest.json')
+  const publicContentManifest = JSON.parse(readFileSync(publicContentManifestPath, 'utf8')) as {
+    schemaVersion?: number
+    files?: Record<string, string>
+  }
+  if (publicContentManifest.schemaVersion !== 1 || !publicContentManifest.files) {
+    fail('Packaged public-content manifest is invalid')
+  }
+  for (const [kind, relativePath] of Object.entries(publicContentManifest.files)) {
+    if (!/^(?:legal\/)?[a-z0-9-]+\.json$/.test(relativePath)) fail(`Packaged public-content path is invalid for ${kind}`)
+    if (!existsSync(join(publicContentRoot, relativePath))) fail(`Packaged public-content file is missing: ${relativePath}`)
+  }
   if (sha256(join(webRoot, 'index.html')) !== manifest.build.webIndexSha256) fail('Packaged Web index checksum does not match the manifest')
   if (treeSha256(webRoot, ['_ui/release.json']) !== manifest.build.webArtifactSha256) fail('Packaged Web artifact checksum does not match the manifest')
   for (const route of canonicalConsoleRoutes) {

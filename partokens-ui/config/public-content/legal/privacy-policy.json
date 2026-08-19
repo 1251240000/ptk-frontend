@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "kind": "privacy-policy",
+  "version": "2026-07-20.1",
+  "effectiveDate": "2026-07-20",
+  "reviewState": "draft",
+  "locales": {
+    "zh-CN": {
+      "title": "隐私政策",
+      "summary": "本政策说明 Partokens 如何处理账号访问、服务使用和基本合规要求。",
+      "sections": [
+        {
+          "title": "我们收集的信息",
+          "paragraphs": [
+            "Partokens 可能收集你主动提交的姓名或显示名称、邮箱、用户名、账号密码认证信息（以哈希等安全形式保存）、联系方式、支持工单内容，以及注册、登录、邀请、账号设置和安全验证过程中产生的信息。",
+            "为提供服务和计费结算，我们可能处理 API Key 标识、请求时间、模型名称、token 用量、费用、余额变动、订单号、支付状态、交易流水号、付款渠道返回的必要信息、设备与浏览器信号、IP 地址、登录记录、风控记录和错误日志。我们通常不会直接保存完整银行卡号等敏感支付凭据；此类信息由支付服务商按其规则处理。",
+            "当你使用 AI 模型路由、文本生成、生图或其他接口时，系统可能处理提示词、输入文件、请求参数、响应状态、模型输出、上游错误信息和运行日志。请勿提交无权处理的个人信息、保密信息或受监管数据。"
+          ]
+        },
+        {
+          "title": "信息的使用方式",
+          "paragraphs": [
+            "我们使用个人信息和服务数据完成用户注册、登录鉴权、账号安全、API 访问控制、模型路由、额度扣减、订阅和订单处理、通知发送、客户支持、故障排查、账务核对和服务改进。",
+            "我们也会使用运行数据进行风控、滥用检测、内容安全审查、欺诈防范、审计留痕、合规响应以及履行法律法规、监管要求或有效法律程序。"
+          ]
+        },
+        {
+          "title": "存储、保护与保留",
+          "paragraphs": [
+            "Partokens 仅在实现服务、计费、安全、审计和合规所需的期限内保存数据。账号、订单、用量、日志和风控记录会按业务和法律需要保留；超过必要期限后，我们会删除、匿名化或以其他合理方式处理。",
+            "我们通过访问控制、最小权限、加密传输、凭据保护、日志审计、备份和内部授权管理保护数据安全。互联网服务无法保证绝对安全；如发现账号或 API Key 泄露，请立即更换凭据并联系我们。"
+          ]
+        },
+        {
+          "title": "共享与委托处理",
+          "paragraphs": [
+            "我们不会出售个人信息。仅在提供服务所必需或法律允许的范围内，向云基础设施、数据库、缓存、支付渠道、邮件或消息服务、风控安全、客户支持、审计合规和 AI 上游模型提供方共享或委托处理必要数据。",
+            "当你调用第三方 AI 模型、支付或身份服务时，请求内容、用量元数据、订单信息或账号标识可能会被发送给相应提供方。我们会要求合作方按合同、平台政策和适用法律保护数据。"
+          ]
+        },
+        {
+          "title": "你的权利与选择",
+          "paragraphs": [
+            "在适用法律允许的范围内，你可以申请查阅、复制、更正、补充或删除个人信息，也可以申请撤回同意、注销账号、限制部分处理活动，或咨询个人信息处理规则。",
+            "你可以在账号控制台更新部分资料、删除或轮换 API Key、停止使用服务，或通过 support@partokens.com 联系我们处理数据权利请求。为保护账号安全，处理查阅、更正、删除或注销前，我们可能要求进行身份验证。",
+            "账号注销后，我们会停止提供账号服务，并按法律、账务、安全、争议处理和审计需要保留必要记录；不再需要保留的个人信息将被删除或匿名化。"
+          ]
+        }
+      ]
+    },
+    "zh-TW": {
+      "title": "隱私權政策",
+      "summary": "本政策說明帳戶資料、呼叫資料與瀏覽器本機資料的處理方式。",
+      "sections": [
+        {
+          "title": "帳戶與運行資料",
+          "paragraphs": [
+            "為提供驗證、計費、安全與稽核能力，服務會處理必要的帳戶與呼叫統計資料。"
+          ]
+        },
+        {
+          "title": "本機對話記錄",
+          "paragraphs": [
+            "對話歷史僅儲存在目前瀏覽器中。傳送訊息時，內容會經由閘道傳輸至所選模型供應商。"
+          ]
+        },
+        {
+          "title": "你的選擇",
+          "paragraphs": [
+            "你可以管理個人資料、安全設定與本機對話資料，並依適用規則申請刪除帳戶。"
+          ]
+        }
+      ]
+    },
+    "en": {
+      "title": "Privacy Policy",
+      "summary": "This policy describes how account, request, and browser-local data are handled.",
+      "sections": [
+        {
+          "title": "Account and operational data",
+          "paragraphs": [
+            "The service processes necessary account, usage, network, and security data for authentication, billing, safety, and audit functions."
+          ]
+        },
+        {
+          "title": "Local conversation history",
+          "paragraphs": [
+            "Playground history stays in this browser and is not stored by Partokens. Submitted messages pass through the gateway to the selected model provider."
+          ]
+        },
+        {
+          "title": "Your choices",
+          "paragraphs": [
+            "You can manage profile, security, and local conversation data and may request account deletion where applicable."
+          ]
+        }
+      ]
+    },
+    "ja": {
+      "title": "プライバシーポリシー",
+      "summary": "アカウント、リクエスト、ブラウザ内データの扱いを説明します。",
+      "sections": [
+        {
+          "title": "アカウントと運用データ",
+          "paragraphs": [
+            "認証、課金、安全、監査に必要なアカウント情報と利用統計を処理します。"
+          ]
+        },
+        {
+          "title": "ローカル会話履歴",
+          "paragraphs": [
+            "履歴はこのブラウザにのみ保存されます。送信内容は選択したモデル提供者へ転送されます。"
+          ]
+        },
+        {
+          "title": "利用者の選択",
+          "paragraphs": [
+            "プロフィール、安全設定、ローカル履歴を管理し、適用条件に従って削除を申請できます。"
+          ]
+        }
+      ]
+    },
+    "ru": {
+      "title": "Политика конфиденциальности",
+      "summary": "Обработка данных аккаунта, запросов и локальных данных браузера.",
+      "sections": [
+        {
+          "title": "Данные аккаунта и работы",
+          "paragraphs": [
+            "Для входа, оплаты, безопасности и аудита обрабатываются необходимые данные аккаунта и статистика."
+          ]
+        },
+        {
+          "title": "Локальная история диалогов",
+          "paragraphs": [
+            "История хранится только в браузере. Отправленные сообщения передаются выбранному поставщику модели."
+          ]
+        },
+        {
+          "title": "Ваш выбор",
+          "paragraphs": [
+            "Можно управлять профилем, безопасностью и локальной историей, а также запросить удаление аккаунта."
+          ]
+        }
+      ]
+    },
+    "fr": {
+      "title": "Politique de confidentialité",
+      "summary": "Traitement des données du compte, des requêtes et des données locales du navigateur.",
+      "sections": [
+        {
+          "title": "Données du compte et d’exploitation",
+          "paragraphs": [
+            "Les données nécessaires sont traitées pour l’authentification, la facturation, la sécurité et l’audit."
+          ]
+        },
+        {
+          "title": "Historique local",
+          "paragraphs": [
+            "L’historique reste dans ce navigateur. Les messages envoyés sont transmis au fournisseur du modèle choisi."
+          ]
+        },
+        {
+          "title": "Vos choix",
+          "paragraphs": [
+            "Vous pouvez gérer votre profil, la sécurité et l’historique local, et demander la suppression du compte selon les règles applicables."
+          ]
+        }
+      ]
+    },
+    "vi": {
+      "title": "Chính sách quyền riêng tư",
+      "summary": "Cách xử lý dữ liệu tài khoản, yêu cầu và dữ liệu cục bộ trong trình duyệt.",
+      "sections": [
+        {
+          "title": "Dữ liệu tài khoản và vận hành",
+          "paragraphs": [
+            "Dữ liệu cần thiết được xử lý cho xác thực, tính phí, an toàn và kiểm toán."
+          ]
+        },
+        {
+          "title": "Lịch sử trò chuyện cục bộ",
+          "paragraphs": [
+            "Lịch sử chỉ nằm trong trình duyệt này. Tin nhắn gửi đi được chuyển đến nhà cung cấp mô hình đã chọn."
+          ]
+        },
+        {
+          "title": "Lựa chọn của bạn",
+          "paragraphs": [
+            "Bạn có thể quản lý hồ sơ, bảo mật, lịch sử cục bộ và yêu cầu xóa tài khoản theo quy định."
+          ]
+        }
+      ]
+    }
+  }
+}

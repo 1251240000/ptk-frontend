@@ -131,12 +131,15 @@ const oauthRoute = createRoute({ getParentRoute: () => rootRoute, path: 'oauth/$
 const technicalResetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'user/reset',
-  beforeLoad: async () => {
+  beforeLoad: ({ location }) => {
     const locale = resolvePreferredLocale()
-    document.documentElement.lang = locale
-    if (i18n.resolvedLanguage !== locale) await i18n.changeLanguage(locale)
+    throw redirect({
+      to: '/$locale/auth/reset',
+      params: { locale },
+      search: location.search,
+      replace: true,
+    })
   },
-  component: resetPasswordComponent,
 })
 
 const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, profileRoute, profileSecurityRoute, profileConnectionsRoute, profileNotificationsRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "revision": "2026.8.19.2",
+  "updatedAt": "2026-08-19T16:24:01+08:00",
+  "files": {
+    "system": "system.json",
+    "about": "about.json",
+    "notices": "notices.json",
+    "user-agreement": "legal/user-agreement.json",
+    "service-agreement": "legal/service-agreement.json",
+    "privacy-policy": "legal/privacy-policy.json"
+  }
+}

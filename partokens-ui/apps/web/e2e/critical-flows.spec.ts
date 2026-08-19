@@ -129,6 +129,40 @@ test('email verification is limited to registration and the submitted code is pr
   })
 })
 
+test('registration highlights invalid username and password fields until they are valid', async ({ page }) => {
+  await installMockApi(page)
+  await page.goto('/en/auth/sign-up')
+
+  const username = page.getByLabel('Username', { exact: true })
+  const password = page.getByLabel('Password', { exact: true })
+  const confirm = page.getByLabel('Confirm password')
+
+  await password.focus()
+  await page.keyboard.press('Tab')
+  await expect(confirm).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(password).toBeFocused()
+
+  await username.fill('abc')
+  await password.fill('short')
+  await confirm.fill('different')
+
+  for (const input of [username, password, confirm]) {
+    await expect(input).toHaveAttribute('aria-invalid', 'true')
+    await expect(input.locator('xpath=..')).toHaveCSS('border-color', 'rgba(0, 0, 0, 0)')
+    await expect(input.locator('xpath=..')).toHaveCSS('background-image', /linear-gradient/)
+  }
+  await expect(page.getByRole('button', { name: 'Create account' })).toBeDisabled()
+
+  await username.fill('abcd')
+  await password.fill('long-enough')
+  await confirm.fill('long-enough')
+
+  for (const input of [username, password, confirm]) {
+    await expect(input).not.toHaveAttribute('aria-invalid')
+  }
+})
+
 test('administrators leave the standalone locale routes for the native management entry', async ({ page }) => {
   await installMockApi(page, { role: 10 })
   await page.goto('/en/auth/sign-in')
@@ -162,6 +196,15 @@ test('OAuth callback restores the saved locale and enters the ordinary-user cons
 
 test('password login completes the required two-factor route before entering the console', async ({ page }) => {
   let verification: Record<string, unknown> = {}
+  await page.addInitScript(() => {
+    const expiredMessage = 'Login flow expired. Please sign in again.'
+    const detectExpiredMessage = () => {
+      if (document.body?.textContent?.includes(expiredMessage)) {
+        window.sessionStorage.setItem('partokens-e2e-expired-login-flow-seen', 'true')
+      }
+    }
+    new MutationObserver(detectExpiredMessage).observe(document, { childList: true, subtree: true, characterData: true })
+  })
   await installMockApi(page, {
     anonymous: true,
     requireTwoFactor: true,
@@ -180,6 +223,7 @@ test('password login completes the required two-factor route before entering the
   await page.getByRole('button', { name: 'Verify' }).click()
   await page.waitForURL('**/en/console/overview')
   expect(verification).toEqual({ code: '123456', flow_token: 'fixture-two-factor-flow' })
+  expect(await page.evaluate(() => window.sessionStorage.getItem('partokens-e2e-expired-login-flow-seen'))).toBeNull()
 })
 
 test('two-factor backup mode normalizes the displayed code before submission', async ({ page }) => {
@@ -209,11 +253,14 @@ test('technical reset links restore the locale and remove reset credentials afte
   await installMockApi(page)
   await page.goto('/user/reset?email=member%40example.test&token=fixture-reset-token')
 
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/fr/auth/reset')
+  expect(new URL(page.url()).searchParams.get('email')).toBe('member@example.test')
+  expect(new URL(page.url()).searchParams.get('token')).toBe('fixture-reset-token')
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
   await expect(page.getByText('me***@example.test')).toBeVisible()
   await page.getByRole('button', { name: 'Réinitialiser le mot de passe' }).click()
   await expect(page.getByText('fixture-reset-password')).toBeVisible()
-  await expect.poll(() => new URL(page.url()).search).toBe('')
+  await expect.poll(() => page.url()).toBe('http://127.0.0.1:4174/fr/auth/reset')
 })
 
 test('API key lifecycle covers create, edit, disable, reveal, and delete', async ({ page }) => {

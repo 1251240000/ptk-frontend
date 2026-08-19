@@ -12,3 +12,4 @@ release.tmp/
 .env
 .env.local
 apps/docs/.next/
+.content-backups/

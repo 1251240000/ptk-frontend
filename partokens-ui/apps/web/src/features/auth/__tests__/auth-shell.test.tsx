@@ -22,6 +22,7 @@ describe('authentication fields', () => {
     const input = screen.getByLabelText('密码')
     const reveal = screen.getByRole('button', { name: '显示密码' })
     expect(input.getAttribute('type')).toBe('password')
+    expect(reveal.getAttribute('tabindex')).toBe('-1')
 
     fireEvent.click(reveal)
     expect(input.getAttribute('type')).toBe('text')

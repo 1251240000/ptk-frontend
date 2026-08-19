@@ -17,6 +17,8 @@ The staging preflight rejects production origins, a production API, an unversion
 
 The generated `release/release-manifest.json` and `release/web/_ui/release.json` identify the RC, UI commit, source state, R59 Console contract, upstream versions, artifact hashes, lazy chunks, and source map policy. Public Web source maps and `sourceMappingURL` references are rejected.
 
+The release also contains `web/public-content/`. Caddy serves these JSON files from `/public-content/*` with `Cache-Control: no-store`; the web app loads the manifest first and shows a retryable localized error instead of stale legal content if runtime loading fails. Validate content with `python3 scripts/manage_content.py --validate` before packaging. To publish content without rebuilding JavaScript, update the complete `public-content` directory in a versioned release candidate and deploy it through the same atomic release/rollback flow. Do not replace individual files in the active `current` directory.
+
 ## Staging Install
 
 Upload `release/` to the exact `PARTOKENS_RELEASE_ROOT` on `PARTOKENS_DEPLOY_HOST`. Do not overwrite `current` and do not reuse a production host or API. Record the previous symlink target before making changes.

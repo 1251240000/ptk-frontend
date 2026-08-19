@@ -31,9 +31,9 @@
 
   const syncBrandAssets = (theme) => {
     for (const size of [16, 32]) {
-      ensureIcon(`favicon-${size}`, 'icon', size).href = `/brand/partokens-avatar-monochrome-${theme}-transparent-${size}.png`
+      ensureIcon(`favicon-${size}`, 'icon', size).href = `/brand/partokens-mark-reference-${size}.png`
     }
-    ensureIcon('apple-touch-icon-180', 'apple-touch-icon', 180).href = `/brand/partokens-avatar-monochrome-${theme}-transparent-180.png`
+    ensureIcon('apple-touch-icon-180', 'apple-touch-icon', 180).href = '/brand/partokens-mark-reference-180.png'
 
     let themeColor = document.querySelector('meta[name="theme-color"]')
     if (!themeColor) {

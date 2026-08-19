@@ -804,15 +804,16 @@ export async function getOAuthState(input: {
   provider: string
   intent: 'login' | 'bind'
   aff?: string
-}): Promise<string> {
+}): Promise<AuthApiEnvelope<{ flow_token: string; expires_at: number }>> {
   const response = await api.post('/api/oauth/state', input, {
     skipAuth: input.intent === 'login',
     skipAuthRefresh: input.intent === 'login',
   })
   const envelope = parseAuthEnvelope(response.data)
-  if (!envelope.success) return ''
+  if (!envelope.success) return authFailure(envelope)
   const parsed = z.object({ flow_token: z.string().min(1), expires_at: z.number().int().positive() }).strip().safeParse(envelope.data)
-  return parsed.success ? parsed.data.flow_token : ''
+  if (!parsed.success) return { success: false }
+  return { success: true, message: envelope.message, data: parsed.data }
 }
 
 export async function sendEmailVerification(input: {

@@ -55,6 +55,7 @@ import { resolveProfileTask, type ProfileTask } from '@/lib/account-routes'
 import { quotaDollarsToUnits, quotaUnitsToDollars } from '@/lib/format'
 import { buildAssertionResult, buildRegistrationResult, isPasskeySupported, prepareCredentialCreationOptions, prepareCredentialRequestOptions } from '@/lib/passkey'
 import { useSessionStore } from '@/stores/session'
+import { authErrorMessage } from '@/features/auth/auth-shell'
 import { startOAuthAuthorization, TurnstileField } from './auth-pages'
 
 type ProfileTab = ProfileTask
@@ -89,15 +90,6 @@ function validHttpUrl(value: string): boolean {
   } catch {
     return false
   }
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  if (typeof error === 'object' && error && 'response' in error) {
-    const message = (error as { response?: { data?: { message?: string } } }).response?.data?.message
-    if (message) return message
-  }
-  if (error instanceof DOMException && error.name === 'NotAllowedError') return 'Passkey operation was cancelled or timed out'
-  return error instanceof Error ? error.message : fallback
 }
 
 async function registerBrowserPasskey() {
@@ -235,7 +227,12 @@ export function ProfilePage() {
   }, [emailCooldown])
 
   const success = (value: string) => toast.success(value, { duration: 6000 })
-  const failure = (cause: unknown, fallback: string) => toast.error(t(errorMessage(cause, fallback)), { duration: 6000 })
+  const failure = (cause: unknown, fallback: string) => {
+    const message = cause instanceof DOMException && cause.name === 'NotAllowedError'
+      ? t('Passkey operation was cancelled or timed out')
+      : authErrorMessage(cause, t, fallback)
+    toast.error(message, { duration: 6000 })
+  }
 
   const saveProfile = useMutation({
     mutationFn: async () => {

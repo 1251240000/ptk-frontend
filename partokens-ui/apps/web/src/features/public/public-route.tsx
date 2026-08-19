@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 
 import { getPricingCatalog, getStatusWithSignal } from '@partokens/api-client'
+import { loadPublicContent, type PublicContentSnapshot } from '@partokens/content/public-config'
 import { isAppLocale, type AppLocale } from '@partokens/i18n'
 
 import { canonicalConsolePath } from '@/lib/routes'
@@ -12,6 +13,16 @@ import { PublicPrototype, type PublicPrototypeScreen, type PublicTarget } from '
 
 function resolvedDocumentTheme(): 'light' | 'dark' {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+}
+
+const publicContentStateCopy: Record<AppLocale, { loading: string; error: string; retry: string }> = {
+  'zh-CN': { loading: '正在加载公开内容', error: '暂时无法加载公开内容。', retry: '重试' },
+  'zh-TW': { loading: '正在載入公開內容', error: '暫時無法載入公開內容。', retry: '重試' },
+  en: { loading: 'Loading public content', error: 'Public content is temporarily unavailable.', retry: 'Try again' },
+  ja: { loading: '公開コンテンツを読み込み中', error: '公開コンテンツを一時的に読み込めません。', retry: '再試行' },
+  ru: { loading: 'Загрузка публичных материалов', error: 'Публичные материалы временно недоступны.', retry: 'Повторить' },
+  fr: { loading: 'Chargement du contenu public', error: 'Le contenu public est temporairement indisponible.', retry: 'Réessayer' },
+  vi: { loading: 'Đang tải nội dung công khai', error: 'Nội dung công khai tạm thời không khả dụng.', retry: 'Thử lại' },
 }
 
 export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
@@ -25,10 +36,17 @@ export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
   const user = useSessionStore((state) => state.user)
   const sessionResolved = useSessionStore((state) => state.resolved)
   const [theme, setResolvedTheme] = useState(resolvedDocumentTheme)
+  const publicContent = useQuery<PublicContentSnapshot>({
+    queryKey: ['public-content'],
+    queryFn: ({ signal }) => loadPublicContent('/public-content', signal),
+    initialData: undefined,
+    staleTime: 60_000,
+    retry: 1,
+  })
   const status = useQuery({
     queryKey: ['public', 'status'],
     queryFn: ({ signal }) => getStatusWithSignal(signal),
-    enabled: props.screen === 'home' || props.screen === 'notices' || props.screen === 'status',
+    enabled: props.screen === 'status',
     staleTime: 60_000,
     retry: false,
   })
@@ -80,10 +98,22 @@ export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
     if (destination) void navigate({ to: destination as never })
   }, [locale, navigate])
 
+  if (!publicContent.data) {
+    const copy = publicContentStateCopy[locale]
+    return <main className={`r3-public-screen shadcn-admin public-shadcn ${theme}`}>
+      <section className="r3-page r3-page-intro" role="status" aria-live="polite">
+        <div><span>PARTOKENS</span><h1>{publicContent.isError ? copy.error : copy.loading}</h1>
+          {publicContent.isError ? <button type="button" className="pt-button" data-variant="secondary" onClick={() => void publicContent.refetch()}>{copy.retry}</button> : null}
+        </div>
+      </section>
+    </main>
+  }
+
   return (
     <PublicPrototype
       screen={props.screen}
       locale={locale}
+      publicContent={publicContent.data}
       theme={theme}
       themeMode={themeMode}
       online={status.isPending ? null : Boolean(status.data?.success && !status.isError)}

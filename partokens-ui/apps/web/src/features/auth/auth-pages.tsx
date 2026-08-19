@@ -104,7 +104,11 @@ export function SignInPage() {
     setError('')
     try {
       const result = await login({ username: username.trim(), password, turnstile: turnstile || undefined })
-      if (!result.success || !result.data) throw new Error(result.message || t('Sign in failed'))
+      if (!result.success || !result.data) {
+        const failure = new Error(result.message || t('Sign in failed')) as Error & { code?: string }
+        failure.code = result.code
+        throw failure
+      }
       if ('require_2fa' in result.data) {
         setPendingTwoFactor(result.data)
         await navigate({ to: '/$locale/auth/otp', params: { locale }, search: true })
@@ -154,6 +158,18 @@ export function SignUpPage() {
   const emailVerification = Boolean(status.data?.data.email_verification)
   const turnstileRequired = Boolean(status.data?.data.turnstile_check)
   const registrationEnabled = status.data?.data.register_enabled !== false && status.data?.data.password_register_enabled !== false
+  const usernameLength = Array.from(fields.username.trim()).length
+  const passwordLength = Array.from(fields.password).length
+  const confirmLength = Array.from(fields.confirm).length
+  const usernameInvalid = fields.username.length > 0 && usernameLength < 4
+  const passwordTooShort = fields.password.length > 0 && passwordLength < 8
+  const passwordsMismatch = fields.confirm.length > 0 && fields.password !== fields.confirm
+  const passwordInvalid = passwordTooShort || passwordsMismatch
+  const confirmInvalid = fields.confirm.length > 0 && (confirmLength < 8 || passwordsMismatch)
+  const registrationFieldsValid = usernameLength >= 4
+    && passwordLength >= 8
+    && confirmLength >= 8
+    && fields.password === fields.confirm
 
   useEffect(() => {
     const affiliate = new URLSearchParams(window.location.search).get('aff')
@@ -193,8 +209,9 @@ export function SignUpPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (busy || !registrationEnabled) return
-    if (!fields.consent || fields.password !== fields.confirm || fields.password.length < 8) {
+    if (!fields.consent || !registrationFieldsValid) {
       if (!fields.consent) setError(t('Consent is required'))
+      else if (usernameLength < 4) setError(t('Username must contain at least 4 characters'))
       else if (fields.password !== fields.confirm) setError(t('Passwords do not match'))
       else setError(t('Use at least 8 characters and a password unique to this account.'))
       return
@@ -237,7 +254,7 @@ export function SignUpPage() {
     <PageHeading eyebrow="PARTOKENS ID" title={t('Create account')} body={t('Create an account and verify your email when the service requires it.')} />
     {status.isError ? <StatusFailure retry={() => void status.refetch()} /> : null}
     <form className="r32-auth-form" onSubmit={(event) => void submit(event)}>
-      <AuthField label={t('Username')} value={fields.username} onChange={(username) => updateFields({ username })} icon={AtSign} autoComplete="username" required autoFocus name="username" />
+      <AuthField label={t('Username')} value={fields.username} onChange={(username) => updateFields({ username })} icon={AtSign} autoComplete="username" required autoFocus invalid={usernameInvalid} name="username" />
       <AuthField label={t('Email')} value={fields.email} onChange={(email) => updateFields({ email, verificationCode: email === fields.email ? fields.verificationCode : '' })} icon={AtSign} type="email" autoComplete="email" required={emailVerification} name="email" />
       {emailVerification ? <>
         <AuthField
@@ -253,15 +270,15 @@ export function SignUpPage() {
         />
       </> : null}
       <div className="r32-auth-field-grid">
-        <PasswordField label={t('Password')} value={fields.password} onChange={(password) => updateFields({ password })} autoComplete="new-password" name="new-password" />
-        <PasswordField label={t('Confirm password')} value={fields.confirm} onChange={(confirm) => updateFields({ confirm })} autoComplete="new-password" name="confirm-password" />
+        <PasswordField label={t('Password')} value={fields.password} onChange={(password) => updateFields({ password })} autoComplete="new-password" invalid={passwordInvalid} name="new-password" />
+        <PasswordField label={t('Confirm password')} value={fields.confirm} onChange={(confirm) => updateFields({ confirm })} autoComplete="new-password" invalid={confirmInvalid} name="confirm-password" />
       </div>
       <p className="r32-auth-password-hint">{t('Use at least 8 characters and a password unique to this account.')}</p>
       {fields.confirm && fields.password !== fields.confirm ? <InlineStatus error>{t('Passwords do not match')}</InlineStatus> : null}
       <LegalConsent checked={fields.consent} onChange={(consent) => updateFields({ consent })} />
       {turnstileRequired ? <TurnstileField key={turnstileEpoch} siteKey={status.data?.data.turnstile_site_key} onToken={setTurnstile} /> : null}
       {error ? <InlineStatus error>{error}</InlineStatus> : null}
-      <RouteButton type="submit" disabled={busy || status.isPending || !fields.username.trim() || !fields.password || !fields.confirm || !fields.consent || (emailVerification && (!fields.email || !fields.verificationCode)) || (turnstileRequired && !turnstile)}>
+      <RouteButton type="submit" disabled={busy || status.isPending || !registrationFieldsValid || !fields.consent || (emailVerification && (!fields.email || !fields.verificationCode)) || (turnstileRequired && !turnstile)}>
         {busy ? <LoaderCircle className="r32-spin" size={16} /> : <ShieldCheck size={16} />}{t('Create account')}
       </RouteButton>
     </form>
@@ -388,7 +405,10 @@ export function OtpPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const expired = !pendingTwoFactor || pendingTwoFactor.expires_at <= Math.floor(Date.now() / 1000)
+  // Completing 2FA installs the final session, which clears the pending flow
+  // before the router finishes leaving this page. Keep that transition from
+  // being rendered as an expired flow while verification is in progress.
+  const expired = !busy && (!pendingTwoFactor || pendingTwoFactor.expires_at <= Math.floor(Date.now() / 1000))
   const valid = backup ? cleanBackupCode(code).length === 8 : /^\d{6}$/.test(code)
 
   useEffect(() => {
@@ -408,7 +428,11 @@ export function OtpPage() {
     try {
       const submittedCode = backup ? cleanBackupCode(code) : code
       const result = await loginTwoFactor(submittedCode, pendingTwoFactor.flow_token)
-      if (!result.success || !result.data) throw new Error(result.message || t('Verification failed'))
+      if (!result.success || !result.data) {
+        const failure = new Error(result.message || t('Verification failed')) as Error & { code?: string }
+        failure.code = result.code
+        throw failure
+      }
       await authDestination(locale, result.data.user, navigate)
     } catch (cause) {
       setError(authErrorMessage(cause, t, t('Verification failed')))

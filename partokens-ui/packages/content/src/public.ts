@@ -1,4 +1,6 @@
 export * from './index'
+export { getNoticePolicy, loadPublicContent } from './public-config'
+export type { PublicContentSnapshot } from './public-config'
 export * from './public-home-copy'
 export * from './public-docs-copy'
 export * from './public-docs-content'

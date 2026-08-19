@@ -41,7 +41,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   loading: false,
   establish: (bundle) => { installAuthentication(bundle) },
   setPendingTwoFactor: (pendingTwoFactor) => {
-    if (pendingTwoFactor) clearAuthentication(false)
+    // A normal password login starts anonymous. Avoid clearing an already
+    // empty auth runtime here, since that creates an observable null-challenge
+    // render while the OTP route is being mounted.
+    if (pendingTwoFactor && (get().accessToken || get().session || get().user)) clearAuthentication(false)
     set({ pendingTwoFactor, resolved: !pendingTwoFactor })
   },
   setUser: (user) => {

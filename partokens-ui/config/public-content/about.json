@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "locales": {
+    "zh-CN": {
+      "title": "让模型调用变得可度量",
+      "lead": "Partokens 为开发者提供统一的模型访问入口，并把价格、状态、额度与调用记录放在同一个操作界面中。",
+      "body": "我们关注请求是否能够成功、实际消耗了多少，以及账户是否可以继续稳定运行。新用户端与 New API 管理后台相互独立，服务端仍负责认证、计费、额度与模型路由。"
+    },
+    "zh-TW": {
+      "title": "讓模型呼叫變得可衡量",
+      "lead": "Partokens 為開發者提供統一的模型存取入口，並將價格、狀態、額度與呼叫記錄放在同一個操作介面中。",
+      "body": "我們關注請求能否成功、實際消耗多少，以及帳戶能否持續穩定運作。新使用者端與 New API 管理後台彼此獨立，伺服器仍負責驗證、計費、額度與模型路由。"
+    },
+    "en": {
+      "title": "Model access you can measure",
+      "lead": "Partokens gives developers one model-access endpoint and puts price, status, quota, and request history in one operational surface.",
+      "body": "The product centers on whether a request can succeed, what it actually consumed, and whether the account is ready to continue. The standalone user UI is independent from New API management; the server remains authoritative for authentication, billing, quota, and routing."
+    },
+    "ja": {
+      "title": "測定できるモデルアクセス",
+      "lead": "Partokens はモデルへの統一された入口を提供し、料金、状態、割り当て、リクエスト履歴を一つの操作画面にまとめます。",
+      "body": "リクエストが成功できるか、何を消費したか、アカウントが継続利用できるかを重視します。認証、課金、割り当て、ルーティングは引き続きサーバーが管理します。"
+    },
+    "ru": {
+      "title": "Измеримый доступ к моделям",
+      "lead": "Partokens объединяет доступ к моделям и показывает стоимость, состояние, квоту и историю запросов в одном рабочем интерфейсе.",
+      "body": "В центре внимания успешность запроса, фактический расход и готовность аккаунта продолжать работу. Сервер остаётся источником истины для входа, оплаты, квот и маршрутизации."
+    },
+    "fr": {
+      "title": "Un accès aux modèles que vous pouvez mesurer",
+      "lead": "Partokens réunit l’accès aux modèles et affiche prix, état, quota et historique dans une même interface opérationnelle.",
+      "body": "Nous mettons en avant la réussite d’une requête, sa consommation réelle et la capacité du compte à continuer. Le serveur reste l’autorité pour l’authentification, la facturation, les quotas et le routage."
+    },
+    "vi": {
+      "title": "Truy cập mô hình với số liệu rõ ràng",
+      "lead": "Partokens hợp nhất quyền truy cập mô hình và hiển thị giá, trạng thái, hạn mức cùng lịch sử yêu cầu trên một giao diện vận hành.",
+      "body": "Sản phẩm tập trung vào khả năng thành công, mức tiêu thụ thực tế và khả năng tiếp tục của tài khoản. Máy chủ vẫn quyết định xác thực, tính phí, hạn mức và định tuyến."
+    }
+  }
+}

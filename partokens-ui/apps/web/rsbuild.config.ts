@@ -40,6 +40,10 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: false,
+    publicDir: [
+      { name: path.resolve(rootDir, 'public') },
+      { name: path.resolve(rootDir, '../../config'), copyOnBuild: true },
+    ],
     proxy: {
       '/api': {
         target: apiTarget,

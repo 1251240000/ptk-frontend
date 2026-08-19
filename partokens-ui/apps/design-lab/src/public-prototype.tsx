@@ -330,11 +330,6 @@ const homeStudioAssets = {
   dark: { atlas: '/home/home-studio-atlas-dark.webp', detail: '/home/home-studio-detail-dark.webp' },
 } as const
 
-const homeHeroAssets = {
-  light: '/home/home-hero-routing-light.avif',
-  dark: '/home/home-hero-routing-dark.avif',
-} as const
-
 function HomeThemeImage({ theme, variant, alt, className, eager = false }: { theme: Theme; variant: 'atlas' | 'detail'; alt: string; className?: string; eager?: boolean }) {
   const dimensions = variant === 'atlas' ? { width: 1448, height: 1086 } : { width: 1254, height: 1254 }
   return <img
@@ -459,7 +454,6 @@ function HomePage({ locale, theme, go }: Pick<PublicPrototypeProps, 'locale' | '
 
   useEffect(() => {
     const sources = [
-      ...Object.values(homeHeroAssets),
       ...Object.values(homeStudioAssets).flatMap((assets) => Object.values(assets)),
     ]
     sources.forEach((src) => { const image = new Image(); image.src = src })
@@ -488,7 +482,6 @@ function HomePage({ locale, theme, go }: Pick<PublicPrototypeProps, 'locale' | '
 
   return <main ref={rootRef} className="r3-home-page">
     <section className="r3-home-hero" aria-labelledby="r37-home-title">
-      <img className="r37-hero-background" src={homeHeroAssets[theme]} width={3840} height={2160} alt="" aria-hidden="true" fetchPriority="high" />
       <div className="r3-home-hero-copy"><span>{copy.hero.eyebrow}</span><h1 id="r37-home-title">Partokens</h1><h2>{copy.hero.title}</h2><p>{copy.hero.body}</p><div className="r37-hero-actions"><RouteButton onClick={() => go('console')}>{copy.hero.actions.primary}</RouteButton><button type="button" className="r37-secondary-action" onClick={() => go('docs')}><BookOpen size={17} /><span>{copy.hero.actions.secondary}</span></button></div><ul className="r37-hero-capabilities">{copy.hero.capabilities.map((item) => <li key={item.id}><Check size={14} />{item.label}</li>)}</ul></div>
       <HomeProductPreview locale={locale} theme={theme} />
     </section>

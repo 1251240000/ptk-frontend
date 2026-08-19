@@ -46,16 +46,12 @@ import {
   PartokensAvatar,
 } from '@partokens/design-system/components'
 import {
-  getCurrentNotice,
-  getLegalDocument,
-  getLocaleContent,
   completedDocsOrder,
   docsCatalog,
   getDocsDocument,
   getDocsSearchText,
   homePageCopy,
   publicDocsCopy,
-  type LegalKind,
   type DocsCodeSample,
   type DocsContentBlock,
   type DocsDocument,
@@ -63,7 +59,8 @@ import {
   type DocsItemTarget,
   type HomePageCopy,
   type HomePageTarget,
-} from '@partokens/content/public'
+} from '@partokens/content/public-ui'
+import { getCurrentNotice, getLegalDocument, getLocaleContent, getNoticePolicy, type LegalKind, type PublicContentSnapshot } from '@partokens/content/public-config'
 import { resources, type AppLocale } from '@partokens/i18n'
 import type { PartokensStatus, PublicPricingModel } from '@partokens/api-client'
 import { InterfaceLanguageMenu, InterfaceThemeMenu, type InterfaceTheme } from './interface-tool-menus'
@@ -88,6 +85,7 @@ type PublicPrototypeProps = {
   locale: AppLocale
   theme: Theme
   themeMode: InterfaceTheme
+  publicContent: PublicContentSnapshot
   online: boolean | null
   version?: string
   startTime?: number
@@ -255,9 +253,9 @@ function RouteButton({ children, onClick }: { children: ReactNode; onClick: () =
 }
 
 function PublicShell({ children, ...props }: PublicPrototypeProps & { children: ReactNode }) {
-  const { locale, theme, themeMode, screen, onLocale, onThemeChange, go } = props
+  const { locale, theme, themeMode, screen, publicContent, onLocale, onThemeChange, go } = props
   const [mobileOpen, setMobileOpen] = useState(false)
-  const notice = getCurrentNotice(locale)
+  const notice = getCurrentNotice(locale, publicContent)
   const [noticeUnread, setNoticeUnread] = useState(() => !isNoticeSeen(notice))
   const mobileNavRef = useRef<HTMLDivElement>(null)
   const mobileCloseRef = useRef<HTMLButtonElement>(null)
@@ -335,7 +333,7 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
 
     <footer className="r3-public-footer">
       <div className="r3-footer-main">
-        <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale).aboutLead}</p></div>
+        <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale, publicContent).aboutLead}</p></div>
         <div className="r3-footer-links">
           <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('console')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console')}>{t('Image studio')}</button></div>
           <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><button type="button" onClick={() => navigate('status')}>{t('Status')}</button></div>
@@ -806,9 +804,9 @@ function DocsPage({ locale, go }: Pick<PublicPrototypeProps, 'locale' | 'go'>) {
   </main>
 }
 
-function AboutPage({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
+function AboutPage({ locale, publicContent }: Pick<PublicPrototypeProps, 'locale' | 'publicContent'>) {
   const t = (key: string) => translate(locale, key)
-  const content = getLocaleContent(locale)
+  const content = getLocaleContent(locale, publicContent)
   const principles = [
     { icon: Route, title: t('Visible state'), body: t('Availability, quota, and billing belong beside the action they affect.') },
     { icon: Code2, title: t('Compatible access'), body: t('Existing clients work through one consistent API boundary.') },
@@ -822,7 +820,7 @@ function AboutPage({ locale }: Pick<PublicPrototypeProps, 'locale'>) {
   </main>
 }
 
-function LegalPage({ locale, screen, go }: Pick<PublicPrototypeProps, 'locale' | 'screen' | 'go'>) {
+function LegalPage({ locale, screen, go, publicContent }: Pick<PublicPrototypeProps, 'locale' | 'screen' | 'go' | 'publicContent'>) {
   const t = (key: string) => translate(locale, key)
   const kindByScreen: Record<'legal-user' | 'legal-service' | 'legal-privacy', LegalKind> = {
     'legal-user': 'user-agreement',
@@ -830,14 +828,14 @@ function LegalPage({ locale, screen, go }: Pick<PublicPrototypeProps, 'locale' |
     'legal-privacy': 'privacy-policy',
   }
   const kind = kindByScreen[screen as keyof typeof kindByScreen] ?? 'service-agreement'
-  const document = getLegalDocument(locale, kind)
+  const document = getLegalDocument(locale, kind, publicContent)
   const legalLinks: Array<{ target: PublicPrototypeScreen; kind: LegalKind }> = [
     { target: 'legal-user', kind: 'user-agreement' },
     { target: 'legal-service', kind: 'service-agreement' },
     { target: 'legal-privacy', kind: 'privacy-policy' },
   ]
   return <main className="r3-page r3-legal-layout">
-    <aside className="r3-legal-index"><span>{t('Legal')}</span><nav>{legalLinks.map((link) => { const item = getLegalDocument(locale, link.kind); return <button type="button" key={link.kind} aria-current={kind === link.kind ? 'page' : undefined} onClick={() => go(link.target)}><FileText size={16} />{item.title}</button> })}</nav></aside>
+    <aside className="r3-legal-index"><span>{t('Legal')}</span><nav>{legalLinks.map((link) => { const item = getLegalDocument(locale, link.kind, publicContent); return <button type="button" key={link.kind} aria-current={kind === link.kind ? 'page' : undefined} onClick={() => go(link.target)}><FileText size={16} />{item.title}</button> })}</nav></aside>
     <article className="r3-legal-document">
       <PageIntro eyebrow={t('Legal')} title={document.title} description={document.summary} />
       <div className="r3-legal-meta"><span><FileCheck2 size={15} />{document.reviewState === 'reviewed' ? t('Reviewed content') : t('Draft content')}</span><span>{t('Effective date')}: <time dateTime={document.effectiveDate}>{document.effectiveDate}</time></span>{document.reviewState === 'draft' ? <span>{t('Owner review required')}</span> : null}</div>
@@ -846,17 +844,18 @@ function LegalPage({ locale, screen, go }: Pick<PublicPrototypeProps, 'locale' |
   </main>
 }
 
-function NoticesPage({ locale, version }: Pick<PublicPrototypeProps, 'locale' | 'version'>) {
+function NoticesPage({ locale, publicContent }: Pick<PublicPrototypeProps, 'locale' | 'publicContent'>) {
   const t = (key: string) => translate(locale, key)
-  const notice = getCurrentNotice(locale)
+  const notice = getCurrentNotice(locale, publicContent)
+  const policy = getNoticePolicy(locale, publicContent)
   useEffect(() => markNoticeSeen(notice), [notice.id, notice.version])
   return <main className="r3-page r3-notices-page">
     <PageIntro eyebrow="RELEASE NOTES" title={t('Notices')} description={notice.title} />
     <section className="r3-notice-entry">
-      <aside><span>CURRENT</span><code>{notice.version}</code><small>{version ? `${t('Status')} / ${version}` : t('Draft content')}</small></aside>
-      <article><header><span className="r3-release-badge"><Bell size={15} />R3.1</span><time dateTime="2026-07-20">2026-07-20</time></header><h2>{notice.title}</h2><p>{notice.body}</p><div><span><CheckCircle2 size={16} />{t('Existing API service is unaffected.')}</span><span><ShieldCheck size={16} />{t('User experience can evolve without modifying the New API source.')}</span></div></article>
+      <aside><span>CURRENT</span><code>{notice.version}</code></aside>
+      <article><header><span className="r3-release-badge"><Bell size={15} />{notice.releaseLabel}</span><time dateTime={notice.publishedAt}>{notice.publishedAt}</time></header><h2>{notice.title}</h2><p>{notice.body}</p><div>{notice.highlights.map((highlight, index) => <span key={highlight}>{index === 0 ? <CheckCircle2 size={16} /> : <ShieldCheck size={16} />}{highlight}</span>)}</div></article>
     </section>
-    <section className="r3-notice-policy"><CircleDollarSign size={20} /><div><h2>{t('Versioned notices')}</h2><p>{t('Material changes are published as versioned notices with a new effective date and a readable description of the change.')}</p></div></section>
+    <section className="r3-notice-policy"><CircleDollarSign size={20} /><div><h2>{policy.title}</h2><p>{policy.body}</p></div></section>
   </main>
 }
 
@@ -931,10 +930,10 @@ export function PublicPrototype(props: PublicPrototypeProps) {
   if (props.screen === 'home') page = <HomePage locale={props.locale} theme={props.theme} go={props.go} />
   else if (props.screen === 'models') page = <ModelsPage locale={props.locale} go={props.go} authenticated={props.authenticated} pricingModels={props.pricingModels} pricingLoading={props.pricingLoading} pricingError={props.pricingError} pricingPartial={props.pricingPartial} onPricingRetry={props.onPricingRetry} />
   else if (props.screen === 'docs') page = <DocsPage locale={props.locale} go={props.go} />
-  else if (props.screen === 'about') page = <AboutPage locale={props.locale} />
-  else if (props.screen === 'notices') page = <NoticesPage locale={props.locale} version={props.version} />
+  else if (props.screen === 'about') page = <AboutPage locale={props.locale} publicContent={props.publicContent} />
+  else if (props.screen === 'notices') page = <NoticesPage locale={props.locale} publicContent={props.publicContent} />
   else if (props.screen === 'status') page = <StatusPage locale={props.locale} online={props.online} version={props.version} startTime={props.startTime} statusCheckedAt={props.statusCheckedAt} statusChecking={props.statusChecking} refreshStatus={props.refreshStatus} />
-  else page = <LegalPage locale={props.locale} screen={props.screen} go={props.go} />
+  else page = <LegalPage locale={props.locale} screen={props.screen} go={props.go} publicContent={props.publicContent} />
 
   return <PublicShell {...props}>{page}</PublicShell>
 }

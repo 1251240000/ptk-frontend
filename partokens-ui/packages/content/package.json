@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./public": "./src/public.ts"
+    "./public": "./src/public.ts",
+    "./public-config": "./src/public-config.ts",
+    "./public-ui": "./src/public-ui.ts"
   },
   "dependencies": {
     "@partokens/i18n": "workspace:*"

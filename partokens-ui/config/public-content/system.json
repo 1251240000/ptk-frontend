@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "brandName": "Partokens",
+  "brandLogoUrl": "https://oss.partokens.com/assets/icons/favicon-96x96.png",
+  "defaultLocale": "en",
+  "supportedLocales": [
+    "zh-CN",
+    "zh-TW",
+    "en",
+    "ja",
+    "ru",
+    "fr",
+    "vi"
+  ],
+  "contentFallbackLocale": "en"
+}

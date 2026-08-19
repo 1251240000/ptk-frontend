@@ -801,9 +801,6 @@
 .r3-home-page .r3-home-faq { padding-right: var(--r37-pad); padding-left: var(--r37-pad); }
 
 .r3-home-page .r3-home-hero {
-  --r37-hero-background-offset: clamp(48px, 6.67vw, 128px);
-  position: relative;
-  isolation: isolate;
   min-width: 0;
   min-height: calc(100svh - var(--pt-layout-header) - 120px);
   display: grid;
@@ -814,24 +811,6 @@
   background: var(--r37-canvas);
 }
 .r3-home-page .r3-home-hero > * { min-width: 0; }
-.r3-home-page .r3-home-hero > :not(.r37-hero-background) { position: relative; z-index: 1; }
-.r3-home-page .r37-hero-background {
-  position: absolute;
-  z-index: 0;
-  inset: 0 auto 0 0;
-  width: calc(100% + var(--r37-hero-background-offset));
-  max-width: none;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-  object-position: center top;
-  opacity: .9;
-  pointer-events: none;
-  user-select: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 56%, rgb(0 0 0 / 55%) 78%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 56%, rgb(0 0 0 / 55%) 78%, transparent 100%);
-}
-.public-shadcn.dark .r3-home-page .r37-hero-background { opacity: .82; }
 .r3-home-page .r3-home-hero-copy { display: block; max-width: 860px; margin: 0 auto; text-align: center; }
 .r3-home-page .r3-home-hero-copy > span,
 .r3-home-page .r3-home-section-heading > span,

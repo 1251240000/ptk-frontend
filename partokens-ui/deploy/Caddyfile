@@ -55,6 +55,14 @@
 		file_server
 	}
 
+	@publicContent path /public-content/*
+	handle @publicContent {
+		header Cache-Control "no-store"
+		header Content-Type "application/json; charset=utf-8"
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		file_server
+	}
+
 	@uiAssets path /_ui/*
 	handle @uiAssets {
 		header Cache-Control "public, max-age=31536000, immutable"
@@ -78,6 +86,7 @@
 		file_server
 	}
 
+	# New API reset emails use /user/reset; the Web router canonicalizes it to /{locale}/auth/reset.
 	@technicalUI path / /oauth /oauth/* /user/reset
 	handle @technicalUI {
 		header {

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "currentNoticeId": "standalone-ui-phase-1",
+  "notices": [
+    {
+      "id": "standalone-ui-phase-1",
+      "version": "2026.8.19.1",
+      "publishedAt": "2026-08-19",
+      "releaseLabel": "R26.1",
+      "enabled": true,
+      "locales": {
+        "zh-CN": {
+          "title": "新版本Partokens已正式发布",
+          "body": "欢迎使用全新版本的 Partokens。过去一段时间里，我们收到了许多来自用户的反馈、建议与使用体验分享；这些声音帮助我们更清楚地理解大家在日常使用中的关注点，也成为本次更新的重要依据。我们重新设计了产品界面与核心操作流程，持续完善整体体验，让信息查找、账户管理与日常使用更加清晰顺畅。此次更新不会对现有 API 的使用造成影响；您仍可按原有方式继续调用 API，也可以随时返回旧版 Partokens。感谢您的支持，祝您尽情享受新版体验。如有任何问题或建议，欢迎随时联系 Partokens。",
+          "highlights": [
+            "重新设计界面与核心操作流程，持续完善用户体验。",
+            "现有 API 使用方式不受影响，无需调整既有调用。"
+          ]
+        },
+        "zh-TW": {
+          "title": "新版 Partokens 已正式發布",
+          "body": "歡迎使用全新版本的 Partokens。過去一段時間裡，我們收到了許多使用者的回饋、建議與使用經驗分享；這些聲音幫助我們更清楚理解大家在日常使用時關注的重點，也是本次更新的重要依據。我們重新設計了產品介面與核心操作流程，持續完善整體體驗，讓資訊查找、帳戶管理與日常使用更加清晰流暢。此次更新不會影響既有 API 的使用；您仍可依原有方式繼續呼叫 API，也可以隨時返回舊版 Partokens。感謝您的支持，祝您盡情享受新版體驗。如有任何問題或建議，歡迎隨時聯絡 Partokens。",
+          "highlights": [
+            "重新設計介面與核心操作流程，持續完善使用者體驗。",
+            "既有 API 使用方式不受影響，無須調整現有呼叫。",
+            "可隨時返回舊版 Partokens。"
+          ]
+        },
+        "en": {
+          "title": "The new Partokens is officially live",
+          "body": "Welcome to the new Partokens. Over the past several months, we have received a great deal of feedback, suggestions, and experience reports from our users. They helped us better understand what matters in everyday use and shaped this release. We redesigned the product interface and key workflows to make finding information, managing your account, and using Partokens day to day clearer and smoother. This update does not affect your existing API usage: you can continue calling the API exactly as before, and you can return to the previous Partokens experience at any time. Thank you for your support. Enjoy the new experience, and please contact Partokens whenever you have a question or suggestion.",
+          "highlights": [
+            "A redesigned interface and key workflows improve the overall experience.",
+            "Existing API usage is unchanged; no updates to current integrations are required.",
+            "You can return to the previous Partokens experience at any time."
+          ]
+        },
+        "ja": {
+          "title": "新しい Partokens を正式にリリースしました",
+          "body": "新しい Partokens へようこそ。これまでの期間に、ユーザーの皆さまから多くのフィードバック、ご提案、利用体験をお寄せいただきました。日々の利用で何が大切かをより深く理解する助けとなり、今回の更新の重要な基盤になっています。情報の確認、アカウント管理、日常の操作をより分かりやすく快適にするため、製品インターフェースと主要な操作フローを再設計しました。今回の更新によって既存の API 利用が影響を受けることはありません。これまでどおり API を呼び出せるほか、いつでも以前の Partokens に戻ることができます。ご支援に感謝します。新しい体験をお楽しみください。ご質問やご提案があれば、いつでも Partokens までご連絡ください。",
+          "highlights": [
+            "インターフェースと主要な操作フローを再設計し、体験を改善しました。",
+            "既存の API 利用方法は変わらず、現在の連携を変更する必要はありません。",
+            "いつでも以前の Partokens に戻ることができます。"
+          ]
+        },
+        "ru": {
+          "title": "Новая версия Partokens официально выпущена",
+          "body": "Добро пожаловать в новую версию Partokens. За последнее время мы получили много отзывов, предложений и рассказов об опыте использования от наших пользователей. Они помогли нам лучше понять, что важно в ежедневной работе, и стали важной основой этого обновления. Мы переработали интерфейс продукта и ключевые сценарии, чтобы поиск информации, управление аккаунтом и повседневная работа стали понятнее и удобнее. Это обновление не влияет на текущее использование API: вы можете продолжать вызывать API как прежде и в любой момент вернуться к предыдущей версии Partokens. Спасибо за вашу поддержку. Наслаждайтесь новым опытом, а с любыми вопросами или предложениями обращайтесь в Partokens.",
+          "highlights": [
+            "Переработанные интерфейс и ключевые сценарии улучшают общий опыт.",
+            "Использование API не изменилось: существующие интеграции не требуют доработок.",
+            "К предыдущей версии Partokens можно вернуться в любой момент."
+          ]
+        },
+        "fr": {
+          "title": "La nouvelle version de Partokens est officiellement disponible",
+          "body": "Bienvenue dans la nouvelle version de Partokens. Ces derniers temps, nous avons reçu de nombreux retours, suggestions et récits d’expérience de la part de nos utilisateurs. Ils nous ont permis de mieux comprendre les priorités de l’usage quotidien et ont largement guidé cette mise à jour. Nous avons repensé l’interface du produit et les principaux parcours afin de rendre la recherche d’informations, la gestion du compte et l’utilisation au quotidien plus claires et plus fluides. Cette mise à jour n’a aucune incidence sur votre utilisation actuelle de l’API : vous pouvez continuer à appeler l’API comme auparavant et revenir à tout moment à l’ancienne expérience Partokens. Merci pour votre soutien. Profitez de la nouvelle expérience et contactez Partokens pour toute question ou suggestion.",
+          "highlights": [
+            "Une interface et des parcours clés repensés améliorent l’expérience globale.",
+            "L’utilisation de l’API ne change pas : aucune adaptation des intégrations existantes n’est nécessaire.",
+            "Vous pouvez revenir à tout moment à l’ancienne expérience Partokens."
+          ]
+        },
+        "vi": {
+          "title": "Phiên bản Partokens mới đã chính thức ra mắt",
+          "body": "Chào mừng bạn đến với phiên bản Partokens mới. Trong thời gian qua, chúng tôi đã nhận được rất nhiều phản hồi, đề xuất và chia sẻ trải nghiệm từ người dùng. Những ý kiến đó giúp chúng tôi hiểu rõ hơn điều gì quan trọng trong quá trình sử dụng hằng ngày và là cơ sở quan trọng cho bản cập nhật này. Chúng tôi đã thiết kế lại giao diện sản phẩm và các luồng thao tác chính để việc tìm thông tin, quản lý tài khoản và sử dụng hằng ngày trở nên rõ ràng, mượt mà hơn. Bản cập nhật này không ảnh hưởng đến việc sử dụng API hiện có: bạn vẫn có thể gọi API như trước và có thể quay lại trải nghiệm Partokens cũ bất cứ lúc nào. Cảm ơn sự ủng hộ của bạn. Hãy tận hưởng trải nghiệm mới và liên hệ Partokens bất cứ khi nào bạn có câu hỏi hoặc đề xuất.",
+          "highlights": [
+            "Giao diện và các luồng thao tác chính được thiết kế lại để cải thiện trải nghiệm tổng thể.",
+            "Cách sử dụng API hiện có không thay đổi; không cần điều chỉnh các tích hợp đang dùng.",
+            "Bạn có thể quay lại trải nghiệm Partokens cũ bất cứ lúc nào."
+          ]
+        }
+      }
+    }
+  ],
+  "policy": {
+    "zh-CN": {
+      "title": "版本化通知",
+      "body": "重大变更会以版本化通知发布，并提供新的生效日期与清晰的变更说明。"
+    },
+    "zh-TW": {
+      "title": "版本化通知",
+      "body": "重大變更會以版本化通知發布，並提供新的生效日期與清楚的變更說明。"
+    },
+    "en": {
+      "title": "Versioned notices",
+      "body": "Material changes are published as versioned notices with a new effective date and a readable description of the change."
+    },
+    "ja": {
+      "title": "バージョン付き通知",
+      "body": "重要な変更は、新しい施行日と分かりやすい変更内容を含むバージョン付き通知として公開します。"
+    },
+    "ru": {
+      "title": "Версионные уведомления",
+      "body": "Существенные изменения публикуются как версионные уведомления с новой датой вступления и понятным описанием."
+    },
+    "fr": {
+      "title": "Avis versionnés",
+      "body": "Les changements importants sont publiés dans des avis versionnés avec une nouvelle date d’effet et une description claire."
+    },
+    "vi": {
+      "title": "Thông báo theo phiên bản",
+      "body": "Các thay đổi quan trọng được công bố bằng thông báo theo phiên bản, kèm ngày hiệu lực mới và mô tả rõ ràng."
+    }
+  }
+}

@@ -163,6 +163,7 @@ type AuthFieldProps = {
   disabled?: boolean
   hint?: string
   error?: string
+  invalid?: boolean
   action?: ReactNode
   autoFocus?: boolean
   maxLength?: number
@@ -176,7 +177,8 @@ export function AuthField(props: AuthFieldProps) {
   const hintId = props.hint ? `${id}-hint` : undefined
   const errorId = props.error ? `${id}-error` : undefined
   const Icon = props.icon
-  return <div className="pt-field r32-auth-field">
+  const invalid = Boolean(props.error || props.invalid)
+  return <div className="pt-field r32-auth-field" data-state={invalid ? 'error' : undefined}>
     <label htmlFor={id}>{props.label}</label>
     <span className="pt-field-control">
       <Icon className="pt-field-leading" size={17} aria-hidden="true" />
@@ -193,7 +195,7 @@ export function AuthField(props: AuthFieldProps) {
         autoFocus={props.autoFocus}
         maxLength={props.maxLength}
         pattern={props.pattern}
-        aria-invalid={Boolean(props.error) || undefined}
+        aria-invalid={invalid || undefined}
         aria-describedby={[hintId, errorId].filter(Boolean).join(' ') || undefined}
         onChange={props.onChange ? (event) => props.onChange?.(event.target.value) : undefined}
       />
@@ -204,7 +206,7 @@ export function AuthField(props: AuthFieldProps) {
   </div>
 }
 
-export function PasswordField(props: { label: string; value: string; onChange: (value: string) => void; autoComplete: string; hint?: string; name?: string; locale?: AppLocale }) {
+export function PasswordField(props: { label: string; value: string; onChange: (value: string) => void; autoComplete: string; hint?: string; error?: string; invalid?: boolean; name?: string; locale?: AppLocale }) {
   const { t, i18n: activeI18n } = useTranslation()
   const [visible, setVisible] = useState(false)
   const translate = props.locale ? activeI18n.getFixedT(props.locale) : t
@@ -218,8 +220,10 @@ export function PasswordField(props: { label: string; value: string; onChange: (
     autoComplete={props.autoComplete}
     required
     hint={props.hint}
+    error={props.error}
+    invalid={props.invalid}
     name={props.name}
-    action={<button type="button" className="pt-icon-button" data-size="small" aria-label={label} title={label} onClick={() => setVisible((current) => !current)}>{visible ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
+    action={<button type="button" tabIndex={-1} className="pt-icon-button" data-size="small" aria-label={label} title={label} onClick={() => setVisible((current) => !current)}>{visible ? <EyeOff size={16} /> : <Eye size={16} />}</button>}
   />
 }
 
