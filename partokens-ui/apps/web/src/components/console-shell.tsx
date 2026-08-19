@@ -3,7 +3,6 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  Check,
   CircleUserRound,
   Globe2,
   Image as ImageIcon,
@@ -246,20 +245,22 @@ function ThemeMenu() {
   const theme = usePreferenceStore((state) => state.theme)
   const setTheme = usePreferenceStore((state) => state.setTheme)
   const options: Array<{ value: ThemeMode; label: string; icon: typeof Sun }> = [
-    { value: 'light', label: 'Light', icon: Sun },
-    { value: 'dark', label: 'Dark', icon: Moon },
-    { value: 'system', label: 'System', icon: Monitor },
+    { value: 'light', label: 'Light mode', icon: Sun },
+    { value: 'dark', label: 'Dark mode', icon: Moon },
+    { value: 'system', label: 'System mode', icon: Monitor },
   ]
 
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={t('Change theme')}>
+        <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={t('Theme')} title={t('Theme')}>
           <Sun className="size-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
           <Moon className="absolute size-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="pt-interface-menu w-44">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">{t('Theme')}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={theme} onValueChange={(value) => setTheme(value as ThemeMode)}>
           {options.map((option) => {
             const Icon = option.icon
@@ -338,15 +339,15 @@ function LanguageMenu() {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label={t('Change interface language')} title={t('Change interface language')}>
+        <Button variant="ghost" size="icon" className="rounded-full" aria-label={t('Language')} title={t('Language')}>
           <Globe2 aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">{t('Interface language')}</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="pt-interface-menu w-44">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">{t('Language')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={locale} onValueChange={(value) => isAppLocale(value) && replaceLocale(value)}>
-          {locales.map((option) => <DropdownMenuRadioItem key={option} value={option}>{localeLabels[option]}<Check className={locale === option ? 'ms-auto' : 'ms-auto invisible'} /></DropdownMenuRadioItem>)}
+          {locales.map((option) => <DropdownMenuRadioItem key={option} value={option}>{localeLabels[option]}</DropdownMenuRadioItem>)}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

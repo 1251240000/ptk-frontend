@@ -3,12 +3,12 @@ import { BookOpen, CircleUserRound, House, Layers3, LayoutDashboard } from 'luci
 import { PartokensAvatar } from '@partokens/design-system/partokens-avatar'
 
 import { uiCopy } from '@/content/catalog'
-import { docsPath, i18n, type DocsLocale } from './locales'
+import { docsPath, type DocsLocale } from './locales'
 
 export function baseOptions(locale: DocsLocale): BaseLayoutProps {
   const ui = uiCopy[locale]
   return {
-    i18n,
+    themeSwitch: { enabled: false },
     searchToggle: { enabled: false },
     nav: {
       title: (

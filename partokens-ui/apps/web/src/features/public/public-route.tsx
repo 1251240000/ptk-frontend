@@ -19,6 +19,7 @@ export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
   const locale = isAppLocale(params.locale) ? params.locale : 'zh-CN'
   const pathname = useLocation({ select: (location) => location.pathname })
   const navigate = useNavigate()
+  const themeMode = usePreferenceStore((state) => state.theme)
   const setTheme = usePreferenceStore((state) => state.setTheme)
   const resolveSession = useSessionStore((state) => state.resolve)
   const user = useSessionStore((state) => state.user)
@@ -84,6 +85,7 @@ export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
       screen={props.screen}
       locale={locale}
       theme={theme}
+      themeMode={themeMode}
       online={status.isPending ? null : Boolean(status.data?.success && !status.isError)}
       version={status.data?.data.version}
       startTime={status.data?.data.start_time}
@@ -100,7 +102,7 @@ export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
         return result.data ?? { success: false }
       }}
       onLocale={(nextLocale) => void changeLocale(nextLocale)}
-      onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      onThemeChange={setTheme}
       go={go}
     />
   )

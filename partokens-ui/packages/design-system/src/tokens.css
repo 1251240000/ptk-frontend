@@ -187,6 +187,41 @@
   --pt-shadow-dialog: 0 20px 56px rgba(1, 4, 9, 0.64);
 }
 
+/* Shared language/theme menu palette. Keep portal-rendered menus identical across apps. */
+:root {
+  --pt-interface-menu-background: oklch(1 0 0);
+  --pt-interface-menu-foreground: oklch(0.129 0.042 264.695);
+  --pt-interface-menu-border: oklch(0.929 0.013 255.508);
+  --pt-interface-menu-muted: oklch(0.554 0.046 257.417);
+  --pt-interface-menu-accent: oklch(0.968 0.007 247.896);
+  --pt-interface-menu-accent-foreground: oklch(0.208 0.042 265.755);
+  --pt-interface-menu-font: "Inter", "Noto Sans SC", "Noto Sans TC", "Noto Sans JP", sans-serif;
+}
+
+:root[data-theme='dark'],
+:root.dark {
+  --pt-interface-menu-background: oklch(0.208 0.042 265.755);
+  --pt-interface-menu-foreground: oklch(0.984 0.003 247.858);
+  --pt-interface-menu-border: oklch(1 0 0 / 10%);
+  --pt-interface-menu-muted: oklch(0.704 0.04 256.788);
+  --pt-interface-menu-accent: oklch(0.279 0.041 260.031);
+  --pt-interface-menu-accent-foreground: oklch(0.984 0.003 247.858);
+}
+
+.pt-interface-menu {
+  --popover: var(--pt-interface-menu-background);
+  --popover-foreground: var(--pt-interface-menu-foreground);
+  --border: var(--pt-interface-menu-border);
+  --muted-foreground: var(--pt-interface-menu-muted);
+  --accent: var(--pt-interface-menu-accent);
+  --accent-foreground: var(--pt-interface-menu-accent-foreground);
+  border-color: var(--pt-interface-menu-border);
+  background: var(--pt-interface-menu-background);
+  color: var(--pt-interface-menu-foreground);
+  font-family: var(--pt-interface-menu-font);
+  letter-spacing: 0;
+}
+
 :lang(zh-CN), :lang(zh-TW), :lang(ja) {
   --pt-font-interface: var(--pt-font-interface-cjk);
 }

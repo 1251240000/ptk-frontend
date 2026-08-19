@@ -2,6 +2,7 @@ import { DocsLayout } from 'fumadocs-ui/layouts/docs'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 
+import { InterfaceToolMenus } from '@/components/interface-tool-menus'
 import { baseOptions } from '@/lib/layout'
 import { isDocsLocale } from '@/lib/locales'
 import { source } from '@/lib/source'
@@ -13,7 +14,7 @@ export default async function DocumentationLayout({ children, params }: { childr
     <DocsLayout
       {...baseOptions(locale)}
       tree={source.pageTree[locale]}
-      sidebar={{ defaultOpenLevel: 2 }}
+      sidebar={{ defaultOpenLevel: 2, footer: <InterfaceToolMenus locale={locale} /> }}
       tabMode="auto"
     >
       {children}
