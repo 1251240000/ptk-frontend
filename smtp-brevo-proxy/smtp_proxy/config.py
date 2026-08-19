@@ -67,6 +67,7 @@ class Settings:
     smtp_allowed_sender_domains: tuple[str, ...] = ("partokens.com",)
     smtp_max_recipients: int = 1
     smtp_max_message_bytes: int = 1_048_576
+    password_reset_allowed_hosts: tuple[str, ...] = ("partokens.com",)
     subject_template: str = "{code} is your Partokens verification code"
     template_dir: Path = PROJECT_ROOT / "templates"
     log_level: str = "INFO"
@@ -93,6 +94,17 @@ class Settings:
         )
         if not allowed_domains:
             raise ConfigError("SMTP_ALLOWED_SENDER_DOMAINS must not be empty")
+
+        raw_reset_hosts = env.get(
+            "PASSWORD_RESET_ALLOWED_HOSTS", "partokens.com"
+        )
+        reset_hosts = tuple(
+            host.strip().lower().rstrip(".")
+            for host in raw_reset_hosts.split(",")
+            if host.strip()
+        )
+        if not reset_hosts:
+            raise ConfigError("PASSWORD_RESET_ALLOWED_HOSTS must not be empty")
 
         subject_template = env.get(
             "EMAIL_SUBJECT_TEMPLATE", "{code} is your Partokens verification code"
@@ -127,6 +139,7 @@ class Settings:
             smtp_max_message_bytes=_positive_int(
                 env, "SMTP_MAX_MESSAGE_BYTES", 1_048_576
             ),
+            password_reset_allowed_hosts=reset_hosts,
             subject_template=subject_template,
             template_dir=template_dir,
             log_level=log_level,

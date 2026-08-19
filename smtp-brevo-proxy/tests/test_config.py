@@ -35,6 +35,20 @@ class SettingsTests(unittest.TestCase):
                 {"BREVO_SENDER_EMAIL": "no-reply@partokens.com"}
             )
 
+    def test_parses_password_reset_allowed_hosts(self) -> None:
+        settings = Settings.from_mapping(
+            {
+                "BREVO_API_KEY": "test-key",
+                "BREVO_SENDER_EMAIL": "no-reply@partokens.com",
+                "PASSWORD_RESET_ALLOWED_HOSTS": "partokens.com, Accounts.EXAMPLE.com.",
+            }
+        )
+
+        self.assertEqual(
+            settings.password_reset_allowed_hosts,
+            ("partokens.com", "accounts.example.com"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

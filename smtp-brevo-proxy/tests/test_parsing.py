@@ -4,8 +4,10 @@ import unittest
 from email.message import EmailMessage
 
 from smtp_proxy.parsing import (
+    PasswordResetLinkNotFound,
     VerificationCodeNotFound,
     extract_code_from_text,
+    extract_password_reset_link,
     extract_verification_code,
 )
 
@@ -60,6 +62,71 @@ class VerificationCodeParsingTests(unittest.TestCase):
     def test_does_not_treat_expiry_as_a_code(self) -> None:
         with self.assertRaises(VerificationCodeNotFound):
             extract_code_from_text("验证码 10 分钟内有效，如果不是本人操作，请忽略。")
+
+
+class PasswordResetLinkParsingTests(unittest.TestCase):
+    reset_link = (
+        "https://partokens.com/user/reset?email=user%40example.com"
+        "&token=0123456789abcdef0123456789abcdef"
+    )
+
+    def test_extracts_link_from_new_api_html_shape(self) -> None:
+        message = EmailMessage()
+        message["From"] = "Partokens <no-reply@partokens.com>"
+        message["To"] = "user@example.com"
+        message["Subject"] = "Partokens密码重置"
+        message.set_content(
+            "<p>您好，你正在进行Partokens密码重置。</p>"
+            f"<p>点击 <a href='{self.reset_link}'>此处</a> 进行密码重置。</p>"
+            "<p>如果链接无法点击，请尝试点击下面的链接或将其复制到浏览器中打开："
+            f"<br> {self.reset_link} </p>"
+            "<p>重置链接 10 分钟内有效，如果不是本人操作，请忽略。</p>",
+            subtype="html",
+        )
+
+        self.assertEqual(
+            extract_password_reset_link(message.as_bytes()), self.reset_link
+        )
+
+    def test_extracts_plain_text_link(self) -> None:
+        message = EmailMessage()
+        message.set_content(f"Reset your password: {self.reset_link}")
+
+        self.assertEqual(
+            extract_password_reset_link(message.as_bytes()), self.reset_link
+        )
+
+    def test_allows_configured_reset_host(self) -> None:
+        link = self.reset_link.replace("partokens.com", "accounts.example.com")
+        message = EmailMessage()
+        message.set_content(link)
+
+        self.assertEqual(
+            extract_password_reset_link(
+                message.as_bytes(), ("accounts.example.com",)
+            ),
+            link,
+        )
+
+    def test_rejects_untrusted_host(self) -> None:
+        message = EmailMessage()
+        message.set_content(self.reset_link.replace("partokens.com", "example.net"))
+
+        with self.assertRaises(PasswordResetLinkNotFound):
+            extract_password_reset_link(message.as_bytes())
+
+    def test_rejects_wrong_path_or_missing_token(self) -> None:
+        invalid_links = (
+            self.reset_link.replace("/user/reset", "/reset"),
+            "https://partokens.com/user/reset?email=user%40example.com",
+            f"{self.reset_link}&redirect=https%3A%2F%2Fexample.net",
+        )
+        for link in invalid_links:
+            with self.subTest(link=link):
+                message = EmailMessage()
+                message.set_content(link)
+                with self.assertRaises(PasswordResetLinkNotFound):
+                    extract_password_reset_link(message.as_bytes())
 
 
 if __name__ == "__main__":

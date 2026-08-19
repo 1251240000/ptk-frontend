@@ -31,6 +31,25 @@ class VerificationTemplateRenderer:
         )
 
 
+class PasswordResetTemplateRenderer:
+    def __init__(self, template_dir: Path) -> None:
+        self._environment = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=select_autoescape(enabled_extensions=("html", "xml")),
+            undefined=StrictUndefined,
+            auto_reload=False,
+        )
+        self._html_template = self._environment.get_template("password-reset.html")
+        self._text_template = self._environment.get_template("password-reset.txt")
+
+    def render(self, reset_link: str) -> RenderedEmail:
+        params = {"reset_link": reset_link}
+        return RenderedEmail(
+            html=self._html_template.render(params=params),
+            text=self._text_template.render(params=params),
+        )
+
+
 class CustomerServiceTemplateRenderer:
     def __init__(self, template_dir: Path) -> None:
         self._environment = Environment(

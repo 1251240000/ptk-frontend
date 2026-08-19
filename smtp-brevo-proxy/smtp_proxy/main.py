@@ -10,7 +10,10 @@ from jinja2 import TemplateError
 from .brevo import BrevoClient
 from .config import ConfigError, Settings
 from .handler import SMTPProxyHandler
-from .templating import VerificationTemplateRenderer
+from .templating import (
+    PasswordResetTemplateRenderer,
+    VerificationTemplateRenderer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -34,11 +37,19 @@ def run() -> int:
     configure_logging(settings.log_level)
     try:
         renderer = VerificationTemplateRenderer(settings.template_dir)
+        password_reset_renderer = PasswordResetTemplateRenderer(
+            settings.template_dir
+        )
     except (OSError, TemplateError, ValueError) as exc:
-        logger.error("Could not load verification templates: %s", exc)
+        logger.error("Could not load transactional email templates: %s", exc)
         return 2
 
-    handler = SMTPProxyHandler(settings, renderer, BrevoClient(settings))
+    handler = SMTPProxyHandler(
+        settings,
+        renderer,
+        password_reset_renderer,
+        BrevoClient(settings),
+    )
     controller = Controller(
         handler,
         hostname=settings.smtp_listen_host,

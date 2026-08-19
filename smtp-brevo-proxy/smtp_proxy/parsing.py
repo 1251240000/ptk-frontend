@@ -5,11 +5,17 @@ import unicodedata
 from email import policy
 from email.message import EmailMessage, Message
 from email.parser import BytesParser
+from html import unescape
 from html.parser import HTMLParser
+from urllib.parse import parse_qs, urlsplit
 
 
 class VerificationCodeNotFound(ValueError):
     """Raised when an incoming message does not contain a supported code."""
+
+
+class PasswordResetLinkNotFound(ValueError):
+    """Raised when an incoming message does not contain an allowed reset link."""
 
 
 CODE_PATTERNS = (
@@ -23,6 +29,9 @@ CODE_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+
+URL_PATTERN = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
+PASSWORD_RESET_TOKEN_PATTERN = re.compile(r"[0-9a-f]{32}", re.IGNORECASE)
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -56,6 +65,21 @@ class _HTMLTextExtractor(HTMLParser):
 
     def text(self) -> str:
         return "".join(self._parts)
+
+
+class _HTMLLinkExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links: list[str] = []
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        if tag.lower() != "a":
+            return
+        for name, value in attrs:
+            if name.lower() == "href" and value:
+                self.links.append(value)
 
 
 def html_to_text(value: str) -> str:
@@ -104,6 +128,17 @@ def _body_candidates(message: EmailMessage) -> list[str]:
     return [content for _, content in sorted(candidates, key=lambda item: item[0])]
 
 
+def _message_parts(message: EmailMessage) -> list[tuple[str, str]]:
+    parts: list[tuple[str, str]] = []
+    for part in message.walk():
+        if part.is_multipart() or part.get_content_disposition() == "attachment":
+            continue
+        content_type = part.get_content_type().lower()
+        if content_type in {"text/plain", "text/html"}:
+            parts.append((content_type, _decoded_content(part)))
+    return parts
+
+
 def extract_code_from_text(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value)
     for pattern in CODE_PATTERNS:
@@ -123,3 +158,64 @@ def extract_verification_code(raw_message: bytes) -> str:
         except VerificationCodeNotFound:
             continue
     raise VerificationCodeNotFound("verification code not found in message body")
+
+
+def _validated_password_reset_link(
+    candidate: str,
+    allowed_hosts: tuple[str, ...],
+) -> str | None:
+    link = unescape(candidate).rstrip(".,);]")
+    try:
+        parsed = urlsplit(link)
+        query = parse_qs(parsed.query, keep_blank_values=True)
+        hostname = parsed.hostname.lower().rstrip(".") if parsed.hostname else ""
+    except ValueError:
+        return None
+
+    if (
+        parsed.scheme.lower() not in {"http", "https"}
+        or not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or ("*" not in allowed_hosts and hostname not in allowed_hosts)
+        or parsed.path != "/user/reset"
+        or parsed.fragment
+        or set(query) != {"email", "token"}
+    ):
+        return None
+
+    emails = query.get("email", [])
+    tokens = query.get("token", [])
+    if (
+        len(emails) != 1
+        or not emails[0]
+        or len(tokens) != 1
+        or not PASSWORD_RESET_TOKEN_PATTERN.fullmatch(tokens[0])
+    ):
+        return None
+    return link
+
+
+def extract_password_reset_link(
+    raw_message: bytes,
+    allowed_hosts: tuple[str, ...] = ("partokens.com",),
+) -> str:
+    message = BytesParser(policy=policy.default).parsebytes(raw_message)
+    if not isinstance(message, EmailMessage):
+        raise PasswordResetLinkNotFound("message could not be parsed")
+
+    candidates: list[str] = []
+    for content_type, content in _message_parts(message):
+        if content_type == "text/html":
+            parser = _HTMLLinkExtractor()
+            parser.feed(content)
+            parser.close()
+            candidates.extend(parser.links)
+            content = html_to_text(content)
+        candidates.extend(match.group(0) for match in URL_PATTERN.finditer(content))
+
+    for candidate in candidates:
+        link = _validated_password_reset_link(candidate, allowed_hosts)
+        if link is not None:
+            return link
+    raise PasswordResetLinkNotFound("password reset link not found in message body")

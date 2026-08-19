@@ -10,7 +10,11 @@ from aiosmtpd.controller import Controller
 
 from smtp_proxy.config import Settings
 from smtp_proxy.handler import SMTPProxyHandler
-from smtp_proxy.templating import RenderedEmail, VerificationTemplateRenderer
+from smtp_proxy.templating import (
+    PasswordResetTemplateRenderer,
+    RenderedEmail,
+    VerificationTemplateRenderer,
+)
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
@@ -18,12 +22,17 @@ TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
 
 class RecordingBrevoClient:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str, RenderedEmail]] = []
+        self.calls: list[tuple[str, str, RenderedEmail, tuple[str, ...]]] = []
 
     async def send(
-        self, recipient: str, subject: str, content: RenderedEmail
+        self,
+        recipient: str,
+        subject: str,
+        content: RenderedEmail,
+        *,
+        tags: tuple[str, ...] = ("email-verification",),
     ) -> str:
-        self.calls.append((recipient, subject, content))
+        self.calls.append((recipient, subject, content, tags))
         return "integration-message-id"
 
 
@@ -46,6 +55,7 @@ class SMTPIntegrationTests(unittest.TestCase):
         handler = SMTPProxyHandler(
             settings,
             VerificationTemplateRenderer(TEMPLATE_DIR),
+            PasswordResetTemplateRenderer(TEMPLATE_DIR),
             brevo,  # type: ignore[arg-type]
         )
         controller = Controller(
@@ -85,12 +95,13 @@ class SMTPIntegrationTests(unittest.TestCase):
             controller.stop()
 
         self.assertEqual(len(brevo.calls), 1)
-        recipient, subject, rendered = brevo.calls[0]
+        recipient, subject, rendered, tags = brevo.calls[0]
         self.assertEqual(recipient, "user@example.com")
         self.assertEqual(subject, "ffa926 is your Partokens verification code")
         self.assertIn("Verify your email", rendered.html)
         self.assertIn("ffa926", rendered.html)
         self.assertNotIn("您好", rendered.html)
+        self.assertEqual(tags, ("email-verification",))
 
 
 if __name__ == "__main__":

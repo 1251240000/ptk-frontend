@@ -8,8 +8,16 @@ from jinja2 import TemplateError
 
 from .brevo import BrevoClient, BrevoPermanentError, BrevoTransientError
 from .config import Settings
-from .parsing import VerificationCodeNotFound, extract_verification_code
-from .templating import VerificationTemplateRenderer
+from .parsing import (
+    PasswordResetLinkNotFound,
+    VerificationCodeNotFound,
+    extract_password_reset_link,
+    extract_verification_code,
+)
+from .templating import (
+    PasswordResetTemplateRenderer,
+    VerificationTemplateRenderer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -37,10 +45,12 @@ class SMTPProxyHandler:
         self,
         settings: Settings,
         renderer: VerificationTemplateRenderer,
+        password_reset_renderer: PasswordResetTemplateRenderer,
         brevo: BrevoClient,
     ) -> None:
         self._settings = settings
         self._renderer = renderer
+        self._password_reset_renderer = password_reset_renderer
         self._brevo = brevo
 
     def _validate_sender(self, value: str) -> str:
@@ -68,22 +78,35 @@ class SMTPProxyHandler:
         try:
             self._validate_sender(envelope.mail_from)
             recipients = self._recipients(envelope.rcpt_tos)
-            code = extract_verification_code(bytes(envelope.content))
-            rendered = self._renderer.render(code)
-            subject = self._settings.subject_for(code)
+            raw_message = bytes(envelope.content)
+            try:
+                code = extract_verification_code(raw_message)
+                rendered = self._renderer.render(code)
+                subject = self._settings.subject_for(code)
+                message_kind = "verification"
+                tags = ("email-verification",)
+            except VerificationCodeNotFound:
+                reset_link = extract_password_reset_link(
+                    raw_message,
+                    self._settings.password_reset_allowed_hosts,
+                )
+                rendered = self._password_reset_renderer.render(reset_link)
+                subject = "Reset your Partokens password"
+                message_kind = "password reset"
+                tags = ("password-reset",)
         except EnvelopeError as exc:
             logger.warning("Rejected SMTP envelope: %s", exc)
             return "550 5.7.1 Message rejected by proxy policy"
-        except VerificationCodeNotFound:
-            logger.warning("Rejected unsupported SMTP message without verification code")
-            return "550 5.6.0 Verification code not found"
+        except PasswordResetLinkNotFound:
+            logger.warning("Rejected unsupported SMTP message")
+            return "550 5.6.0 Supported email content not found"
         except (OSError, TemplateError, ValueError):
-            logger.exception("Failed to prepare verification email")
-            return "451 4.3.0 Could not prepare verification email"
+            logger.exception("Failed to prepare transactional email")
+            return "451 4.3.0 Could not prepare transactional email"
 
         try:
             message_ids = [
-                await self._brevo.send(recipient, subject, rendered)
+                await self._brevo.send(recipient, subject, rendered, tags=tags)
                 for recipient in recipients
             ]
         except BrevoTransientError as exc:
@@ -95,8 +118,9 @@ class SMTPProxyHandler:
 
         delivered_ids = [message_id for message_id in message_ids if message_id]
         logger.info(
-            "Delivered verification email through Brevo recipients=%d message_ids=%s",
+            "Delivered %s email through Brevo recipients=%d message_ids=%s",
+            message_kind,
             len(recipients),
             ",".join(delivered_ids) or "unavailable",
         )
-        return "250 2.0.0 Verification email accepted"
+        return "250 2.0.0 Transactional email accepted"

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from smtp_proxy.templating import (
     CustomerServiceTemplateRenderer,
+    PasswordResetTemplateRenderer,
     VerificationTemplateRenderer,
 )
 
@@ -37,6 +38,22 @@ class CustomerServiceTemplateTests(unittest.TestCase):
             self.assertIn("August 4, 2026", content)
             self.assertNotIn("{{ params.", content)
         self.assertIn("fully restored", rendered.html)
+        self.assertIn("support@partokens.com", rendered.html)
+
+
+class PasswordResetTemplateTests(unittest.TestCase):
+    def test_renders_reset_link_into_html_and_text(self) -> None:
+        reset_link = (
+            "https://partokens.com/user/reset?email=user%40example.com"
+            "&token=0123456789abcdef0123456789abcdef"
+        )
+        rendered = PasswordResetTemplateRenderer(TEMPLATE_DIR).render(reset_link)
+
+        self.assertIn("Reset your password", rendered.html)
+        self.assertIn("Reset password", rendered.html)
+        self.assertIn(reset_link.replace("&", "&amp;"), rendered.html)
+        self.assertIn(reset_link, rendered.text)
+        self.assertNotIn("{{ params.reset_link }}", rendered.html)
         self.assertIn("support@partokens.com", rendered.html)
 
 
