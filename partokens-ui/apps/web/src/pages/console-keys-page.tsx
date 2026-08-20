@@ -612,7 +612,12 @@ function KeyEditor({
     seeded.current = true
   }, [defaultGroup, detail.data])
 
-  const groupOptions = useMemo(() => [...new Set([form.group, ...groups.map((group) => group.name)])].filter((group) => group && group !== 'default'), [form.group, groups])
+  const groupOptions = useMemo(() => {
+    const options = new Map(groups.filter((group) => group.name !== 'default').map((group) => [group.name, group]))
+    if (form.group && form.group !== 'default' && !options.has(form.group)) options.set(form.group, { name: form.group })
+    return [...options.values()]
+  }, [form.group, groups])
+  const selectedGroup = groupOptions.find((group) => group.name === form.group)
 
   const invalidate = async () => {
     await invalidateConsoleQueries(client, consoleQueryKeys.apiKeys.all, consoleQueryKeys.overview.tokens())
@@ -725,8 +730,18 @@ function KeyEditor({
           <div className="grid gap-2">
             <Label htmlFor="console-key-group">{t('Group')}</Label>
             <Select value={form.group} onValueChange={(value) => { update('group', value); setErrors((current) => ({ ...current, group: undefined })) }}>
-              <SelectTrigger id="console-key-group" className="w-full" aria-invalid={Boolean(errors.group)}><SelectValue placeholder={t('Select a group')} /></SelectTrigger>
-              <SelectContent className="border-border bg-popover shadow-lg">{groupOptions.map((group) => <SelectItem key={group} value={group} className="min-h-9">{group}</SelectItem>)}</SelectContent>
+              <SelectTrigger id="console-key-group" className="w-full" aria-invalid={Boolean(errors.group)}>
+                <SelectValue placeholder={t('Select a group')}>
+                  {selectedGroup ? <GroupValue group={selectedGroup.name} ratio={selectedGroup.ratio} /> : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="border-border bg-popover shadow-lg">
+                {groupOptions.map((group) => (
+                  <SelectItem key={group.name} value={group.name} className="min-h-9">
+                    <GroupValue group={group.name} ratio={group.ratio} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
             {errors.group ? <p className="text-xs text-destructive">{errors.group}</p> : null}
             {groupsUnavailable ? <p role="status" className="text-xs text-muted-foreground">{t('Group options are unavailable; the current value is preserved.')}</p> : null}

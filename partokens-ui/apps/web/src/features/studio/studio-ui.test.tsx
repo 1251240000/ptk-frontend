@@ -10,7 +10,7 @@ const t = (key: string, values?: Record<string, string | number>) => (
   Object.entries(values || {}).reduce((output, [name, value]) => output.replace(`{{${name}}}`, String(value)), key)
 )
 
-describe('Studio design-lab presentation', () => {
+describe('Studio presentation', () => {
   it('keeps the approved empty-state hierarchy', () => {
     render(<StudioEmpty cancelled={false} t={t} />)
     expect(screen.getByRole('heading', { name: 'No images yet' })).toBeVisible()

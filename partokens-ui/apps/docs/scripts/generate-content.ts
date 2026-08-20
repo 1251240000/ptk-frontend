@@ -41,7 +41,10 @@ for (const locale of locales) {
   }
   const sectionMeta = {
     'getting-started': { title: ui.groupStart, pages: ['authentication', 'first-request'] },
-    guides: { title: ui.groupGuides, pages: ['models-and-groups', 'chat', 'images', 'errors-and-limits'] },
+    guides: {
+      title: ui.groupGuides,
+      pages: ['models-and-groups', 'chat', 'images', 'image-studio', 'usage-logs', 'errors-and-limits'],
+    },
     api: { title: ui.groupApi, pages: ['chat-completions', 'responses', 'embeddings', 'image-generations', 'image-edits', 'audio-transcriptions', 'models'] },
   }
 

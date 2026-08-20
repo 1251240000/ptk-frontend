@@ -1,4 +1,4 @@
-/* Design Lab theme authority. Page styles consume these values through semantic aliases. */
+/* Public page theme variables consumed through semantic aliases. */
 :root {
   color-scheme: light;
 

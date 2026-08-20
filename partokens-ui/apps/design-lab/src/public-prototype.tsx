@@ -304,7 +304,7 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
 
     <footer className="r3-public-footer">
       <div className="r3-footer-main">
-        <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale).aboutLead}</p></div>
+        <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale).aboutLead}</p><span className="r3-footer-copyright">© {new Date().getFullYear()} Partokens, Inc.</span></div>
         <div className="r3-footer-links">
           <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('console')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console')}>{t('Image studio')}</button></div>
           <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><button type="button" onClick={() => navigate('status')}>{t('Status')}</button></div>
@@ -312,7 +312,6 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
           <div><strong>{t('Contact')}</strong><a href="mailto:support@partokens.com">Email</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer">Telegram<ExternalLink size={13} /></a></div>
         </div>
       </div>
-      <div className="r3-footer-bottom"><span>© {new Date().getFullYear()} Partokens</span></div>
     </footer>
   </div>
 }

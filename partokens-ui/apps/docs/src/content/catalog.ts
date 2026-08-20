@@ -7,6 +7,8 @@ export type PageId =
   | 'models-and-groups'
   | 'chat-guide'
   | 'image-guide'
+  | 'image-studio'
+  | 'usage-logs'
   | 'errors-and-limits'
   | 'api-chat-completions'
   | 'api-responses'
@@ -18,6 +20,8 @@ export type PageId =
 
 export type GuidePageId = Exclude<PageId, `api-${string}`>
 export type ApiPageId = Extract<PageId, `api-${string}`>
+export type ProductGuidePageId = Extract<GuidePageId, 'image-studio' | 'usage-logs'>
+type CoreGuidePageId = Exclude<GuidePageId, ProductGuidePageId>
 
 export type PageDefinition = {
   id: PageId
@@ -47,8 +51,6 @@ export type DocsUiCopy = {
   console: string
   models: string
   about: string
-  sourceDraft: string
-  sourceDraftDescription: string
   onThisPage: string
   method: string
   endpoint: string
@@ -74,7 +76,6 @@ export type DocsUiCopy = {
   groupApi: string
   previous: string
   next: string
-  translationStatus: string
 }
 
 export const pageDefinitions: PageDefinition[] = [
@@ -84,6 +85,8 @@ export const pageDefinitions: PageDefinition[] = [
   { id: 'models-and-groups', slug: 'guides/models-and-groups', group: 'guides', kind: 'guide' },
   { id: 'chat-guide', slug: 'guides/chat', group: 'guides', kind: 'guide' },
   { id: 'image-guide', slug: 'guides/images', group: 'guides', kind: 'guide' },
+  { id: 'image-studio', slug: 'guides/image-studio', group: 'guides', kind: 'guide' },
+  { id: 'usage-logs', slug: 'guides/usage-logs', group: 'guides', kind: 'guide' },
   { id: 'errors-and-limits', slug: 'guides/errors-and-limits', group: 'guides', kind: 'guide' },
   { id: 'api-chat-completions', slug: 'api/chat-completions', group: 'api', kind: 'api' },
   { id: 'api-responses', slug: 'api/responses', group: 'api', kind: 'api' },
@@ -97,66 +100,66 @@ export const pageDefinitions: PageDefinition[] = [
 export const uiCopy: Record<DocsLocale, DocsUiCopy> = {
   'zh-CN': {
     brand: 'Partokens 文档', home: '主页', console: '控制台', models: '模型广场', about: '关于',
-    sourceDraft: '翻译待审核', sourceDraftDescription: '此版本由中文源稿翻译，等待产品负责人审核。', onThisPage: '本页内容',
+    onThisPage: '本页内容',
     method: '方法', endpoint: '端点', authentication: '鉴权', bearerKey: 'Bearer API 密钥', requestFields: '请求字段',
     field: '字段', type: '类型', required: '必填', description: '说明', yes: '是', no: '否', exampleRequest: '请求示例',
     exampleResponse: '响应示例', responseNotes: '响应说明', availabilityNote: '模型与参数可用性以模型广场及账户分组实时配置为准。',
     copy: '复制代码', copied: '已复制', createKey: '创建 API 密钥', openModels: '查看可用模型', groupStart: '开始使用',
-    groupGuides: '使用指南', groupApi: 'API 参考', previous: '上一页', next: '下一页', translationStatus: '内容状态：待审核',
+    groupGuides: '使用指南', groupApi: 'API 参考', previous: '上一页', next: '下一页',
   },
   'zh-TW': {
     brand: 'Partokens 文件', home: '首頁', console: '控制台', models: '模型廣場', about: '關於',
-    sourceDraft: '翻譯待審核', sourceDraftDescription: '此版本由簡體中文源稿翻譯，等待產品負責人審核。', onThisPage: '本頁內容',
+    onThisPage: '本頁內容',
     method: '方法', endpoint: '端點', authentication: '驗證', bearerKey: 'Bearer API 金鑰', requestFields: '請求欄位',
     field: '欄位', type: '類型', required: '必填', description: '說明', yes: '是', no: '否', exampleRequest: '請求範例',
     exampleResponse: '回應範例', responseNotes: '回應說明', availabilityNote: '模型與參數可用性以模型廣場及帳戶群組的即時設定為準。',
     copy: '複製程式碼', copied: '已複製', createKey: '建立 API 金鑰', openModels: '查看可用模型', groupStart: '開始使用',
-    groupGuides: '使用指南', groupApi: 'API 參考', previous: '上一頁', next: '下一頁', translationStatus: '內容狀態：待審核',
+    groupGuides: '使用指南', groupApi: 'API 參考', previous: '上一頁', next: '下一頁',
   },
   en: {
     brand: 'Partokens Docs', home: 'Home', console: 'Console', models: 'Models', about: 'About',
-    sourceDraft: 'Translation pending review', sourceDraftDescription: 'This version was translated from the Simplified Chinese source and awaits product-owner review.', onThisPage: 'On this page',
+    onThisPage: 'On this page',
     method: 'Method', endpoint: 'Endpoint', authentication: 'Authentication', bearerKey: 'Bearer API key', requestFields: 'Request fields',
     field: 'Field', type: 'Type', required: 'Required', description: 'Description', yes: 'Yes', no: 'No', exampleRequest: 'Example request',
     exampleResponse: 'Example response', responseNotes: 'Response notes', availabilityNote: 'Model and parameter availability follows the live model marketplace and account-group configuration.',
     copy: 'Copy code', copied: 'Copied', createKey: 'Create API key', openModels: 'View available models', groupStart: 'Get started',
-    groupGuides: 'Guides', groupApi: 'API reference', previous: 'Previous', next: 'Next', translationStatus: 'Content status: pending review',
+    groupGuides: 'Guides', groupApi: 'API reference', previous: 'Previous', next: 'Next',
   },
   ja: {
     brand: 'Partokens ドキュメント', home: 'ホーム', console: 'コンソール', models: 'モデル', about: '概要',
-    sourceDraft: '翻訳レビュー待ち', sourceDraftDescription: 'この版は簡体字中国語の原稿から翻訳され、プロダクト責任者のレビュー待ちです。', onThisPage: 'このページの内容',
+    onThisPage: 'このページの内容',
     method: 'メソッド', endpoint: 'エンドポイント', authentication: '認証', bearerKey: 'Bearer API キー', requestFields: 'リクエストフィールド',
     field: 'フィールド', type: '型', required: '必須', description: '説明', yes: 'はい', no: 'いいえ', exampleRequest: 'リクエスト例',
     exampleResponse: 'レスポンス例', responseNotes: 'レスポンスの説明', availabilityNote: 'モデルとパラメータの利用可否は、モデル一覧とアカウントグループのリアルタイム設定に従います。',
     copy: 'コードをコピー', copied: 'コピーしました', createKey: 'API キーを作成', openModels: '利用可能なモデルを見る', groupStart: 'はじめに',
-    groupGuides: '利用ガイド', groupApi: 'API リファレンス', previous: '前へ', next: '次へ', translationStatus: 'コンテンツ状態：レビュー待ち',
+    groupGuides: '利用ガイド', groupApi: 'API リファレンス', previous: '前へ', next: '次へ',
   },
   ru: {
     brand: 'Документация Partokens', home: 'Главная', console: 'Консоль', models: 'Модели', about: 'О сервисе',
-    sourceDraft: 'Перевод ожидает проверки', sourceDraftDescription: 'Эта версия переведена с упрощенного китайского и ожидает проверки владельцем продукта.', onThisPage: 'На этой странице',
+    onThisPage: 'На этой странице',
     method: 'Метод', endpoint: 'Эндпоинт', authentication: 'Аутентификация', bearerKey: 'API-ключ Bearer', requestFields: 'Поля запроса',
     field: 'Поле', type: 'Тип', required: 'Обязательно', description: 'Описание', yes: 'Да', no: 'Нет', exampleRequest: 'Пример запроса',
     exampleResponse: 'Пример ответа', responseNotes: 'Описание ответа', availabilityNote: 'Доступность моделей и параметров определяется текущими настройками каталога и группы аккаунта.',
     copy: 'Копировать код', copied: 'Скопировано', createKey: 'Создать API-ключ', openModels: 'Доступные модели', groupStart: 'Начало работы',
-    groupGuides: 'Руководства', groupApi: 'Справочник API', previous: 'Назад', next: 'Далее', translationStatus: 'Статус: ожидает проверки',
+    groupGuides: 'Руководства', groupApi: 'Справочник API', previous: 'Назад', next: 'Далее',
   },
   fr: {
     brand: 'Documentation Partokens', home: 'Accueil', console: 'Console', models: 'Modèles', about: 'À propos',
-    sourceDraft: 'Traduction en attente de validation', sourceDraftDescription: 'Cette version a été traduite depuis la source chinoise simplifiée et attend la validation du responsable produit.', onThisPage: 'Sur cette page',
+    onThisPage: 'Sur cette page',
     method: 'Méthode', endpoint: 'Point de terminaison', authentication: 'Authentification', bearerKey: 'Clé API Bearer', requestFields: 'Champs de requête',
     field: 'Champ', type: 'Type', required: 'Requis', description: 'Description', yes: 'Oui', no: 'Non', exampleRequest: 'Exemple de requête',
     exampleResponse: 'Exemple de réponse', responseNotes: 'Notes sur la réponse', availabilityNote: 'La disponibilité des modèles et paramètres dépend du catalogue et de la configuration du groupe de compte en temps réel.',
     copy: 'Copier le code', copied: 'Copié', createKey: 'Créer une clé API', openModels: 'Voir les modèles disponibles', groupStart: 'Bien démarrer',
-    groupGuides: 'Guides', groupApi: 'Référence API', previous: 'Précédent', next: 'Suivant', translationStatus: 'État du contenu : en attente de validation',
+    groupGuides: 'Guides', groupApi: 'Référence API', previous: 'Précédent', next: 'Suivant',
   },
   vi: {
     brand: 'Tài liệu Partokens', home: 'Trang chủ', console: 'Bảng điều khiển', models: 'Mô hình', about: 'Giới thiệu',
-    sourceDraft: 'Bản dịch đang chờ duyệt', sourceDraftDescription: 'Phiên bản này được dịch từ bản gốc tiếng Trung giản thể và đang chờ chủ sản phẩm duyệt.', onThisPage: 'Trong trang này',
+    onThisPage: 'Trong trang này',
     method: 'Phương thức', endpoint: 'Endpoint', authentication: 'Xác thực', bearerKey: 'Khóa API Bearer', requestFields: 'Trường yêu cầu',
     field: 'Trường', type: 'Kiểu', required: 'Bắt buộc', description: 'Mô tả', yes: 'Có', no: 'Không', exampleRequest: 'Ví dụ yêu cầu',
     exampleResponse: 'Ví dụ phản hồi', responseNotes: 'Ghi chú phản hồi', availabilityNote: 'Tính khả dụng của mô hình và tham số phụ thuộc vào cấu hình hiện tại trong quảng trường mô hình và nhóm tài khoản.',
     copy: 'Sao chép mã', copied: 'Đã sao chép', createKey: 'Tạo khóa API', openModels: 'Xem mô hình khả dụng', groupStart: 'Bắt đầu',
-    groupGuides: 'Hướng dẫn', groupApi: 'Tham chiếu API', previous: 'Trang trước', next: 'Trang sau', translationStatus: 'Trạng thái nội dung: chờ duyệt',
+    groupGuides: 'Hướng dẫn', groupApi: 'Tham chiếu API', previous: 'Trang trước', next: 'Trang sau',
   },
 }
 
@@ -165,7 +168,7 @@ const requestExample = `curl https://partokens.com/v1/chat/completions \\
   -H "Content-Type: application/json" \\
   -d '{"model":"your-model","messages":[{"role":"user","content":"Hello"}]}'`
 
-export const guideCopy: Record<DocsLocale, Record<GuidePageId, GuideCopy>> = {
+export const guideCopy: Record<DocsLocale, Record<CoreGuidePageId, GuideCopy>> = {
   'zh-CN': {
     overview: { title: '从一个可控请求开始', description: '创建密钥、确认模型，然后发送第一条 OpenAI 兼容请求。', sections: [
       { id: 'path', title: '最短调用路径', paragraphs: ['Partokens 使用统一的 OpenAI 兼容入口。完成下面三个步骤即可验证账户、路由和模型是否可用。'], bullets: ['在控制台创建有限额度、有限模型范围的 API 密钥。', '在模型广场确认当前账户分组可用的模型名。', '向 https://partokens.com/v1 发送带 Bearer 密钥的请求。'] },
@@ -427,6 +430,135 @@ export const guideCopy: Record<DocsLocale, Record<GuidePageId, GuideCopy>> = {
   },
 }
 
+export const productGuideCopy: Record<DocsLocale, Record<ProductGuidePageId, GuideCopy>> = {
+  'zh-CN': {
+    'image-studio': { title: '生图工作台', description: '在控制台完成图像生成与参考图编辑，并安全管理密钥、结果和本地项目。', sections: [
+      { id: 'open', title: '打开工作台并确认模型', paragraphs: ['登录后前往 /zh-CN/console/studio。工作台会读取当前账户的模型与价格能力信息，只列出可用于图像任务的模型；最终可用参数仍以所选模型的实时能力为准。'] },
+      { id: 'key', title: '选择并解锁专用密钥', paragraphs: ['工作台使用 Image 分组的 API 密钥。可以选择已有密钥，或为当前模型创建范围更小的专用密钥。完整密钥只在当前工作台会话的内存中使用，不会随项目写入本地存储。'], tone: 'warning' },
+      { id: 'create', title: '生成或编辑图像', paragraphs: ['输入提示词并选择模型、质量、尺寸、背景和结果数量。仅当模型明确支持时才使用自定义尺寸。上传 PNG、JPG 或 WebP 参考图后，请求会切换到图像编辑接口；未上传参考图时使用图像生成接口。'] },
+      { id: 'results', title: '下载并复用结果', paragraphs: ['结果可能以 Base64 数据或远程 URL 返回。请及时下载需要保留的图像，也可以把某个结果设为下一次请求的参考图。每次新请求会替换画布中当前显示的一组结果。'] },
+      { id: 'storage', title: '理解本地保存范围', paragraphs: ['项目、参考图、已保存的生成文件和最近最多 50 条历史记录保存在当前浏览器的 IndexedDB 中，不会在设备或浏览器之间同步。无法由浏览器下载的远程结果不保证能随项目长期保留；清除站点数据也会移除本地内容。'], tone: 'note' },
+      { id: 'failures', title: '处理中断与计费核对', paragraphs: ['取消或超时会中止当前浏览器请求，但不能证明上游任务已经停止。遇到失败、超时或结果状态不确定时，不要立即连续重试；先到使用日志按时间、模型或请求标识核对是否产生记录和费用。'] },
+    ] },
+    'usage-logs': { title: '使用日志', description: '筛选真实请求记录，核对令牌、费用、耗时与路由信息，并准备可安全提交的排障证据。', sections: [
+      { id: 'open', title: '从时间和请求标识开始', paragraphs: ['登录后前往 /zh-CN/console/usage-logs。页面从账户日志与统计接口读取最新数据。排查单次调用时，优先记录请求发生时间、时区、模型，以及响应中的请求 ID 或上游请求 ID。'] },
+      { id: 'filters', title: '使用搜索与服务端筛选', paragraphs: ['可按事件类型、模型、分组、API 密钥名称以及最近 24 小时、7 天或 30 天筛选。请求 ID 和上游请求 ID 使用精确匹配。搜索框会拒绝疑似完整凭证和 URL，避免把敏感信息带入查询。'], bullets: ['事件类型包括充值、使用、管理、系统、错误、退款和登录。', '更换筛选条件后，列表会从第一页重新读取。'] },
+      { id: 'statistics', title: '正确理解统计条', paragraphs: ['统计条显示筛选范围内的费用、记录数、输入令牌、输出令牌与缓存令牌。费用根据后端 quota 值换算为美元。按请求 ID 或上游请求 ID 查询时，统计接口无法应用这两个条件，因此页面不会给出可能误导的过滤统计；令牌汇总最多扫描 100 页、每页 100 条使用记录，达到上限时会明确标注为部分结果。'], tone: 'note' },
+      { id: 'fields', title: '阅读列表与详情', paragraphs: ['列表展示时间、类型、分组、密钥名称、模型、是否流式、令牌、费用和耗时。打开详情可查看请求 ID、上游请求 ID 及可用的计价上下文。某些后端字段缺失或已脱敏时，页面会明确显示部分数据，而不是补造值。'] },
+      { id: 'refresh', title: '刷新与翻页', paragraphs: ['刷新会重新请求服务端数据。列表每页 20 条，使用上一页和下一页浏览；分页只改变当前列表，不会导出或缓存全部日志。当前页面不提供 CSV 或 JSON 导出。'] },
+      { id: 'support', title: '判断结果并准备排障信息', paragraphs: ['成功记录表示网关已完成并记录调用；错误记录应结合 HTTP 状态、耗时和详情判断。客户端取消或超时不等于上游未执行，最终以日志和账单记录为准。联系支持时提供时间与时区、模型、请求 ID、状态和必要的计价上下文，切勿发送完整 API 密钥、提示词或原始敏感内容。'], tone: 'warning' },
+    ] },
+  },
+  'zh-TW': {
+    'image-studio': { title: '生圖工作台', description: '在控制台完成圖像生成與參考圖編輯，並安全管理金鑰、結果與本機專案。', sections: [
+      { id: 'open', title: '開啟工作台並確認模型', paragraphs: ['登入後前往 /zh-TW/console/studio。工作台會讀取目前帳戶的模型與價格能力資訊，只列出可用於圖像任務的模型；最終可用參數仍以所選模型的即時能力為準。'] },
+      { id: 'key', title: '選擇並解鎖專用金鑰', paragraphs: ['工作台使用 Image 群組的 API 金鑰。你可以選擇現有金鑰，或為目前模型建立範圍較小的專用金鑰。完整金鑰只在目前工作台工作階段的記憶體中使用，不會隨專案寫入本機儲存。'], tone: 'warning' },
+      { id: 'create', title: '生成或編輯圖像', paragraphs: ['輸入提示詞並選擇模型、品質、尺寸、背景與結果數量。只有模型明確支援時才使用自訂尺寸。上傳 PNG、JPG 或 WebP 參考圖後會改用圖像編輯介面；未上傳時使用圖像生成介面。'] },
+      { id: 'results', title: '下載並重複使用結果', paragraphs: ['結果可能以 Base64 資料或遠端 URL 回傳。請及時下載要保留的圖像，也可把某個結果設為下一次請求的參考圖。每次新請求會取代畫布目前顯示的一組結果。'] },
+      { id: 'storage', title: '理解本機保存範圍', paragraphs: ['專案、參考圖、已保存的生成檔案與最近最多 50 筆歷史記錄存放在目前瀏覽器的 IndexedDB，不會跨裝置或瀏覽器同步。瀏覽器無法下載的遠端結果不保證能長期保留；清除網站資料也會移除本機內容。'], tone: 'note' },
+      { id: 'failures', title: '處理中斷與計費核對', paragraphs: ['取消或逾時會中止目前瀏覽器請求，但不能證明上游任務已停止。失敗、逾時或狀態不確定時，先到使用記錄依時間、模型或請求識別碼核對記錄與費用，再決定是否重試。'] },
+    ] },
+    'usage-logs': { title: '使用記錄', description: '篩選實際請求記錄，核對 Token、費用、耗時與路由資訊，並準備安全的排障證據。', sections: [
+      { id: 'open', title: '從時間與請求識別碼開始', paragraphs: ['登入後前往 /zh-TW/console/usage-logs。頁面從帳戶記錄與統計介面讀取最新資料。排查單次呼叫時，先記錄請求時間、時區、模型，以及回應中的請求 ID 或上游請求 ID。'] },
+      { id: 'filters', title: '使用搜尋與伺服器篩選', paragraphs: ['可依事件類型、模型、群組、API 金鑰名稱，以及最近 24 小時、7 天或 30 天篩選。請求 ID 與上游請求 ID 使用完全相符。搜尋框會拒絕疑似完整憑證與 URL。'], bullets: ['事件類型包括加值、使用、管理、系統、錯誤、退款與登入。', '變更條件後，列表會從第一頁重新讀取。'] },
+      { id: 'statistics', title: '正確理解統計列', paragraphs: ['統計列顯示篩選範圍內的費用、記錄數、輸入 Token、輸出 Token 與快取 Token，費用由後端 quota 值換算為美元。依請求 ID 查詢時，統計介面無法套用這些 ID，因此不顯示可能誤導的篩選統計。Token 彙總最多掃描 100 頁、每頁 100 筆，達到上限時會標示為部分結果。'], tone: 'note' },
+      { id: 'fields', title: '閱讀列表與詳情', paragraphs: ['列表包含時間、類型、群組、金鑰名稱、模型、串流狀態、Token、費用與耗時。詳情提供請求 ID、上游請求 ID 及可用的計價資訊。缺少或已遮蔽的欄位會明確標示為部分資料。'] },
+      { id: 'refresh', title: '重新整理與翻頁', paragraphs: ['重新整理會再次向伺服器取資料。列表每頁 20 筆，可用上一頁與下一頁瀏覽。頁面目前不提供 CSV 或 JSON 匯出。'] },
+      { id: 'support', title: '判斷結果並準備排障資訊', paragraphs: ['用 HTTP 狀態、耗時與詳情判斷錯誤。用戶端取消或逾時不代表上游未執行，最終以記錄與帳單為準。聯絡支援時提供時間與時區、模型、請求 ID、狀態和必要計價資訊，不要提供完整 API 金鑰、提示詞或敏感原文。'], tone: 'warning' },
+    ] },
+  },
+  en: {
+    'image-studio': { title: 'Image Studio', description: 'Generate or edit images in the console while managing keys, results, and local projects safely.', sections: [
+      { id: 'open', title: 'Open Studio and confirm a model', paragraphs: ['Sign in and open /en/console/studio. Studio reads the current account model and pricing capabilities and lists image-capable models. Available controls still depend on the selected model\'s live capabilities.'] },
+      { id: 'key', title: 'Select and unlock a dedicated key', paragraphs: ['Studio uses API keys in the Image group. Select an existing key or create a narrowly scoped key for the chosen model. The full key is used only in memory for the current Studio session and is not stored with the project.'], tone: 'warning' },
+      { id: 'create', title: 'Generate or edit an image', paragraphs: ['Enter a prompt and choose the model, quality, size, background, and result count. Use custom dimensions only when the model exposes that capability. Adding a PNG, JPG, or WebP reference sends an image edit request; without a reference, Studio sends an image generation request.'] },
+      { id: 'results', title: 'Download and reuse results', paragraphs: ['Results can arrive as Base64 data or remote URLs. Download anything you need to retain, or reuse one result as the reference for the next request. A new generation replaces the result set currently shown on the canvas.'] },
+      { id: 'storage', title: 'Understand local retention', paragraphs: ['Projects, references, retained generated files, and up to 50 recent history records are stored in IndexedDB in the current browser. They do not sync across browsers or devices. Remote results the browser cannot download are not guaranteed to persist, and clearing site data removes local content.'], tone: 'note' },
+      { id: 'failures', title: 'Handle cancellation and reconcile usage', paragraphs: ['Cancel or timeout aborts the browser request, but does not prove the provider stopped processing. For failures, timeouts, or uncertain results, avoid rapid retries. Check Usage logs by time, model, or request ID to confirm recorded usage and cost first.'] },
+    ] },
+    'usage-logs': { title: 'Usage logs', description: 'Filter real account events, reconcile tokens, cost, latency, and routing, and prepare safe support evidence.', sections: [
+      { id: 'open', title: 'Start with time and request identity', paragraphs: ['Sign in and open /en/console/usage-logs. The page loads current account log and statistics data. For one request, keep its time, timezone, model, and any request ID or upstream request ID returned in the response.'] },
+      { id: 'filters', title: 'Search with server-side filters', paragraphs: ['Filter by event type, model, group, API key name, and the last 24 hours, 7 days, or 30 days. Request ID and upstream request ID require exact matches. The search field rejects credential-shaped values and URLs to reduce accidental disclosure.'], bullets: ['Event types include top-up, usage, management, system, error, refund, and login.', 'Changing a filter reloads the list from the first page.'] },
+      { id: 'statistics', title: 'Interpret the statistics strip', paragraphs: ['The strip reports filtered cost, records, input tokens, output tokens, and cached tokens. Cost converts the backend quota value to USD. Request-ID filters are not supported by the statistics endpoint, so the page withholds misleading filtered stats for those searches. Token totals scan at most 100 pages of 100 usage records and are labeled partial if that limit is reached.'], tone: 'note' },
+      { id: 'fields', title: 'Read rows and details', paragraphs: ['Rows show time, type, group, key name, model, streaming status, tokens, cost, and duration. Details add request IDs, upstream request IDs, and pricing context when available. Missing or redacted backend fields are surfaced as partial data rather than reconstructed.'] },
+      { id: 'refresh', title: 'Refresh and paginate', paragraphs: ['Refresh refetches the server queries. The table displays 20 records per page with previous and next controls. Pagination changes the current list only; this page does not provide CSV or JSON export.'] },
+      { id: 'support', title: 'Classify outcomes and contact support', paragraphs: ['Use HTTP status, duration, and details to interpret errors. A client cancellation or timeout does not mean upstream work was not performed; logs and billing records are authoritative. When contacting support, include time and timezone, model, request ID, status, and necessary pricing context. Never send a full API key, prompt, or raw sensitive content.'], tone: 'warning' },
+    ] },
+  },
+  ja: {
+    'image-studio': { title: '画像スタジオ', description: 'コンソールで画像を生成・編集し、キー、結果、ローカルプロジェクトを安全に管理します。', sections: [
+      { id: 'open', title: 'スタジオを開いてモデルを確認する', paragraphs: ['サインイン後、/ja/console/studio を開きます。スタジオは現在のアカウントのモデルと価格機能を読み込み、画像対応モデルを表示します。利用できる設定は選択したモデルの最新機能に従います。'] },
+      { id: 'key', title: '専用キーを選択して解除する', paragraphs: ['スタジオは Image グループの API キーを使用します。既存キーを選ぶか、選択モデルだけに範囲を絞ったキーを作成できます。完全なキーは現在のセッション中だけメモリで使用され、プロジェクトには保存されません。'], tone: 'warning' },
+      { id: 'create', title: '画像を生成または編集する', paragraphs: ['プロンプト、モデル、品質、サイズ、背景、結果数を指定します。カスタムサイズはモデルが明示的に対応する場合のみ使います。PNG、JPG、WebP の参照画像を追加すると編集 API、追加しない場合は生成 API が呼ばれます。'] },
+      { id: 'results', title: '結果を保存して再利用する', paragraphs: ['結果は Base64 またはリモート URL で返る場合があります。必要な画像は早めにダウンロードし、次のリクエストの参照画像として再利用できます。新しい生成を行うと、キャンバス上の現在の結果一式が置き換わります。'] },
+      { id: 'storage', title: 'ローカル保存の範囲を理解する', paragraphs: ['プロジェクト、参照画像、保存済み生成ファイル、直近最大 50 件の履歴は現在のブラウザの IndexedDB に保存され、端末間では同期されません。ブラウザが取得できないリモート結果は保持が保証されず、サイトデータを消去するとローカル内容も削除されます。'], tone: 'note' },
+      { id: 'failures', title: '中断と使用量を確認する', paragraphs: ['キャンセルやタイムアウトはブラウザのリクエストを中止しますが、プロバイダー側の処理停止を保証しません。失敗や状態不明の場合は連続再試行を避け、使用ログで時刻、モデル、リクエスト ID から記録と費用を確認します。'] },
+    ] },
+    'usage-logs': { title: '使用ログ', description: '実際のアカウント記録を絞り込み、トークン、費用、所要時間、ルーティングを確認します。', sections: [
+      { id: 'open', title: '時刻とリクエスト識別子から始める', paragraphs: ['サインイン後、/ja/console/usage-logs を開きます。ページは最新のアカウントログと統計を読み込みます。個別の調査では時刻、タイムゾーン、モデル、返されたリクエスト ID または上流リクエスト ID を控えます。'] },
+      { id: 'filters', title: 'サーバー側フィルターで検索する', paragraphs: ['イベント種別、モデル、グループ、API キー名、過去 24 時間・7 日・30 日で絞り込めます。リクエスト ID は完全一致です。検索欄は認証情報らしい値と URL を拒否します。'], bullets: ['種別にはチャージ、使用、管理、システム、エラー、返金、ログインがあります。', '条件を変えると一覧は先頭ページから再取得されます。'] },
+      { id: 'statistics', title: '統計を正しく読む', paragraphs: ['統計には絞り込み後の費用、件数、入力・出力・キャッシュトークンが表示され、費用はバックエンドの quota から USD に換算されます。統計 API はリクエスト ID 条件を受け取れないため、その検索では誤解を招く統計を表示しません。トークン集計は 100 件ずつ最大 100 ページで、上限時は部分集計と表示されます。'], tone: 'note' },
+      { id: 'fields', title: '一覧と詳細を読む', paragraphs: ['一覧には時刻、種別、グループ、キー名、モデル、ストリーミング、トークン、費用、所要時間が表示されます。詳細には利用可能なリクエスト ID と価格情報が加わります。欠落または秘匿された項目は部分データとして示されます。'] },
+      { id: 'refresh', title: '更新してページを移動する', paragraphs: ['更新はサーバーへ再問い合わせします。一覧は 1 ページ 20 件で、前後に移動できます。CSV または JSON のエクスポート機能はありません。'] },
+      { id: 'support', title: '結果を判断して問い合わせる', paragraphs: ['エラーは HTTP 状態、所要時間、詳細を合わせて判断します。クライアントの中止やタイムアウトでも上流処理が行われた可能性があるため、ログと請求記録を基準にします。問い合わせには時刻とタイムゾーン、モデル、リクエスト ID、状態を添え、完全な API キーや機密内容は送らないでください。'], tone: 'warning' },
+    ] },
+  },
+  ru: {
+    'image-studio': { title: 'Студия изображений', description: 'Создавайте и редактируйте изображения в консоли, безопасно работая с ключами, результатами и локальными проектами.', sections: [
+      { id: 'open', title: 'Откройте студию и проверьте модель', paragraphs: ['Войдите и откройте /ru/console/studio. Студия загружает сведения о моделях и тарифных возможностях аккаунта и показывает модели для изображений. Доступные параметры определяются текущими возможностями выбранной модели.'] },
+      { id: 'key', title: 'Выберите и разблокируйте отдельный ключ', paragraphs: ['Студия использует API-ключи группы Image. Можно выбрать существующий ключ или создать ключ с доступом только к выбранной модели. Полный ключ хранится лишь в памяти текущего сеанса и не записывается в проект.'], tone: 'warning' },
+      { id: 'create', title: 'Создайте или отредактируйте изображение', paragraphs: ['Укажите описание, модель, качество, размер, фон и число результатов. Произвольный размер доступен только для поддерживающих его моделей. Ссылка на PNG, JPG или WebP переключает запрос на редактирование; без нее выполняется генерация.'] },
+      { id: 'results', title: 'Скачайте и используйте результат повторно', paragraphs: ['Результат может прийти как Base64 или удаленный URL. Скачайте нужные изображения либо назначьте результат исходным для следующего запроса. Новая генерация заменяет текущий набор результатов на холсте.'] },
+      { id: 'storage', title: 'Учитывайте локальное хранение', paragraphs: ['Проекты, исходные изображения, сохраненные файлы и до 50 последних записей истории находятся в IndexedDB текущего браузера и не синхронизируются. Удаленный результат, который браузер не может скачать, может не сохраниться; очистка данных сайта удаляет локальное содержимое.'], tone: 'note' },
+      { id: 'failures', title: 'Сверьте отмену и расходы', paragraphs: ['Отмена или тайм-аут прерывают запрос браузера, но не подтверждают остановку обработки у поставщика. При ошибке или неопределенном результате не повторяйте запрос сразу: сначала найдите запись и стоимость в журнале по времени, модели или ID запроса.'] },
+    ] },
+    'usage-logs': { title: 'Журнал использования', description: 'Фильтруйте реальные события аккаунта и сверяйте токены, стоимость, длительность и маршрутизацию.', sections: [
+      { id: 'open', title: 'Начните со времени и ID запроса', paragraphs: ['Войдите и откройте /ru/console/usage-logs. Страница загружает актуальные журнал и статистику аккаунта. Для разбора одного вызова сохраните время, часовой пояс, модель, ID запроса и ID запроса поставщика из ответа.'] },
+      { id: 'filters', title: 'Используйте серверные фильтры', paragraphs: ['Доступны тип события, модель, группа, имя API-ключа и интервалы 24 часа, 7 или 30 дней. ID запросов ищутся по точному совпадению. Поле поиска отклоняет значения, похожие на учетные данные, и URL.'], bullets: ['Типы: пополнение, использование, управление, система, ошибка, возврат и вход.', 'После смены фильтра список загружается с первой страницы.'] },
+      { id: 'statistics', title: 'Интерпретируйте статистику', paragraphs: ['Показаны стоимость, число записей, входные, выходные и кэшированные токены; quota сервера переводится в USD. API статистики не принимает ID запросов, поэтому при таком поиске отфильтрованные показатели не показываются. Токены суммируются максимум по 100 страницам по 100 записей и помечаются как частичные при достижении лимита.'], tone: 'note' },
+      { id: 'fields', title: 'Читайте строки и подробности', paragraphs: ['В строках указаны время, тип, группа, ключ, модель, потоковый режим, токены, стоимость и длительность. В подробностях доступны ID запросов и контекст цены. Отсутствующие или скрытые поля явно отмечаются как частичные данные.'] },
+      { id: 'refresh', title: 'Обновляйте и листайте', paragraphs: ['Обновление повторно запрашивает данные сервера. На странице 20 записей с переходом назад и вперед. Экспорт CSV или JSON не предусмотрен.'] },
+      { id: 'support', title: 'Оцените результат и подготовьте обращение', paragraphs: ['Сопоставьте ошибку со статусом HTTP, длительностью и деталями. Отмена или тайм-аут клиента не исключают работу поставщика; ориентируйтесь на журнал и начисления. Для поддержки укажите время и часовой пояс, модель, ID и статус, но не отправляйте полный API-ключ или конфиденциальное содержимое.'], tone: 'warning' },
+    ] },
+  },
+  fr: {
+    'image-studio': { title: 'Studio d’images', description: 'Générez ou retouchez des images dans la console tout en gérant clés, résultats et projets locaux en sécurité.', sections: [
+      { id: 'open', title: 'Ouvrir le studio et vérifier le modèle', paragraphs: ['Connectez-vous puis ouvrez /fr/console/studio. Le studio charge les modèles et capacités tarifaires du compte et affiche ceux adaptés aux images. Les réglages disponibles restent déterminés par les capacités actuelles du modèle choisi.'] },
+      { id: 'key', title: 'Choisir et déverrouiller une clé dédiée', paragraphs: ['Le studio utilise les clés API du groupe Image. Sélectionnez une clé existante ou créez-en une limitée au modèle choisi. La clé complète reste uniquement en mémoire pendant la session du studio et n’est pas enregistrée avec le projet.'], tone: 'warning' },
+      { id: 'create', title: 'Générer ou retoucher une image', paragraphs: ['Saisissez la consigne puis choisissez modèle, qualité, taille, arrière-plan et nombre de résultats. N’utilisez des dimensions personnalisées que si le modèle les accepte. L’ajout d’une référence PNG, JPG ou WebP lance une retouche ; sans référence, le studio lance une génération.'] },
+      { id: 'results', title: 'Télécharger et réutiliser les résultats', paragraphs: ['Les résultats peuvent être des données Base64 ou des URL distantes. Téléchargez les images à conserver ou réutilisez un résultat comme référence. Une nouvelle génération remplace l’ensemble actuellement affiché sur la zone de travail.'] },
+      { id: 'storage', title: 'Comprendre la conservation locale', paragraphs: ['Les projets, références, fichiers conservés et jusqu’à 50 entrées récentes sont enregistrés dans IndexedDB pour ce navigateur, sans synchronisation. Un résultat distant que le navigateur ne peut pas télécharger n’est pas garanti de persister ; effacer les données du site supprime aussi ce contenu.'], tone: 'note' },
+      { id: 'failures', title: 'Gérer l’annulation et rapprocher l’usage', paragraphs: ['Une annulation ou un délai dépassé interrompt la requête du navigateur sans prouver l’arrêt chez le fournisseur. En cas d’échec ou de résultat incertain, évitez les relances immédiates et vérifiez d’abord l’enregistrement et le coût dans les journaux par heure, modèle ou ID.'] },
+    ] },
+    'usage-logs': { title: 'Journaux d’utilisation', description: 'Filtrez les événements réels du compte et rapprochez jetons, coût, durée et routage.', sections: [
+      { id: 'open', title: 'Commencer par l’heure et l’identifiant', paragraphs: ['Connectez-vous puis ouvrez /fr/console/usage-logs. La page charge les journaux et statistiques actuels du compte. Pour un appel précis, relevez l’heure, le fuseau horaire, le modèle et les ID de requête renvoyés.'] },
+      { id: 'filters', title: 'Utiliser les filtres côté serveur', paragraphs: ['Filtrez par type d’événement, modèle, groupe, nom de clé API et période de 24 heures, 7 jours ou 30 jours. Les ID exigent une correspondance exacte. La recherche refuse les valeurs ressemblant à des identifiants secrets et les URL.'], bullets: ['Types disponibles : recharge, utilisation, gestion, système, erreur, remboursement et connexion.', 'Tout changement recharge la liste depuis la première page.'] },
+      { id: 'statistics', title: 'Interpréter les statistiques', paragraphs: ['La barre indique coût, nombre d’entrées et jetons d’entrée, de sortie et en cache ; le quota du serveur est converti en USD. L’API statistique n’accepte pas les ID de requête : ces recherches n’affichent donc pas de chiffres filtrés trompeurs. Les jetons couvrent au plus 100 pages de 100 usages et sont signalés partiels à la limite.'], tone: 'note' },
+      { id: 'fields', title: 'Lire les lignes et les détails', paragraphs: ['Chaque ligne présente heure, type, groupe, clé, modèle, streaming, jetons, coût et durée. Les détails ajoutent les ID et le contexte tarifaire disponible. Les champs absents ou masqués sont explicitement présentés comme données partielles.'] },
+      { id: 'refresh', title: 'Actualiser et parcourir les pages', paragraphs: ['Actualiser relance les requêtes serveur. La liste contient 20 entrées par page avec navigation précédente et suivante. Aucun export CSV ou JSON n’est proposé.'] },
+      { id: 'support', title: 'Qualifier le résultat et contacter le support', paragraphs: ['Interprétez une erreur avec le statut HTTP, la durée et les détails. Une annulation ou un délai client n’exclut pas un traitement en amont ; journaux et facturation font foi. Transmettez heure et fuseau, modèle, ID et statut, jamais une clé API complète ni du contenu sensible.'], tone: 'warning' },
+    ] },
+  },
+  vi: {
+    'image-studio': { title: 'Xưởng tạo ảnh', description: 'Tạo hoặc chỉnh sửa ảnh trong bảng điều khiển, đồng thời quản lý khóa, kết quả và dự án cục bộ an toàn.', sections: [
+      { id: 'open', title: 'Mở xưởng và xác nhận mô hình', paragraphs: ['Đăng nhập rồi mở /vi/console/studio. Xưởng đọc mô hình và khả năng giá hiện tại của tài khoản, sau đó liệt kê mô hình hỗ trợ ảnh. Các tùy chọn cuối cùng vẫn phụ thuộc khả năng trực tiếp của mô hình đã chọn.'] },
+      { id: 'key', title: 'Chọn và mở khóa khóa chuyên dụng', paragraphs: ['Xưởng dùng khóa API trong nhóm Image. Chọn khóa hiện có hoặc tạo khóa giới hạn cho mô hình đã chọn. Khóa đầy đủ chỉ nằm trong bộ nhớ của phiên hiện tại và không được lưu cùng dự án.'], tone: 'warning' },
+      { id: 'create', title: 'Tạo hoặc chỉnh sửa ảnh', paragraphs: ['Nhập prompt rồi chọn mô hình, chất lượng, kích thước, nền và số kết quả. Chỉ dùng kích thước tùy chỉnh khi mô hình hỗ trợ rõ ràng. Thêm ảnh tham chiếu PNG, JPG hoặc WebP sẽ gửi yêu cầu chỉnh sửa; không có ảnh tham chiếu sẽ gửi yêu cầu tạo ảnh.'] },
+      { id: 'results', title: 'Tải xuống và dùng lại kết quả', paragraphs: ['Kết quả có thể là dữ liệu Base64 hoặc URL từ xa. Hãy tải ảnh cần giữ hoặc dùng một kết quả làm ảnh tham chiếu tiếp theo. Lần tạo mới sẽ thay thế toàn bộ kết quả đang hiển thị trên vùng làm việc.'] },
+      { id: 'storage', title: 'Hiểu phạm vi lưu cục bộ', paragraphs: ['Dự án, ảnh tham chiếu, tệp đã giữ và tối đa 50 bản ghi lịch sử gần đây nằm trong IndexedDB của trình duyệt hiện tại, không đồng bộ giữa thiết bị. Kết quả từ xa mà trình duyệt không tải được có thể không được giữ; xóa dữ liệu trang cũng xóa nội dung cục bộ.'], tone: 'note' },
+      { id: 'failures', title: 'Xử lý hủy và đối soát mức dùng', paragraphs: ['Hủy hoặc hết thời gian sẽ ngắt yêu cầu trình duyệt nhưng không chứng minh nhà cung cấp đã dừng xử lý. Khi lỗi hoặc chưa rõ kết quả, tránh thử lại liên tục; trước tiên hãy kiểm tra bản ghi và chi phí trong Nhật ký sử dụng theo thời gian, mô hình hoặc ID yêu cầu.'] },
+    ] },
+    'usage-logs': { title: 'Nhật ký sử dụng', description: 'Lọc sự kiện tài khoản thực, đối soát token, chi phí, thời lượng và định tuyến, đồng thời chuẩn bị bằng chứng hỗ trợ an toàn.', sections: [
+      { id: 'open', title: 'Bắt đầu từ thời gian và ID yêu cầu', paragraphs: ['Đăng nhập rồi mở /vi/console/usage-logs. Trang tải nhật ký và thống kê hiện tại của tài khoản. Khi kiểm tra một lệnh gọi, hãy giữ thời gian, múi giờ, mô hình, ID yêu cầu và ID yêu cầu thượng nguồn từ phản hồi.'] },
+      { id: 'filters', title: 'Dùng bộ lọc phía máy chủ', paragraphs: ['Lọc theo loại sự kiện, mô hình, nhóm, tên khóa API và 24 giờ, 7 ngày hoặc 30 ngày gần nhất. ID yêu cầu phải khớp chính xác. Ô tìm kiếm từ chối giá trị giống thông tin xác thực và URL để giảm rò rỉ.'], bullets: ['Loại sự kiện gồm nạp tiền, sử dụng, quản lý, hệ thống, lỗi, hoàn tiền và đăng nhập.', 'Đổi điều kiện sẽ tải lại danh sách từ trang đầu.'] },
+      { id: 'statistics', title: 'Đọc dải thống kê chính xác', paragraphs: ['Dải này hiển thị chi phí, số bản ghi, token đầu vào, đầu ra và bộ nhớ đệm; quota từ máy chủ được đổi sang USD. API thống kê không nhận bộ lọc ID yêu cầu nên trang không hiển thị thống kê lọc dễ gây hiểu nhầm cho truy vấn đó. Tổng token quét tối đa 100 trang, mỗi trang 100 bản ghi và sẽ ghi rõ là một phần khi chạm giới hạn.'], tone: 'note' },
+      { id: 'fields', title: 'Đọc hàng và chi tiết', paragraphs: ['Mỗi hàng có thời gian, loại, nhóm, tên khóa, mô hình, trạng thái streaming, token, chi phí và thời lượng. Chi tiết bổ sung ID yêu cầu và ngữ cảnh giá khi có. Trường thiếu hoặc bị che được hiển thị rõ là dữ liệu một phần.'] },
+      { id: 'refresh', title: 'Làm mới và chuyển trang', paragraphs: ['Làm mới sẽ truy vấn lại máy chủ. Danh sách có 20 bản ghi mỗi trang với nút trang trước và sau. Trang này không cung cấp xuất CSV hoặc JSON.'] },
+      { id: 'support', title: 'Phân loại kết quả và liên hệ hỗ trợ', paragraphs: ['Đọc lỗi cùng trạng thái HTTP, thời lượng và chi tiết. Việc hủy hoặc hết thời gian ở máy khách không có nghĩa thượng nguồn chưa chạy; nhật ký và hóa đơn là căn cứ cuối cùng. Khi liên hệ hỗ trợ, gửi thời gian và múi giờ, mô hình, ID, trạng thái; không gửi khóa API đầy đủ, prompt hoặc nội dung nhạy cảm.'], tone: 'warning' },
+    ] },
+  },
+}
+
 type FieldDescriptionId =
   | 'model' | 'messages' | 'input' | 'stream' | 'temperature' | 'maxTokens' | 'tools'
   | 'prompt' | 'count' | 'size' | 'quality' | 'background' | 'image' | 'mask'
@@ -647,7 +779,8 @@ export function getPageCopy(locale: DocsLocale, id: PageId): GuideCopy {
     const api = apiDefinitions[id as ApiPageId]
     return { title: api.title[locale], description: api.summary[locale], sections: [] }
   }
-  return guideCopy[locale][id as GuidePageId]
+  if (id === 'image-studio' || id === 'usage-logs') return productGuideCopy[locale][id]
+  return guideCopy[locale][id as CoreGuidePageId]
 }
 
 export function getFieldDescription(locale: DocsLocale, id: FieldDescriptionId): string {

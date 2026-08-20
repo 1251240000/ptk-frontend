@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./public": "./src/public.ts",
     "./public-config": "./src/public-config.ts",
-    "./public-ui": "./src/public-ui.ts"
+    "./public-ui": "./src/public-ui.ts",
+    "./public-home-copy": "./src/public-home-copy.ts"
   },
   "dependencies": {
     "@partokens/i18n": "workspace:*"

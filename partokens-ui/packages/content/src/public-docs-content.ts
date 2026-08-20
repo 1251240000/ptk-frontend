@@ -1,3 +1,4 @@
+import type { AppLocale } from '@partokens/i18n'
 import type { DocsItemId } from './public-docs-copy'
 
 export type DocsCalloutTone = 'info' | 'warning' | 'success'
@@ -36,11 +37,13 @@ const firstRequestSamples: DocsCodeSample[] = [
   {
     language: 'shell',
     label: 'Shell / cURL',
-    code: `curl https://partokens.com/v1/chat/completions \\
+    code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+
+curl --fail-with-body https://partokens.com/v1/chat/completions \\
   -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "your-model",
+    "model": "<YOUR_MODEL_ID>",
     "messages": [
       {"role": "user", "content": "用一句话介绍 Partokens"}
     ]
@@ -49,7 +52,8 @@ const firstRequestSamples: DocsCodeSample[] = [
   {
     language: 'javascript',
     label: 'JavaScript',
-    code: `import OpenAI from "openai";
+    code: `// PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" node example.mjs
+import OpenAI from "openai";
 
 const client = new OpenAI({
   apiKey: process.env.PARTOKENS_API_KEY,
@@ -57,18 +61,21 @@ const client = new OpenAI({
 });
 
 const response = await client.chat.completions.create({
-  model: "your-model",
+  model: "<YOUR_MODEL_ID>",
   messages: [
     { role: "user", content: "用一句话介绍 Partokens" },
   ],
 });
 
-console.log(response.choices[0]?.message?.content);`,
+const text = response.choices[0]?.message?.content;
+if (!text) throw new Error("响应中没有聊天文本");
+console.log(text);`,
   },
   {
     language: 'python',
     label: 'Python',
-    code: `import os
+    code: `# PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" python example.py
+import os
 from openai import OpenAI
 
 client = OpenAI(
@@ -77,55 +84,62 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="your-model",
+    model="<YOUR_MODEL_ID>",
     messages=[
         {"role": "user", "content": "用一句话介绍 Partokens"},
     ],
 )
 
-print(response.choices[0].message.content)`,
+text = response.choices[0].message.content
+if not text:
+    raise RuntimeError("响应中没有聊天文本")
+print(text)`,
   },
 ]
 
-const chatSamples: DocsCodeSample[] = [
+const firstRequestSamplesEn: DocsCodeSample[] = [
   {
     language: 'shell',
     label: 'Shell / cURL',
-    code: `curl https://partokens.com/v1/chat/completions \\
+    code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+
+curl --fail-with-body https://partokens.com/v1/chat/completions \\
   -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "your-model",
+    "model": "<YOUR_MODEL_ID>",
     "messages": [
-      {"role": "system", "content": "回答保持简洁。"},
-      {"role": "user", "content": "给我三个 API 接入检查项。"}
+      {"role": "user", "content": "Introduce Partokens in one sentence."}
     ]
   }'`,
   },
   {
     language: 'javascript',
     label: 'JavaScript',
-    code: `import OpenAI from "openai";
+    code: `// PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" node example.mjs
+import OpenAI from "openai";
 
 const client = new OpenAI({
   apiKey: process.env.PARTOKENS_API_KEY,
   baseURL: "https://partokens.com/v1",
 });
 
-const completion = await client.chat.completions.create({
-  model: "your-model",
+const response = await client.chat.completions.create({
+  model: "<YOUR_MODEL_ID>",
   messages: [
-    { role: "system", content: "回答保持简洁。" },
-    { role: "user", content: "给我三个 API 接入检查项。" },
+    { role: "user", content: "Introduce Partokens in one sentence." },
   ],
 });
 
-console.log(completion.choices[0]?.message?.content);`,
+const text = response.choices[0]?.message?.content;
+if (!text) throw new Error("The response contains no chat text");
+console.log(text);`,
   },
   {
     language: 'python',
     label: 'Python',
-    code: `import os
+    code: `# PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" python example.py
+import os
 from openai import OpenAI
 
 client = OpenAI(
@@ -133,30 +147,36 @@ client = OpenAI(
     base_url="https://partokens.com/v1",
 )
 
-completion = client.chat.completions.create(
-    model="your-model",
+response = client.chat.completions.create(
+    model="<YOUR_MODEL_ID>",
     messages=[
-        {"role": "system", "content": "回答保持简洁。"},
-        {"role": "user", "content": "给我三个 API 接入检查项。"},
+        {"role": "user", "content": "Introduce Partokens in one sentence."},
     ],
 )
 
-print(completion.choices[0].message.content)`,
+text = response.choices[0].message.content
+if not text:
+    raise RuntimeError("The response contains no chat text")
+print(text)`,
   },
 ]
+
+const chatSamples = firstRequestSamples
+const chatSamplesEn = firstRequestSamplesEn
 
 const imageGenerationSamples: DocsCodeSample[] = [
   {
     language: 'shell',
     label: 'Shell / cURL',
-    code: `set -euo pipefail
+    code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+set -euo pipefail
 
 response="$(curl --silent --show-error --fail-with-body \\
   https://partokens.com/v1/images/generations \\
   -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "your-image-model",
+    "model": "<YOUR_IMAGE_MODEL_ID>",
     "prompt": "一枚放在白色桌面上的玻璃纸镇，柔和自然光"
   }')"
 
@@ -171,7 +191,8 @@ fi`,
   {
     language: 'javascript',
     label: 'JavaScript',
-    code: `import { writeFile } from "node:fs/promises";
+    code: `// PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" node example.mjs
+import { writeFile } from "node:fs/promises";
 import OpenAI from "openai";
 
 const client = new OpenAI({
@@ -180,7 +201,7 @@ const client = new OpenAI({
 });
 
 const result = await client.images.generate({
-  model: "your-image-model",
+  model: "<YOUR_IMAGE_MODEL_ID>",
   prompt: "一枚放在白色桌面上的玻璃纸镇，柔和自然光",
 });
 
@@ -200,7 +221,8 @@ if (image.url) {
   {
     language: 'python',
     label: 'Python',
-    code: `import base64
+    code: `# PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" python example.py
+import base64
 import os
 from urllib.request import urlopen
 from openai import OpenAI
@@ -211,7 +233,7 @@ client = OpenAI(
 )
 
 result = client.images.generate(
-    model="your-image-model",
+    model="<YOUR_IMAGE_MODEL_ID>",
     prompt="一枚放在白色桌面上的玻璃纸镇，柔和自然光",
 )
 
@@ -226,6 +248,96 @@ elif image.b64_json:
     content = base64.b64decode(image.b64_json, validate=True)
 else:
     raise RuntimeError("响应既没有 url，也没有 b64_json")
+
+with open("image-result", "wb") as output:
+    output.write(content)`,
+  },
+]
+
+const imageGenerationSamplesEn: DocsCodeSample[] = [
+  {
+    language: 'shell',
+    label: 'Shell / cURL',
+    code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+set -euo pipefail
+
+response="$(curl --silent --show-error --fail-with-body \\
+  https://partokens.com/v1/images/generations \\
+  -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "<YOUR_IMAGE_MODEL_ID>",
+    "prompt": "A glass paperweight on a white table in soft natural light"
+  }')"
+
+image_url="$(printf '%s' "$response" | jq -r '.data[0].url // empty')"
+if [ -n "$image_url" ]; then
+  curl --fail --location "$image_url" --output image-result
+else
+  printf '%s' "$response" | jq -er '.data[0].b64_json' \\
+    | openssl base64 -d -A > image-result
+fi`,
+  },
+  {
+    language: 'javascript',
+    label: 'JavaScript',
+    code: `// PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" node example.mjs
+import { writeFile } from "node:fs/promises";
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.PARTOKENS_API_KEY,
+  baseURL: "https://partokens.com/v1",
+});
+
+const result = await client.images.generate({
+  model: "<YOUR_IMAGE_MODEL_ID>",
+  prompt: "A glass paperweight on a white table in soft natural light",
+});
+
+const image = result.data?.[0];
+if (!image) throw new Error("The response contains no image result");
+
+if (image.url) {
+  const download = await fetch(image.url);
+  if (!download.ok) throw new Error("Download failed: " + download.status);
+  await writeFile("image-result", Buffer.from(await download.arrayBuffer()));
+} else if (image.b64_json) {
+  await writeFile("image-result", Buffer.from(image.b64_json, "base64"));
+} else {
+  throw new Error("The response contains neither url nor b64_json");
+}`,
+  },
+  {
+    language: 'python',
+    label: 'Python',
+    code: `# PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" python example.py
+import base64
+import os
+from urllib.request import urlopen
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["PARTOKENS_API_KEY"],
+    base_url="https://partokens.com/v1",
+)
+
+result = client.images.generate(
+    model="<YOUR_IMAGE_MODEL_ID>",
+    prompt="A glass paperweight on a white table in soft natural light",
+)
+
+if not result.data:
+    raise RuntimeError("The response contains no image result")
+
+image = result.data[0]
+if image.url:
+    with urlopen(image.url) as download:
+        content = download.read()
+elif image.b64_json:
+    content = base64.b64decode(image.b64_json, validate=True)
+else:
+    raise RuntimeError("The response contains neither url nor b64_json")
 
 with open("image-result", "wb") as output:
     output.write(content)`,
@@ -339,153 +451,47 @@ const modelsApiSamples: DocsCodeSample[] = [
   {
     language: 'shell',
     label: 'Shell / cURL + jq',
-    code: `set -u
-: "\${PARTOKENS_API_KEY:?请先设置 PARTOKENS_API_KEY}"
+    code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+set -o pipefail
 
-body_file="$(mktemp)"
-headers_file="$(mktemp)"
-trap 'rm -f "$body_file" "$headers_file"' EXIT
-
-if ! status="$(curl --silent --show-error \\
-  --output "$body_file" \\
-  --dump-header "$headers_file" \\
-  --write-out "%{http_code}" \\
+curl --silent --show-error --fail-with-body \\
   https://partokens.com/v1/models \\
-  -H "Authorization: Bearer $PARTOKENS_API_KEY")"; then
-  printf '%s\n' "网络请求失败；API 密钥未写入日志" >&2
-  exit 1
-fi
-
-request_id="$(tr -d '\r' < "$headers_file" \\
-  | sed -n 's/^[Xx]-[Oo]neapi-[Rr]equest-[Ii]d:[[:space:]]*//p' \\
-  | tail -n 1)"
-
-if ! jq -e 'type == "object"' "$body_file" >/dev/null 2>&1; then
-  printf 'HTTP %s 返回了非 JSON 响应，请求 ID %s\n' \\
-    "$status" "\${request_id:-未返回}" >&2
-  exit 1
-fi
-
-if [ "$status" -lt 200 ] || [ "$status" -ge 300 ] \\
-  || jq -e '.success == false' "$body_file" >/dev/null; then
-  message="$(jq -r '.error.message // .message // "未知错误"' "$body_file")"
-  printf '模型列表失败，HTTP %s，请求 ID %s：%s\n' \\
-    "$status" "\${request_id:-未返回}" "$message" >&2
-  exit 1
-fi
-
-count="$(jq '.data | if type == "array" then length else 0 end' "$body_file")"
-if [ "$count" -eq 0 ]; then
-  printf '%s\n' "账户当前没有返回可用模型" >&2
-  exit 1
-fi
-
-jq -r '.data[]?.id | select(type == "string" and length > 0)' "$body_file"`,
+  -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
+  | jq -er '.data[].id'`,
   },
   {
     language: 'javascript',
-    label: 'JavaScript / Node.js',
-    code: `const apiKey = process.env.PARTOKENS_API_KEY;
-if (!apiKey) throw new Error("请先设置 PARTOKENS_API_KEY");
+    label: 'JavaScript',
+    code: `// PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" node example.mjs
+import OpenAI from "openai";
 
-try {
-  const response = await fetch("https://partokens.com/v1/models", {
-    headers: { Authorization: "Bearer " + apiKey },
-  });
-  const requestId =
-    response.headers.get("x-oneapi-request-id") ?? "未返回";
+const client = new OpenAI({
+  apiKey: process.env.PARTOKENS_API_KEY,
+  baseURL: "https://partokens.com/v1",
+});
 
-  let body;
-  try {
-    body = await response.json();
-  } catch {
-    throw new Error(
-      "HTTP " + response.status + " 返回了非 JSON 响应，请求 ID " + requestId,
-    );
-  }
-
-  if (!response.ok || body?.success === false) {
-    const message = body?.error?.message ?? body?.message ?? "未知错误";
-    throw new Error(
-      "HTTP " + response.status + "，请求 ID " + requestId + "：" + message,
-    );
-  }
-
-  const models = Array.isArray(body?.data) ? body.data : [];
-  const ids = models
-    .map((item) => item?.id)
-    .filter((id) => typeof id === "string" && id.length > 0);
-  if (ids.length === 0) throw new Error("账户当前没有返回可用模型");
-
-  for (const id of ids) console.log(id);
-} catch (error) {
-  console.error(error instanceof Error ? error.message : "未知错误");
-  process.exitCode = 1;
-}`,
+const result = await client.models.list();
+for (const model of result.data) console.log(model.id);`,
   },
   {
     language: 'python',
-    label: 'Python 标准库',
-    code: `import json
+    label: 'Python',
+    code: `# PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" python example.py
 import os
-import sys
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from openai import OpenAI
 
-api_key = os.environ.get("PARTOKENS_API_KEY")
-if not api_key:
-    raise RuntimeError("请先设置 PARTOKENS_API_KEY")
-
-request = Request(
-    "https://partokens.com/v1/models",
-    headers={"Authorization": f"Bearer {api_key}"},
+client = OpenAI(
+    api_key=os.environ["PARTOKENS_API_KEY"],
+    base_url="https://partokens.com/v1",
 )
 
-try:
-    with urlopen(request, timeout=30) as response:
-        request_id = response.headers.get("X-Oneapi-Request-Id", "未返回")
-        payload = json.load(response)
-except HTTPError as error:
-    request_id = error.headers.get("X-Oneapi-Request-Id", "未返回")
-    try:
-        payload = json.loads(error.read().decode("utf-8"))
-        message = payload.get("error", {}).get("message") or payload.get("message")
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        message = "非 JSON 错误响应"
-    print(
-        f"模型列表失败，HTTP {error.code}，请求 ID {request_id}："
-        f"{message or '未知错误'}",
-        file=sys.stderr,
-    )
-    raise SystemExit(1) from error
-except URLError as error:
-    print(f"无法连接 Partokens：{error.reason}", file=sys.stderr)
-    raise SystemExit(1) from error
-except json.JSONDecodeError as error:
-    print(f"响应不是有效 JSON：{error}", file=sys.stderr)
-    raise SystemExit(1) from error
-
-if payload.get("success") is False:
-    print(
-        f"模型列表失败，请求 ID {request_id}："
-        f"{payload.get('message', '未知错误')}",
-        file=sys.stderr,
-    )
-    raise SystemExit(1)
-
-models = payload.get("data")
-ids = [
-    item.get("id")
-    for item in models if isinstance(item, dict) and item.get("id")
-] if isinstance(models, list) else []
-if not ids:
-    print("账户当前没有返回可用模型", file=sys.stderr)
-    raise SystemExit(1)
-
-for model_id in ids:
-    print(model_id)`,
+result = client.models.list()
+for model in result.data:
+    print(model.id)`,
   },
 ]
+
+const modelsApiSamplesEn = modelsApiSamples
 
 export const completedDocsOrder: DocsItemId[] = [
   'welcome',
@@ -542,7 +548,7 @@ export const zhCnDocsDocuments: Partial<Record<DocsItemId, DocsDocument>> = {
         title: '如何理解本文档',
         blocks: [
           { type: 'paragraph', text: '文档负责说明已确认的入口、通用调用方式和客户端示例。账户中的可用模型、价格以及具体参数支持情况属于动态信息。' },
-          { type: 'callout', tone: 'warning', title: '以实时配置为准', body: '模型、价格、限额与可用性以账户实时配置和服务端实际响应为准；文档不会把尚未确认的值写成固定承诺。' },
+          { type: 'callout', tone: 'warning', title: '以实时配置为准', body: '模型、价格、限额与可用性以账户实时配置和服务端实际响应为准。' },
         ],
       },
       {
@@ -552,7 +558,7 @@ export const zhCnDocsDocuments: Partial<Record<DocsItemId, DocsDocument>> = {
           { type: 'table', columns: ['当前目标', '建议文档'], rows: [
             ['完成最小接入', '“Partokens 是什么” → “API 密钥管理” → “模型与定价” → “快速开始：完成首次接入”'],
             ['配置现有客户端或 SDK', '“支持的客户端总览” → “SDK 配置”或“Codex 与 CLI 配置”'],
-            ['使用图像能力', '“生图工作台”用于理解控制台交互；“图像生成 API”用于代码接入'],
+            ['使用图像能力', '“生图工作台”用于控制台生成与编辑；“图像生成 API”用于代码接入'],
             ['定位请求与结算', '“连接、限额与重试” → “使用日志”'],
             ['自助排查后提交问题', '“常见问题” → “联系支持”'],
           ] },
@@ -600,17 +606,16 @@ export const zhCnDocsDocuments: Partial<Record<DocsItemId, DocsDocument>> = {
               ['具体参数支持', '对应 API 文档与目标模型的实际响应；不根据模型名称或其他兼容服务推断'],
             ],
           },
-          { type: 'callout', tone: 'warning', title: '确认边界', body: '路由存在不代表每个账户或模型都支持同一组能力。提供商路由规则、跨模型参数兼容矩阵和数据保留说明如未在对应文档明确列出，仍待产品或后端确认。' },
+          { type: 'callout', tone: 'warning', title: '按模型能力调用', body: '路由存在不代表每个账户或模型都支持同一组能力。请以账户能力标记和目标模型的实际响应为准。' },
         ],
       },
       {
         id: 'product-surfaces',
-        title: '区分控制台、API 与设计样例',
+        title: '产品入口',
         blocks: [
-          { type: 'table', columns: ['层级', '用途', '判断依据'], rows: [
-            ['控制台', '管理账户、密钥、模型配置，并查看部署中实际提供的工作区与日志入口', '以当前账户界面和服务端返回为准'],
-            ['OpenAI 兼容 API', '由应用、SDK 或工具通过 HTTPS 发起请求', '以已确认路由、目标模型实际响应和请求 ID 为准'],
-            ['design-lab 设计样例', '演示界面、交互状态和文档结构', '其中的模型、价格、用量、日志、图片和账户数据都不是真实账户数据或产品承诺'],
+          { type: 'table', columns: ['入口', '用途'], rows: [
+            ['控制台', '管理账户、密钥和模型，使用工作台并查看调用记录'],
+            ['OpenAI 兼容 API', '通过应用、SDK 或工具发起模型请求'],
           ] },
           { type: 'paragraph', text: '准备首次调用时继续阅读“快速开始：完成首次接入”；需要选择具体接入工具时查看“支持的客户端总览”。' },
         ],
@@ -802,7 +807,7 @@ curl https://partokens.com/v1/chat/completions \\
         title: '安全使用建议',
         blocks: [
           { type: 'list', items: ['不要把 API 密钥提交到 Git 仓库或粘贴到公开日志。', '不要在浏览器前端、移动端安装包等可被最终用户读取的代码中嵌入长期密钥。', '为不同环境或应用使用不同密钥，便于定位暴露范围。', '怀疑密钥泄露时，先停止客户端继续使用该密钥，再在控制台执行当前可用的撤销或替换操作。'] },
-          { type: 'callout', tone: 'info', title: '轮换与撤销边界', body: '撤销后的生效时间、密钥数量限制和自动轮换能力尚待产品或后端确认，本页不对这些行为作固定承诺。' },
+          { type: 'callout', tone: 'info', title: '安全轮换密钥', body: '先创建并验证替代密钥，再更新应用配置并撤销旧密钥。可创建数量和有效期以控制台当前设置为准。' },
         ],
       },
       {
@@ -823,7 +828,7 @@ curl https://partokens.com/v1/chat/completions \\
         title: '怀疑密钥泄露时',
         blocks: [
           { type: 'callout', tone: 'warning', title: '先处置，再联系支持', body: '立即停止使用疑似泄露的密钥，并在控制台撤销或替换。之后按准确时间、时区、模型、请求 ID 和使用日志记录核对异常调用；不要把完整密钥发送给任何支持渠道。' },
-          { type: 'table', columns: ['后续目标', '对应文档'], rows: [
+          { type: 'table', columns: ['目标', '对应文档'], rows: [
             ['验证新密钥和最小请求', '“快速开始：完成首次接入”与“模型列表 API”'],
             ['核对异常请求和额度变化', '“使用日志”与“模型与定价”'],
             ['准备脱敏材料并提交问题', '“联系支持”'],
@@ -844,7 +849,7 @@ curl https://partokens.com/v1/chat/completions \\
           { type: 'paragraph', text: '账户可以充值余额，也可以用余额购买套餐。模型请求产生的用量会按照账户的计费偏好，从可用套餐额度或余额中扣减；两者都不足时请求不会透支执行。' },
           { type: 'table', columns: ['概念', '作用', '已确认边界'], rows: [
             ['账户余额', '可用于模型调用，也可用于购买套餐', '不会周期性重置；不足时不能透支'],
-            ['充值', '增加账户余额', '具体渠道、支付方式与到账规则待产品或后端确认'],
+            ['充值', '增加账户余额', '使用控制台提供的渠道，并在提交前确认金额与到账说明'],
             ['套餐', '购买后创建一份有开始和结束时间的套餐实例', 'Partokens 套餐有效期为一个月，过期后失效'],
             ['套餐额度', '套餐实例中的总额度减去已用额度', '不会在有效期内周期性重置，也不会延续到过期后'],
             ['模型用量', '一次模型调用对应的计费用量', '以账户实时价格、服务端结算和使用记录为准'],
@@ -862,7 +867,7 @@ curl https://partokens.com/v1/chat/completions \\
             ['`subscription_only`', '只使用适用的有效套餐，不回退到账户余额'],
             ['`wallet_only`', '只使用账户余额，不消耗套餐额度'],
           ] },
-          { type: 'callout', tone: 'warning', title: '余额回退仍待确认', body: '`subscription_first` 下是否为 Partokens 账户开启 `allow_wallet_overflow`，以及 `wallet_first` 的精确回退条件，仍待后端确认。不要仅凭界面选项推断某次请求会自动切换来源。' },
+          { type: 'callout', tone: 'warning', title: '确认当前计费偏好', body: '套餐与余额之间是否回退取决于账户当前设置和可用额度。发送请求前，请在控制台确认计费偏好。' },
         ],
       },
       {
@@ -892,8 +897,7 @@ curl https://partokens.com/v1/chat/completions \\
             { title: '设置并确认计费偏好', body: '在账户设置中核对套餐优先、余额优先或仅使用单一来源的选择，并保存当前界面支持的选项。' },
             { title: '核对模型用量', body: '完成请求后，在使用记录中按请求时间和模型筛选，对照计费用量以及余额或套餐已用额度的变化。' },
           ] },
-          { type: 'callout', tone: 'warning', title: '设计样例不是真实账单', body: 'design-lab 展示的是已确认的产品能力，但其中的金额、套餐额度、请求记录和模型价格都是设计样例，不代表你的真实账户数据，也不构成价格承诺。' },
-          { type: 'callout', tone: 'warning', title: '待产品或后端确认', body: '充值渠道、支付方式、退款规则、套餐具体价格、订单状态流转以及部分页面名称尚未确认，请以正式控制台和后续公告为准。' },
+          { type: 'callout', tone: 'info', title: '以控制台记录为准', body: '充值金额、套餐额度、订单状态和实际扣减以当前账户页面与使用记录为准。' },
         ],
       },
     ],
@@ -908,7 +912,7 @@ curl https://partokens.com/v1/chat/completions \\
         title: '模型和价格属于实时账户配置',
         blocks: [
           { type: 'paragraph', text: 'Partokens 不在文档中维护固定模型清单或固定价格表。可见模型、密钥权限、可用路由、支持的 API、价格和额度状态都会随账户与服务端配置变化，应在调用前查看当前账户。' },
-          { type: 'callout', tone: 'warning', title: 'design-lab 仅是设计样例', body: 'design-lab 中显示的模型名称、模型价格、货币符号、余额、套餐额度、输入输出用量和请求记录全部是设计样例，不代表真实账户数据，也不构成 Partokens 的价格或可用性承诺。' },
+          { type: 'callout', tone: 'info', title: '调用前重新确认', body: '模型能力、价格和可用性可能调整。发送请求前，请查看当前账户中的最新信息。' },
         ],
       },
       {
@@ -936,7 +940,7 @@ curl https://partokens.com/v1/chat/completions \\
             ['模型支持某个 API', '账户元数据或实际响应表明该模型支持目标端点类型', '不代表同名模型支持其他 API，也不代表全部高级参数可用'],
             ['模型有可用路由', '某次真实请求在当时成功分配到服务端路由', '不构成未来持续可用或固定价格承诺'],
           ] },
-          { type: 'callout', tone: 'warning', title: '不要从名称猜能力', body: '不能仅根据模型名称推断上下文长度、图像能力、工具调用能力、参数支持、价格或可用性。完整上下文与参数兼容矩阵仍待产品或后端确认。' },
+          { type: 'callout', tone: 'warning', title: '不要从名称猜能力', body: '不能仅根据模型名称推断上下文长度、图像能力、工具调用能力、参数支持、价格或可用性。请查看账户中的能力标记，并用最小请求验证。' },
         ],
       },
       {
@@ -949,10 +953,10 @@ curl https://partokens.com/v1/chat/completions \\
             ['`completion_tokens`', '文本请求的输出用量记录', '控制台使用记录可展示输出用量；具体计量语义以目标 API 和服务端为准'],
             ['`model_ratio` / `completion_ratio`', '通用后端可用于输入与输出的计费倍率', '只有账户界面实际展示并启用时才对当前账户有意义；不在文档中给出固定倍率'],
             ['`model_price` / `quota_type`', '通用后端可表达按次价格或按用量模式', 'Partokens 各模型采用的模式待账户实时配置确认'],
-            ['`quota`', '使用记录中的服务端最终结算额度', '可用于核对单次请求；显示单位、换算关系和精度待产品或后端确认'],
+            ['`quota`', '使用记录中的服务端最终结算额度', '用于核对单次请求；金额与精度以控制台展示为准'],
             ['`model_name` / `request_id`', '把结算记录关联到模型与请求', '与请求时间、HTTP 响应头一起用于排查和账单核对'],
           ] },
-          { type: 'callout', tone: 'warning', title: '待产品或后端确认', body: '价格字段的对外命名、货币或额度单位、倍率是否向用户展示、结算换算关系、舍入精度和最低收费均未形成可写入文档的 Partokens 长期契约。不要从 design-lab 的货币符号或小数位推断真实规则。' },
+          { type: 'callout', tone: 'info', title: '以最终结算为准', body: '调用前显示的价格用于选择模型，实际扣减以账户使用记录和服务端最终结算为准。' },
         ],
       },
       {
@@ -1131,411 +1135,194 @@ export PARTOKENS_MODEL="your-model"` }] },
   },
   'image-studio': {
     id: 'image-studio',
-    summary: '按当前控制台界面完成一次生图工作台操作，同时分清前端设计样例、浏览器本地状态、Image API 请求与服务端使用记录。',
-    prerequisites: ['可以进入 Partokens 控制台', '准备从账户实时配置确认支持图像生成的模型', '已了解生成请求可能产生用量，且超时不代表服务端未执行'],
+    summary: '在控制台生成或编辑图像，并管理项目、参考图与生成结果。',
     sections: [
       {
-        id: 'open-studio',
-        title: '从控制台进入生图工作台',
+        id: 'start',
+        title: '开始生成',
         blocks: [
           { type: 'steps', items: [
-            { title: '打开控制台', body: '进入控制台后，在当前侧栏的 `Workspace` 分组找到 `Image studio`。' },
-            { title: '确认地址', body: '当前 design-lab 使用 `#console-studio` hash 路由；刷新该地址仍会回到生图工作台。' },
-            { title: '先确认界面性质', body: '当前页面是可交互的设计样例，不会读取真实账户模型，也不会向 Partokens 或上游发出图像生成请求。' },
+            { title: '打开生图工作台', body: '进入控制台，在工作区中选择“生图工作台”。' },
+            { title: '选择模型与密钥', body: '选择支持图像能力的模型和 Image 分组 API 密钥；也可以为所选模型创建专用密钥。' },
+            { title: '填写生成内容', body: '输入提示词，并按需要设置质量、尺寸、背景和生成数量。' },
           ] },
-          { type: 'callout', tone: 'warning', title: '当前“生成”不会产生真实图片或费用', body: '源码使用约 1.8 秒的本地计时器和四张内置图片模拟加载、成功与失败状态。以下界面说明用于认识当前交互，不代表生产工作台已经接通后端。' },
+          { type: 'callout', tone: 'info', title: '参数取决于模型', body: '工作台会根据所选模型提供可用选项。不同模型支持的尺寸、质量和背景设置可能不同。' },
         ],
       },
       {
-        id: 'current-controls',
-        title: '当前真实可操作的控件',
+        id: 'reference',
+        title: '使用参考图',
         blocks: [
-          { type: 'table', columns: ['界面控件', '当前可以做什么', '产品边界'], rows: [
-            ['`Prompt`', '输入并编辑提示词；设计页限制为 1200 个字符，空内容时禁用生成', '仅保存在当前 React 页面状态；1200 字符不是 Image API 或模型的长期限制承诺'],
-            ['`Reference image`', '选择、预览、替换或移除本地图片；选择器提示 PNG、JPG、WebP', '浏览器只创建临时 Object URL；文件没有上传，也没有进入生成请求，格式与文件大小支持待产品或后端确认'],
-            ['`Model`', '在三个静态样例名称之间切换', '不是账户实时列表；这些名称只属于设计样例，不能据此判断 Partokens 可用性或图像能力'],
-            ['`Quality`', '在 `Standard` 与 `High` 样例值之间切换', '只改变本地设置对象，不会发送给后端；真实模型支持待确认'],
-            ['`Image size`', '在正方形、横向和纵向三个带尺寸文字的样例项之间切换', '只改变结果占位比例与标签；所示分辨率不是 Partokens 能力承诺'],
-            ['`Number of images`', '选择 1、2、3 或 4，并改变骨架屏与内置结果数量', '只作用于本地模拟；不能作为真实 API 的数量范围或计费规则'],
-            ['`Generate` / `Cancel`', '启动或停止本地计时器；生成期间锁定输入', '`Cancel` 不能取消服务端或上游任务，因为当前没有真实请求'],
-            ['`Retry`', '模拟失败后重新运行本地计时器', '不是可直接照搬到真实生成请求的重试策略'],
-          ] },
-          { type: 'callout', tone: 'info', title: '只从账户实时配置选择模型', body: '生产流程必须从账户当前模型配置或实时模型列表取得精确模型 ID，并单独确认它支持图像生成。不能从名称、厂商前缀或 design-lab 样例猜测模型能力、参数或价格。' },
+          { type: 'paragraph', text: '上传 PNG、JPG 或 WebP 图片后，工作台会根据提示词编辑参考图。未上传参考图时，将直接根据提示词生成新图像；生成结果也可以继续作为参考图。' },
         ],
       },
       {
-        id: 'workflow',
-        title: '按当前界面完成一次工作流',
+        id: 'results',
+        title: '查看与保存结果',
         blocks: [
-          { type: 'steps', items: [
-            { title: '选择或确认模型', body: '在设计页可以切换静态模型项；生产使用前必须改为账户实时模型，并确认目标模型支持图像生成端点。' },
-            { title: '输入提示词', body: '在 `Prompt` 中写入非空描述。不要把示例默认提示词当成已保存的项目内容。' },
-            { title: '添加可选参考内容', body: '当前控件只会在本浏览器预览一张本地图片。它没有上传、编辑或发送能力，正式参考图流程待产品与后端确认。' },
-            { title: '调整现有选项', body: '可操作项只有当前页面展示的 `Model`、`Quality`、`Image size` 和 `Number of images`；这些值目前都是设计状态。页面没有风格、种子、变体或编辑控件。' },
-            { title: '发起生成', body: '点击 `Generate` 后查看加载状态，必要时可点击 `Cancel` 停止本地模拟。真实接入后，发起操作应对应一次明确的 Image API 请求并保留响应头中的请求 ID。' },
-            { title: '查看结果', body: '当前结果区按所选数量显示内置图片，并标出序号和样例尺寸；每次生成会替换当前结果集。' },
-            { title: '整理与下载', body: '当前源码没有结果选择、重排、删除、归档或下载按钮，也没有批次历史。不要把结果网格描述成已完成的整理或下载功能；正式流程待产品确认。' },
-          ] },
+          { type: 'list', items: ['点击结果上的下载操作，将图片保存到本地。', '新任务会替换画布中正在显示的结果，重要图片应及时下载。', '项目、参考图和最近生成记录保存在当前浏览器中，不会自动同步到其他设备。'] },
         ],
       },
       {
-        id: 'state-boundaries',
-        title: '区分工作台、API、本地状态和服务端记录',
+        id: 'security',
+        title: '密钥与异常处理',
         blocks: [
-          { type: 'table', columns: ['层级', '当前已确认行为', '不能据此推断'], rows: [
-            ['工作台交互', '显示表单、加载、取消、失败、重试和结果网格', '不表示已经调用任一真实模型'],
-            ['Image API', 'new-api 注册 `POST /v1/images/generations`，并接收 `model`、`prompt` 及一组可选字段', '路由与 DTO 存在不代表某账户模型支持每个可选参数；工作台当前没有调用该路由'],
-            ['浏览器本地状态', '提示词、选项、临时参考图 URL、状态和结果数组只存在于当前页面内存', '刷新、关闭页面或离开路由后不保证恢复；没有发现 localStorage、IndexedDB 或服务端保存'],
-            ['服务端保存', '真实 API 调用可能按服务端配置形成使用或错误日志', '没有确认画布、提示词、参考图、生成图片或工作台批次会长期保存'],
-            ['设计样例资源', '模型名称、参数、图片和模拟结果随 design-lab 源码提供', '不是真实账户数据、可用模型、价格、用量或生成历史'],
-          ] },
-          { type: 'callout', tone: 'warning', title: '编辑与变体不属于当前工作台合同', body: 'new-api 通用后端还存在图像编辑路由，但当前工作台没有对应请求；图像变体路由在该后端明确为未实现。Partokens 是否启用编辑、参考图或其他图像能力仍待产品或后端确认。' },
-        ],
-      },
-      {
-        id: 'results-and-storage',
-        title: '结果、下载与保存边界',
-        blocks: [
-          { type: 'list', items: [
-            '当前成功结果来自 `/image-studio/` 下的内置 WebP 设计资源，不是模型返回内容。',
-            '结果网格只支持查看；源码没有下载命令、文件名处理、格式识别或保存位置选择。',
-            '新增生成会替换当前结果数组；页面没有批次列表或撤销恢复。',
-            '参考图 Object URL 会在替换、移除或组件卸载时释放；这不是文件持久化。',
-            '正式 Image API 结果可能通过 URL 或 Base64 返回，安全读取方式见“图像生成 API”；不要从工作台样例推断格式、分辨率、文件大小或 URL 有效期。',
-          ] },
-        ],
-      },
-      {
-        id: 'timeouts-and-billing',
-        title: '生成超时后核对执行与结算',
-        blocks: [
-          { type: 'paragraph', text: '真实图像生成可能在客户端等待超时后继续由服务端或上游执行，并可能产生用量。超时只说明客户端没有按时收到完整结果，不能证明请求未到达或未结算。' },
-          { type: 'steps', items: [
-            { title: '先停止无条件重试', body: '保留准确时间、时区、模型 ID、API 路径、HTTP 状态和已有的 `X-Oneapi-Request-Id`。' },
-            { title: '打开使用日志', body: '从控制台 `General > Usage logs` 进入 `#console-logs`，按时间、模型和请求 ID 查找对应记录。当前 design-lab 日志页仍是设计样例，生产查询能力以真实部署为准。' },
-            { title: '核对执行与用量', body: '分别查看日志类型、输入与输出用量、最终 `quota`、服务端耗时和错误信息；有日志不自动等于成功。' },
-            { title: '核对余额或套餐变化', body: '以账户当前余额、套餐状态与服务端最终结算为准；不能用工作台样例金额或数量自行换算。' },
-            { title: '仍无法判断时联系支持', body: '提交脱敏后的请求 ID 与诊断字段，不要发送完整密钥、参考图、大段 Base64 或不必要的完整提示词。' },
-          ] },
-        ],
-      },
-      {
-        id: 'reading-map',
-        title: '继续阅读',
-        blocks: [
-          { type: 'table', columns: ['目标', '对应文档'], rows: [
-            ['直接调用生成端点并读取 URL 或 Base64 结果', '“图像生成 API”'],
-            ['从实时账户配置选择模型并理解最终结算', '“模型与定价”'],
-            ['处理连接、429、5xx、客户端超时和安全重试', '“连接、限额与重试”'],
-            ['按时间、模型和请求 ID 核对执行与额度', '“使用日志”'],
-          ] },
+          { type: 'paragraph', text: '完整 API 密钥只用于当前工作台会话，不会随项目保存。不要在提示词或参考图中提交不必要的敏感信息。' },
+          { type: 'callout', tone: 'warning', title: '取消后先核对使用记录', body: '取消或超时会停止当前浏览器请求，但上游任务可能已经执行。再次生成前，请先在使用日志中核对本次请求。' },
         ],
       },
     ],
   },
   'api-basics': {
     id: 'api-basics',
-    summary: '所有示例都从统一 Base URL 发起 HTTPS JSON 请求，并使用 Bearer API 密钥和账户当前可用的模型名。',
-    prerequisites: ['已创建的 Partokens API 密钥', '一个账户当前可用的模型名称'],
+    summary: '使用 Partokens Base URL 和 Bearer API 密钥发送 HTTPS 请求，并按 HTTP 状态和响应正文处理结果。',
+    prerequisites: ['已创建 Partokens API 密钥', '已从模型列表复制要调用的模型 ID'],
     sections: [
       {
-        id: 'base-url',
-        title: 'Base URL 与路径',
+        id: 'send-request',
+        title: '发送请求',
         blocks: [
-          { type: 'paragraph', text: '将 OpenAI 客户端的基础地址替换为 Partokens 入口。具体资源路径由 SDK 方法或你的 HTTP 请求追加。' },
           { type: 'endpoint', label: 'Base URL', path: 'https://partokens.com/v1' },
-          { type: 'callout', tone: 'info', title: '避免重复 `/v1`', body: 'SDK 的 `baseURL` 或 `base_url` 已包含 `/v1` 时，不要在同一配置中再次追加。' },
+          { type: 'list', items: ['在请求头中发送 `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`。', '带 JSON 正文的请求同时发送 `Content-Type: application/json`。', '不要把 API 密钥写入 URL、客户端代码或日志。'] },
         ],
       },
       {
-        id: 'request-conventions',
-        title: '请求约定',
+        id: 'run-request',
+        title: '运行最小请求',
         blocks: [
-          { type: 'table', columns: ['部分', '用法'], rows: [
-            ['协议', '使用 HTTPS'],
-            ['鉴权', '`Authorization: Bearer <API_KEY>`'],
-            ['请求体', '需要正文的接口使用 JSON'],
-            ['Content-Type', '`application/json`'],
-            ['模型名', '使用账户当前展示的可用模型名'],
-          ] },
-          { type: 'callout', tone: 'warning', title: '参数支持取决于模型', body: '不要仅根据其他 OpenAI 兼容服务或模型名称推断某个高级参数一定可用。先使用对应端点的核心字段，再根据目标模型的实际响应逐项验证可选参数。' },
-        ],
-      },
-      {
-        id: 'minimal-request',
-        title: '最小请求',
-        blocks: [
-          { type: 'paragraph', text: '下面的请求只使用聊天补全所需的核心字段，适合作为连通性检查。' },
+          { type: 'list', items: ['`model`：填写模型列表返回的精确模型 ID。', '`messages`：填写按顺序发送给模型的消息数组。', '`messages[].role`：最小文本请求使用 `user`。', '`messages[].content`：填写非空文本。'] },
           { type: 'code-samples', samples: firstRequestSamples },
         ],
       },
       {
-        id: 'responses-and-failures',
-        title: '响应与失败处理',
+        id: 'read-response',
+        title: '读取响应',
         blocks: [
-          { type: 'table', columns: ['检查层级', '应检查的内容', '为什么'], rows: [
-            ['连接', '是否取得 HTTP 响应；DNS、TLS、代理或客户端超时', '没有状态码时先定位传输层，不能直接归因于 API 业务错误'],
-            ['HTTP', '状态码与 `Retry-After` 等响应头', '2xx、4xx 与 5xx 的处理方式不同；429 应优先遵循服务端等待提示'],
-            ['业务正文', '成功结果，或 `error.code` 与脱敏后的 `error.message`', '有 HTTP 响应不代表正文一定包含可用结果'],
-            ['请求关联', '`X-Oneapi-Request-Id`、准确时间与时区、模型 ID', '用于将客户端现象与服务端记录关联'],
-            ['用量与结算', '使用日志中的输入、输出用量与最终额度', '响应中的 token 用量不应替代服务端最终结算记录'],
-          ] },
-          { type: 'list', items: ['只对可安全重放的请求执行自动重试；遇到 429 时优先遵循 `Retry-After`，其他可重试失败使用带抖动的指数退避。', '客户端超时只表示未按时收到完整结果；生成请求可能已经到达、执行并产生用量，应先查使用日志再决定是否重试。'] },
-          { type: 'callout', tone: 'info', title: '查看完整排查说明', body: '“连接、限额与重试”列出了统一 relay 错误结构、常见 HTTP 状态、最小诊断请求和重试边界。' },
+          { type: 'list', items: ['先检查 HTTP 状态；2xx 表示 HTTP 请求成功。', '解析 JSON 后，按对应接口读取结果字段，例如聊天的 `choices`、图像的 `data` 或模型列表的 `data`。', '非 2xx 响应读取 `error.message`，并在返回时同时记录 `error.code`。'] },
         ],
       },
       {
-        id: 'reading-map',
-        title: '继续阅读',
+        id: 'handle-errors',
+        title: '处理错误',
         blocks: [
-          { type: 'table', columns: ['目标', '对应文档'], rows: [
-            ['实时取得可用模型 ID', '“模型列表 API”'],
-            ['发送和解析聊天补全', '“聊天补全 API”'],
-            ['调用图像生成并处理结果', '“图像生成 API”'],
-            ['处理连接、状态码、限额和重试', '“连接、限额与重试”'],
-            ['按请求 ID 核对用量与结算', '“使用日志”'],
-          ] },
+          { type: 'list', items: ['400：修正 JSON 或请求字段后再发送。', '401 / 403：检查 API 密钥和访问权限；配置未修正前不要重试。', '429：优先等待 `Retry-After` 指定的时间，否则使用带随机抖动的指数退避。', '5xx：在有限次数和总时限内使用指数退避重试。', '网络错误或超时：先确认是否收到 HTTP 响应，再决定是否重试。'] },
+          { type: 'callout', tone: 'warning', title: '安全重试', body: 'GET 请求可以在总时限内重试；聊天和图像 POST 只有在应用可以接受重复结果和重复用量时才自动重试。' },
         ],
       },
     ],
   },
   'models-api': {
     id: 'models-api',
-    summary: '使用 Bearer API 密钥读取当前账户可见的模型列表，检查响应和空列表，并把返回的模型 ID 用于其他 API 的 `model` 字段。',
-    prerequisites: ['已创建且仍有效的 Partokens API 密钥', 'Shell 示例需要 cURL 和 jq；JavaScript 需要支持 `fetch` 的 Node.js；Python 使用标准库'],
+    summary: '读取当前 API 密钥可用的模型列表，并把返回的模型 ID 原样用于其他 API 请求。',
+    prerequisites: ['已创建 Partokens API 密钥', 'Shell 示例需要 cURL 和 jq；JavaScript 与 Python 示例需要 OpenAI SDK'],
     sections: [
       {
-        id: 'request',
-        title: '请求与鉴权',
+        id: 'send-request',
+        title: '发送请求',
         blocks: [
           { type: 'endpoint', method: 'GET', label: 'Models', path: 'https://partokens.com/v1/models' },
-          { type: 'paragraph', text: '该路由在 new-api 中经过令牌鉴权。Partokens 文档统一使用 `Authorization: Bearer <API_KEY>`；请求不需要正文。不要把 API 密钥放在 URL、查询参数或日志中。' },
-          { type: 'callout', tone: 'info', title: '列表与账户和密钥相关', body: '服务端会结合账户分组、密钥模型限制、已启用模型和计费配置生成结果。不同账户或密钥可能看到不同列表。' },
+          { type: 'list', items: ['发送 `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>` 请求头。', '该 GET 请求不需要请求正文。'] },
         ],
       },
       {
-        id: 'response',
-        title: '成功响应结构',
+        id: 'run-request',
+        title: '运行最小请求',
         blocks: [
-          { type: 'code-samples', samples: [{ language: 'shell', label: '当前可观察的 JSON 结构', code: `{
-  "object": "list",
-  "success": true,
-  "data": [
-    {
-      "id": "your-model",
-      "object": "model",
-      "created": 1626777600,
-      "owned_by": "current-route-owner",
-      "supported_endpoint_types": []
-    }
-  ]
-}` }] },
-          { type: 'table', columns: ['位置', '当前字段', '使用建议'], rows: [
-            ['顶层', '`object`', '当前值为 `list`；用于识别列表响应'],
-            ['顶层', '`success`', '当前成功值为 `true`；仍应同时检查 HTTP 状态'],
-            ['顶层', '`data`', '模型条目数组；允许为空，应显式处理空列表'],
-            ['模型条目', '`id`', '模型 ID；这是传给其他 API `model` 字段的核心值'],
-            ['模型条目', '`object`', '当前值为 `model`'],
-            ['模型条目', '`created`', '当前由后端生成的整数时间值，不应据此推断模型发布时间'],
-            ['模型条目', '`owned_by`', '当前路由所有者标识，可能来自后端路由选择，不应作为稳定供应商合同'],
-            ['模型条目', '`supported_endpoint_types`', '当前可观察的端点类型元数据；可能为空，也不保证所有参数可用'],
-          ] },
-          { type: 'callout', tone: 'warning', title: '非稳定字段只描述当前行为', body: '`created`、`owned_by` 和 `supported_endpoint_types` 受后端实现与元数据影响。客户端应优先依赖 `data[].id`，不要把其他字段固化成长期业务规则。' },
-        ],
-      },
-      {
-        id: 'examples',
-        title: 'Shell、JavaScript 与 Python 示例',
-        blocks: [
-          { type: 'paragraph', text: '三个示例都检查网络或 HTTP 错误、读取 `X-Oneapi-Request-Id`、处理 `success: false` 与空数组，并只输出模型 ID。错误日志不会输出 API 密钥。' },
           { type: 'code-samples', samples: modelsApiSamples },
         ],
       },
       {
-        id: 'use-model-id',
-        title: '把模型 ID 用于其他 API',
+        id: 'read-response',
+        title: '读取响应',
         blocks: [
-          { type: 'paragraph', text: '从 `data[].id` 选择一个精确值，原样写入其他请求的 `model` 字段。不要改写大小写、添加供应商前缀或根据名称猜测能力。' },
-          { type: 'code-samples', samples: [{ language: 'shell', label: '在 Chat Completions 中使用返回的 ID', code: `curl https://partokens.com/v1/chat/completions \\
-  -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "your-model-from-v1-models",
-    "messages": [{"role": "user", "content": "Hello"}]
-  }'` }] },
-          { type: 'callout', tone: 'warning', title: '出现在列表中仍不是成功保证', body: '模型出现在列表中，不代表当前请求一定有可用路由、不代表支持所有 API、不代表支持所有参数，也不代表价格固定不变。目标 API、能力、路由和价格仍需分别核对。' },
+          { type: 'list', items: ['`object`：值为 `list` 时表示模型列表。', '`data`：模型对象数组；空数组表示该密钥当前没有可用模型。', '`data[].id`：复制精确值，并写入其他请求的 `model` 字段。'] },
+          { type: 'paragraph', text: '不要改写模型 ID 的大小写，也不要添加或删除前缀。' },
         ],
       },
       {
-        id: 'errors',
-        title: 'HTTP 错误与请求标识',
+        id: 'handle-errors',
+        title: '处理错误',
         blocks: [
-          { type: 'paragraph', text: '全局请求中间件会把请求标识写入 `X-Oneapi-Request-Id` 响应头。鉴权中间件的失败通常返回 OpenAI 风格 `error` 对象；部分内部模型列表失败当前也可能以 HTTP 200 返回 `success: false` 和 `message`，因此示例同时检查 HTTP 状态与正文。' },
-          { type: 'table', columns: ['状态或信号', '常见含义', '处理方式'], rows: [
-            ['401', 'Bearer 密钥缺失、无效或已不可用', '修正或替换密钥后再请求；不要原样重试'],
-            ['403', '账户、IP、分组或密钥权限不允许访问', '检查账户状态和密钥限制；修正权限前不要重试'],
-            ['429', '服务端或边缘限流', '有 `Retry-After` 时遵循它；控制并发并使用带抖动退避'],
-            ['5xx', '服务端、数据库或上游短暂失败', '保留请求 ID；该 GET 请求可在总时限内退避重试'],
-            ['HTTP 200 + `success: false`', '当前模型列表控制器内部读取账户分组失败', '视为失败，记录请求 ID 和 `message` 后联系支持'],
-            ['HTTP 200 + 空 `data`', '当前密钥没有返回可用模型', '检查分组、模型限制、计费配置和账户状态，不要随意猜模型名'],
-          ] },
-          { type: 'callout', tone: 'info', title: '继续使用故障排查文档', body: '“连接、限额与重试”提供 401、403、429、5xx 的统一处理方式、最小诊断请求和支持信息清单。' },
-        ],
-      },
-      {
-        id: 'no-query-contract',
-        title: '没有已确认的查询参数合同',
-        blocks: [
-          { type: 'paragraph', text: '当前 Partokens 入口只确认 `GET /v1/models`。本文不声明分页、筛选、排序或额外查询参数，也不建议客户端根据未记录字段实现增量同步。' },
+          { type: 'list', items: ['401 / 403：检查 API 密钥和访问权限；配置未修正前不要重试。', '429：等待 `Retry-After` 指定的时间，或使用带随机抖动的指数退避。', '5xx、网络错误或超时：在有限次数和总时限内重试。', '2xx + 空 `data`：检查 API 密钥可访问的模型，不要猜测模型 ID。'] },
+          { type: 'paragraph', text: '模型列表是 GET 请求，可以在总时限内安全重试；每次重试都应设置超时并限制次数。' },
         ],
       },
     ],
   },
   'chat-completions': {
     id: 'chat-completions',
-    summary: '使用 `POST /v1/chat/completions` 发送由角色和内容组成的消息列表，并通过 OpenAI 兼容 SDK 读取生成结果。',
-    prerequisites: ['已配置 Partokens API 密钥', '一个支持聊天补全的可用模型名称'],
+    summary: '发送消息数组生成聊天回复，并从 `choices[0].message.content` 读取文本结果。',
+    prerequisites: ['已创建 Partokens API 密钥', '已从模型列表复制支持聊天补全的模型 ID', 'JavaScript 与 Python 示例需要 OpenAI SDK'],
     sections: [
       {
-        id: 'endpoint',
-        title: '请求端点',
+        id: 'send-request',
+        title: '发送请求',
         blocks: [
           { type: 'endpoint', method: 'POST', label: 'Chat Completions', path: 'https://partokens.com/v1/chat/completions' },
-          { type: 'paragraph', text: '使用 SDK 时，把 Base URL 配置为 `https://partokens.com/v1`，然后调用客户端提供的聊天补全方法。' },
+          { type: 'list', items: ['发送 `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>` 请求头。', '发送 `Content-Type: application/json` 请求头。', '使用 SDK 时将 Base URL 设置为 `https://partokens.com/v1`。'] },
         ],
       },
       {
-        id: 'request-body',
-        title: '核心请求字段',
+        id: 'fill-request',
+        title: '填写请求',
         blocks: [
-          { type: 'table', columns: ['字段', '说明'], rows: [
-            ['`model`', '账户当前可用、且支持聊天补全的模型名'],
-            ['`messages`', '按顺序提供给模型的消息数组'],
-            ['`messages[].role`', '示例使用 `system` 和 `user`'],
-            ['`messages[].content`', '该条消息的文本内容'],
-          ] },
-          { type: 'callout', tone: 'info', title: '从核心字段开始', body: '先用 `model` 和 `messages` 完成连通性验证，再按目标模型的实际支持情况增加其他参数。' },
-        ],
-      },
-      {
-        id: 'examples',
-        title: '完整示例',
-        blocks: [
+          { type: 'list', items: ['`model`：填写模型列表返回的精确模型 ID。', '`messages`：填写按顺序发送给模型的消息数组。', '`messages[].role`：最小文本请求使用 `user`。', '`messages[].content`：填写该条消息的非空文本。'] },
           { type: 'code-samples', samples: chatSamples },
-          { type: 'callout', tone: 'success', title: '读取第一条结果', body: '示例使用 OpenAI SDK 的兼容对象读取 `choices[0].message.content`。应用代码仍应处理结果为空或请求失败的情况。' },
         ],
       },
       {
-        id: 'response',
-        title: '读取成功响应',
+        id: 'read-response',
+        title: '读取响应',
         blocks: [
-          { type: 'table', columns: ['字段', '用途与边界'], rows: [
-            ['`id`', '本次聊天补全结果的标识；不要与响应头中的 `X-Oneapi-Request-Id` 混淆'],
-            ['`object`、`created`、`model`', '响应元数据；`model` 可能反映服务端或上游返回值，不应代替请求日志中的关联信息'],
-            ['`choices[]`', '候选结果数组；读取前先检查数组非空'],
-            ['`choices[].message.content`', '常见文本结果位置；应用必须允许内容为空或不是单一文本的情况'],
-            ['`choices[].finish_reason`', '结果结束原因；不能只凭该字段判断计费或服务端结算'],
-            ['`usage.prompt_tokens`、`usage.completion_tokens`、`usage.total_tokens`', '响应包含 `usage` 时可用于理解本次 token 用量；最终额度仍以服务端结算与使用日志为准'],
-          ] },
-          { type: 'callout', tone: 'info', title: '保留两类标识', body: '响应 JSON 的 `id` 标识生成结果；`X-Oneapi-Request-Id` 用于关联 Partokens 请求链路。排查问题时优先保留请求 ID，并可同时提供脱敏后的结果 ID。' },
+          { type: 'list', items: ['`choices[0].message.content`：读取第一条候选的文本回复。', '`choices[0].finish_reason`：读取该候选的结束原因。', '`usage`：响应返回时可读取输入、输出和总 Token 数。'] },
+          { type: 'paragraph', text: '如果 `choices` 为空或第一条结果没有文本，应将该响应视为没有可用聊天结果。' },
         ],
       },
       {
-        id: 'streaming',
-        title: '流式响应与高级参数',
+        id: 'handle-errors',
+        title: '处理错误',
         blocks: [
-          { type: 'paragraph', text: '不同模型可能支持不同的上下文长度、采样参数、工具调用或多模态输入。' },
-          { type: 'callout', tone: 'warning', title: '按目标模型逐项验证', body: 'Partokens 不对所有模型统一承诺流式响应、分块细节或高级参数。先完成非流式最小请求，再依据账户实时配置、对应 API 说明和目标模型实际响应验证；尚未确认的能力视为待产品或后端确认。' },
-        ],
-      },
-      {
-        id: 'failures-and-usage',
-        title: '失败、超时与用量核对',
-        blocks: [
-          { type: 'list', items: [
-            '同时检查 HTTP 状态和错误正文；保留 `error.code`、脱敏后的 `error.message` 与 `X-Oneapi-Request-Id`。',
-            '客户端超时不证明服务端未执行。不要无条件重复生成，应先按准确时间、时区、模型和请求 ID 查询使用日志。',
-            '使用日志存在不自动等于请求成功；还要结合日志类型、HTTP 或业务结果、输入输出用量、最终额度和错误信息。',
-            '响应中的 `usage` 用于理解 token 用量，余额、套餐变化和最终费用以账户状态与服务端结算记录为准。',
-          ] },
-          { type: 'table', columns: ['接下来要做什么', '对应文档'], rows: [
-            ['确认通用请求、响应与重试边界', '“API 基础”与“连接、限额与重试”'],
-            ['核对模型可用性与价格', '“模型列表 API”与“模型与定价”'],
-            ['按请求 ID 核对执行和结算', '“使用日志”'],
-          ] },
+          { type: 'list', items: ['400：根据 `error.message` 修正 `model`、`messages` 或消息字段。', '401 / 403：检查 API 密钥和访问权限；配置未修正前不要重试。', '429：优先等待 `Retry-After` 指定的时间，否则使用带随机抖动的指数退避。', '5xx：在有限次数和总时限内使用指数退避重试。', '网络错误或超时：请求可能已经执行；不要立即重复发送。'] },
+          { type: 'callout', tone: 'warning', title: '避免重复生成', body: '只有在应用可以接受重复回复和重复用量，并且已设置超时和最大尝试次数时，才自动重试聊天请求。' },
         ],
       },
     ],
   },
   'image-api': {
     id: 'image-api',
-    summary: '通过 OpenAI 兼容的图像生成端点提交提示词，并安全处理 URL 或 Base64 图片结果。',
-    prerequisites: ['已配置 Partokens API 密钥', '已从账户实时配置确认一个支持图像生成的模型'],
+    summary: '发送提示词生成图像，并从 `data[0].url` 或 `data[0].b64_json` 保存结果。',
+    prerequisites: ['已创建 Partokens API 密钥', '已从模型列表复制支持图像生成的模型 ID', 'Shell 示例需要 cURL、jq 和 OpenSSL；JavaScript 与 Python 示例需要 OpenAI SDK'],
     sections: [
       {
-        id: 'endpoint',
-        title: '请求端点',
+        id: 'send-request',
+        title: '发送请求',
         blocks: [
           { type: 'endpoint', method: 'POST', label: 'Images Generations', path: 'https://partokens.com/v1/images/generations' },
-          { type: 'paragraph', text: '接口采用标准 OpenAI 兼容调用方式。示例中的 `your-image-model` 必须替换为 Partokens 账户当前可用、且支持图像生成的模型名。' },
+          { type: 'list', items: ['发送 `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>` 请求头。', '发送 `Content-Type: application/json` 请求头。', '使用 SDK 时将 Base URL 设置为 `https://partokens.com/v1`。'] },
         ],
       },
       {
-        id: 'request-fields',
-        title: '请求字段与兼容边界',
+        id: 'fill-request',
+        title: '填写请求',
         blocks: [
-          { type: 'table', columns: ['字段', '说明'], rows: [
-            ['`model`', '图像生成模型名；从账户实时模型列表选择'],
-            ['`prompt`', '要生成图片的核心文本描述；应提供非空内容'],
-            ['其他可选字段', '后端 DTO 可接收 `n`、`size`、`quality`、`response_format`、`style`、`user`、`background`、`output_format`、`stream` 等字段'],
-          ] },
-          { type: 'callout', tone: 'warning', title: '参数兼容范围待后端确认', body: '可选字段是否生效取决于目标模型、上游协议和适配器。官方接口将 `prompt` 标为必填，但 Partokens 本地解析路径对空值的最终错误行为仍待后端确认。当前没有对尺寸、质量、数量、返回格式或所有可选字段作全局保证；请从非空的 `model` 与 `prompt` 开始，并根据实际响应逐项验证。' },
-        ],
-      },
-      {
-        id: 'examples',
-        title: 'Shell、JavaScript 与 Python 示例',
-        blocks: [
+          { type: 'list', items: ['`model`：填写模型列表返回的精确图像模型 ID。', '`prompt`：填写要生成图像的非空文本描述。'] },
           { type: 'code-samples', samples: imageGenerationSamples },
-          { type: 'callout', tone: 'info', title: '保存时不要猜文件格式', body: '示例故意保存为无扩展名的 `image-result`。只有在响应、下载头或实际文件内容确认格式后，再添加正确扩展名。' },
         ],
       },
       {
-        id: 'response',
-        title: '读取响应结果',
+        id: 'read-response',
+        title: '读取响应',
         blocks: [
-          { type: 'paragraph', text: '成功响应包含 `created` 和 `data`。每个图片条目可能提供 `url`、`b64_json` 或 `revised_prompt` 中的一部分，不应假设这些字段会同时出现。部分上游还可能返回用量字段。' },
-          { type: 'code-samples', samples: [{ language: 'javascript', label: '响应结构示意', code: `{
-  "created": 0,
-  "data": [
-    {
-      "url": "https://...",
-      "b64_json": "...",
-      "revised_prompt": "..."
-    }
-  ]
-}` }] },
-          { type: 'list', items: ['先确认 `data` 非空，再读取第一项。', '存在 `url` 时检查下载 HTTP 状态，并处理重定向。', '不存在 URL 但存在 `b64_json` 时，执行严格的 Base64 解码并以二进制写入。', '两种结果都不存在时视为不可用响应，保留脱敏后的正文和请求标识用于排查。'] },
+          { type: 'list', items: ['先确认 `data` 数组不为空。', '存在 `data[0].url` 时下载该 URL，并检查下载请求的 HTTP 状态。', '不存在 URL 但存在 `data[0].b64_json` 时，将 Base64 解码为二进制文件。', '两种字段都不存在时，将响应视为没有可用图像结果。'] },
+          { type: 'paragraph', text: '不要把完整 Base64 图片数据写入应用日志。' },
         ],
       },
       {
-        id: 'download-boundary',
-        title: '下载、临时保存与错误边界',
+        id: 'handle-errors',
+        title: '处理错误',
         blocks: [
-          { type: 'paragraph', text: 'URL 的有效期尚未由 Partokens 确认。应用应在收到结果后尽快下载到自己控制的临时目录或对象存储，并自行设置访问控制、清理周期和容量限制。' },
-          { type: 'list', items: ['API 请求成功不等于图片下载一定成功；下载阶段仍需处理 3xx、4xx、5xx、超时和内容为空。', 'Base64 结果会增加 JSON 大小和内存占用；避免在日志中输出整段图片数据。', '生成请求超时后，上游可能已经执行并计费；在没有幂等保证时不要盲目重试。', '内容限制、URL 有效期和持久化责任的精确规则仍待产品或后端确认。'] },
-        ],
-      },
-      {
-        id: 'reading-map',
-        title: '继续阅读',
-        blocks: [
-          { type: 'table', columns: ['目标', '对应文档'], rows: [
-            ['了解控制台内当前生图交互与设计样例边界', '“生图工作台”'],
-            ['从实时账户配置选择模型并核对价格', '“模型与定价”'],
-            ['处理生成超时、429、5xx 与安全重试', '“连接、限额与重试”'],
-            ['按时间、模型和请求 ID 核对执行与最终结算', '“使用日志”'],
-          ] },
+          { type: 'list', items: ['400：根据 `error.message` 修正 `model` 或 `prompt`。', '401 / 403：检查 API 密钥和访问权限；配置未修正前不要重试。', '429：优先等待 `Retry-After` 指定的时间，否则使用带随机抖动的指数退避。', '5xx：在有限次数和总时限内使用指数退避重试。', '网络错误或超时：请求可能已经执行；不要立即重复生成。', '图片下载失败：单独重试下载；不要重新发送生成请求。'] },
+          { type: 'callout', tone: 'warning', title: '避免重复生成', body: '只有在应用可以接受重复图片和重复用量，并且已设置超时和最大尝试次数时，才自动重试图像生成请求。' },
         ],
       },
     ],
@@ -1562,7 +1349,7 @@ export PARTOKENS_MODEL="your-model"` }] },
           { type: 'faq', items: [
             { question: 'API 密钥放在哪里？', answer: '服务端应用应优先使用环境变量或专用密钥管理系统。不要把长期密钥嵌入浏览器前端、公开仓库或日志。' },
             { question: '价格、余额和套餐额度以哪里为准？', answer: '以账户实时配置、服务端结算和使用记录为准。余额、套餐与额度文档说明了已确认的消耗偏好和有效期；具体价格不在文档中写死。' },
-            { question: '如何轮换或撤销密钥？', answer: '按“API 密钥管理”先创建替代密钥并验证，再停止旧密钥并使用控制台当前提供的撤销或替换操作。撤销生效时间、数量限制和自动轮换能力尚待产品或后端确认。' },
+            { question: '如何轮换或撤销密钥？', answer: '先创建替代密钥并完成验证，再更新应用配置并从控制台撤销旧密钥。' },
           ] },
         ],
       },
@@ -1574,8 +1361,8 @@ export PARTOKENS_MODEL="your-model"` }] },
             { question: '请求失败时应该先提供什么？', answer: '保留请求时间、模型、HTTP 状态、`X-Oneapi-Request-Id` 和脱敏后的响应正文。不要发送完整 API 密钥。' },
             { question: '可以对所有失败请求直接重试吗？', answer: '不可以。401、权限或额度相关的 403、参数 400 应在修正后再请求；429 优先遵循 `Retry-After`。生成请求超时后可能已经执行，不能盲目重放。' },
             { question: '使用日志中有记录就代表请求成功吗？', answer: '不代表。日志可以记录成功、失败或已经执行但客户端未收到结果的请求；应同时核对日志类型、HTTP 或业务结果、错误信息、输入输出用量和最终额度。' },
-            { question: '没有找到日志就代表请求未执行吗？', answer: '不能直接判断。先检查时间范围、时区、搜索词和筛选条件，再考虑日志写入边界；日志保留期限、实时性和完整性尚待产品或后端确认。' },
-            { question: 'API 请求的数据如何保存？', answer: 'API 请求需要发送到服务端才能完成模型调用。具体日志、提供商处理和数据保留规则尚待产品或后端确认。' },
+            { question: '没有找到日志就代表请求未执行吗？', answer: '不能直接判断。先检查时间范围、时区、搜索词和筛选条件，再使用模型或请求 ID 重新查询。' },
+            { question: 'API 请求的数据如何处理？', answer: '请求内容会通过 Partokens 发送给所选模型服务。只提交完成任务所必需的信息，不要加入无关的敏感数据。' },
           ] },
           { type: 'callout', tone: 'info', title: '仍需协助时', body: '先按“连接、限额与重试”和“使用日志”完成自助核对，再前往“联系支持”准备脱敏诊断信息和正式联系方式。' },
         ],
@@ -1680,138 +1467,51 @@ export PARTOKENS_MODEL="your-model"` }] },
   },
   'usage-logs': {
     id: 'usage-logs',
-    summary: '在控制台按时间、模型和请求 ID 定位一次调用，区分请求结果与使用记录，并以服务端日志核对用量和最终结算额度。',
-    prerequisites: ['可以登录 Partokens 控制台', '保留了请求发生的准确时间与时区', '能够从客户端读取 HTTP 状态、错误正文或 `X-Oneapi-Request-Id` 中的至少一项'],
+    summary: '查询账户调用记录，核对请求状态、Token、费用和耗时。',
     sections: [
       {
-        id: 'open-logs',
-        title: '进入使用日志',
+        id: 'search',
+        title: '查找请求',
         blocks: [
           { type: 'steps', items: [
-            { title: '打开控制台', body: '在当前侧栏的 `General` 分组选择 `Usage logs`。' },
-            { title: '确认地址', body: '当前 design-lab 使用 `#console-logs` hash 路由；刷新该地址仍会回到使用日志页。' },
-            { title: '先缩小时间范围', body: '从请求发生的准确时间与时区开始，再结合模型和请求 ID 定位，避免先用宽泛关键词判断结果。' },
+            { title: '打开使用日志', body: '进入控制台，在侧栏中选择“使用日志”。' },
+            { title: '选择时间范围', body: '选择最近 24 小时、7 天或 30 天，并确认请求发生时使用的时区。' },
+            { title: '添加筛选条件', body: '可按事件类型、模型、分组和 API 密钥名称筛选；请求 ID 与上游请求 ID 需要精确匹配。' },
           ] },
-          { type: 'callout', tone: 'warning', title: '当前页面展示的是设计样例', body: 'design-lab 的日志数组、请求 ID、模型、密钥名称、Token、金额、耗时、错误和上游 ID 都是内置样例，不是真实账户数据。当前页面也没有调用 new-api 日志接口。' },
         ],
       },
       {
-        id: 'field-map',
-        title: '界面字段与后端字段如何对应',
+        id: 'read',
+        title: '查看用量与费用',
         blocks: [
-          { type: 'table', columns: ['控制台概念', 'new-api 当前字段', '解释与边界'], rows: [
-            ['请求时间', '`created_at`', '后端记录 Unix 秒；design-lab 的 `time` 是无时区的静态英文日期。生产界面采用哪个显示时区仍待确认，提交支持请求时必须另写时区'],
-            ['请求 ID', '`request_id`', '与响应头 `X-Oneapi-Request-Id` 对应，是关联客户端与日志的首选字段；日志的数字 `id` 只是展示行序号，不是请求 ID'],
-            ['上游请求 ID', '`upstream_request_id`', '可能从上游响应头取得；不是每条记录都有，也不能替代 Partokens 请求 ID'],
-            ['模型名', '`model_name`', '记录本次服务端处理使用的模型名；应与请求中的精确模型 ID 一起核对'],
-            ['API 密钥', '`token_name` / `token_id`', '用于关联密钥名称或内部标识；不要向支持团队提交完整密钥值'],
-            ['日志或请求类型', '`type`', '当前数值类别包含消费、系统、错误、退款、登录等；它不是 HTTP 状态或 API 路径'],
-            ['API 路径', '`other.request_path`', '消费日志的附加信息当前可记录请求路径；不是每类日志都保证存在，对外展示契约待确认'],
-            ['输入用量', '`prompt_tokens`', '服务端记录的输入计量；图像或不同上游的计量语义可能与纯文本 Token 不同'],
-            ['输出用量', '`completion_tokens`', '服务端记录的输出计量；应结合目标 API、响应 usage 和后端适配结果理解'],
-            ['最终结算额度', '`quota`', '该条消费记录的服务端最终结算额度；对外单位、货币换算、精度与 UI 命名仍待产品或后端确认'],
-            ['响应耗时', '`use_time`', '当前记录的是服务端使用的整数秒值；不等同于浏览器网络面板总耗时，design-lab 的 `latency` 字符串只是样例'],
-            ['流式请求', '`is_stream`', '表示服务端将该请求作为流式处理；不证明流已经正常结束'],
-            ['分组', '`group`', '记录路由或密钥使用的分组；具体可见性和业务含义依账户配置而定'],
-            ['结果或错误', '`type`、`content`、`other`', '错误日志可记录错误内容与附加信息，但 `Log` 当前没有统一 `http_status` 字段；HTTP 状态和 `error.code` 应从客户端响应保留'],
+          { type: 'table', columns: ['区域', '内容'], rows: [
+            ['统计', '筛选范围内的费用、记录数、输入 Token、输出 Token 和缓存 Token'],
+            ['列表', '时间、类型、分组、密钥名称、模型、流式状态、Token、费用和耗时'],
+            ['详情', '请求 ID、上游请求 ID、错误信息和计价信息'],
           ] },
-          { type: 'callout', tone: 'info', title: '“Cost”不是已确认的后端字段名', body: 'design-lab 表格用 `Cost` 和美元样例展示本地 `cost`。new-api 用户日志的核心结算字段是 `quota`；Partokens 是否以及如何把它显示为费用、货币或额度，仍待产品或后端确认。' },
+          { type: 'paragraph', text: '点击“刷新”重新获取数据。日志每页显示 20 条，可使用上一页和下一页继续浏览。' },
         ],
       },
       {
-        id: 'locate-request',
-        title: '按时间、模型和请求 ID 定位调用',
+        id: 'diagnose',
+        title: '排查失败或超时',
         blocks: [
           { type: 'steps', items: [
-            { title: '统一时间与时区', body: '记录客户端事件的完整日期、时分秒和 UTC 偏移，例如 `UTC+08:00`。如果界面时间没有时区，先确认浏览器或账户显示规则。' },
-            { title: '输入精确请求 ID', body: '优先使用响应头中的 `X-Oneapi-Request-Id`。new-api 的用户日志查询支持精确 `request_id`，不要把显示行 `id` 当作请求标识。' },
-            { title: '核对模型名', body: '使用请求体中的精确模型 ID，并与日志 `model_name` 对照；不要只按相似名称搜索。' },
-            { title: '扩大范围前清除冲突筛选', body: '检查日志类型、密钥名称、分组、模型和时间范围是否同时限制了结果；跨午夜或跨时区时尤其要扩大开始与结束时间。' },
-            { title: '必要时使用上游请求 ID', body: '如果只有 `upstream_request_id`，后端也支持精确筛选；但支持请求仍应优先提供 Partokens 请求 ID。' },
+            { title: '记录请求信息', body: '保留请求时间与时区、模型、HTTP 状态和请求 ID。' },
+            { title: '定位日志', body: '先使用请求 ID 精确查询；没有请求 ID 时，再按时间、模型和密钥缩小范围。' },
+            { title: '核对结果', body: '结合日志类型、错误信息、Token、费用和耗时判断请求是否执行。客户端超时不代表上游任务一定停止。' },
           ] },
-          { type: 'paragraph', text: 'new-api 当前用户日志数据路由为 `GET /api/log/self`，可接收 `type`、`start_timestamp`、`end_timestamp`、`token_name`、`model_name`、`group`、`request_id` 与 `upstream_request_id` 等查询字段并分页返回。旧的 `/api/log/self/search` 已被标记为废弃；这些是后端现状，不表示 design-lab 当前已经接入。' },
+          { type: 'callout', tone: 'warning', title: '避免重复请求', body: '生成或编辑任务超时后，先检查使用日志和费用，再决定是否重试。' },
         ],
       },
       {
-        id: 'result-boundaries',
-        title: '区分超时、HTTP 失败、上游失败和已执行',
+        id: 'support',
+        title: '提交排障信息',
         blocks: [
-          { type: 'table', columns: ['观察结果', '可以说明什么', '下一步'], rows: [
-            ['客户端超时，未收到 HTTP 状态', '客户端在自己的时限内没有得到完整响应', '不能断定服务端未执行；按时间、模型和请求 ID 查日志与结算，生成请求不要无条件重试'],
-            ['收到 4xx 或 5xx', '网关、服务端或上游返回了 HTTP 失败', '保留状态、`error.code`、脱敏的 `error.message` 和请求 ID；再查看是否有错误或消费记录'],
-            ['上游失败', '请求可能已经通过 Partokens 鉴权和路由，但上游没有完成预期响应', '检查错误日志、上游请求 ID、用量与 `quota`；不同上游失败点的结算边界可能不同'],
-            ['服务端已执行但客户端未收到结果', '断连、超时或下载失败可能发生在服务端处理之后', '使用消费记录、最终额度与余额或套餐变化确认；不要仅因客户端无结果重复生成'],
-            ['找到一条日志', '请求到达了某个日志写入点', '不等于成功；必须结合 `type`、错误内容、用量、`quota` 和客户端 HTTP 结果'],
-            ['没有找到日志', '当前筛选和当前可见范围内没有匹配记录', '不等于未执行；检查时间范围、时区、筛选、请求 ID、写入延迟与日志配置边界'],
+          { type: 'table', columns: ['可以提供', '不要提供'], rows: [
+            ['时间与时区、模型、请求 ID、HTTP 状态、脱敏后的错误信息', '完整 API 密钥、密码、验证码、会话令牌、完整提示词或私有文件'],
           ] },
-        ],
-      },
-      {
-        id: 'verify-usage',
-        title: '核对用量、结算和账户变化',
-        blocks: [
-          { type: 'steps', items: [
-            { title: '确认是否到达服务端', body: '收到 `X-Oneapi-Request-Id` 表明网关为该响应分配了请求标识；在日志中找到同一 `request_id` 可以进一步关联服务端记录。没有日志仍不能单独排除执行。' },
-            { title: '确认日志类型', body: '区分消费记录与错误记录。错误记录可能显示零用量和零额度；消费记录也不能脱离客户端结果单独解释为业务成功。' },
-            { title: '核对输入和输出用量', body: '读取 `prompt_tokens` 与 `completion_tokens`，并与响应 usage 比较。计量差异可能来自 API 类型、上游返回或服务端适配，不能自行按文本 Token 规则修正。' },
-            { title: '核对最终额度', body: '以日志 `quota` 和服务端最终结算为准。不要使用 design-lab 的美元金额、模型名或样例 Token 估算真实扣减。' },
-            { title: '核对余额或套餐', body: '比较请求前后的账户余额或当前套餐用量。后端附加信息可表达 `billing_source`、`subscription_consumed` 或 `wallet_quota_deducted`，但 Partokens 是否向用户展示这些字段以及显示口径仍待确认。' },
-          ] },
-          { type: 'callout', tone: 'warning', title: '保留结算争议的关联证据', body: '记录请求时间和时区、模型、请求 ID、日志类型、输入输出用量、最终 `quota` 以及余额或套餐变化。不要提交真实密钥或包含敏感输入的完整日志导出。' },
-        ],
-      },
-      {
-        id: 'current-ui',
-        title: '当前搜索、筛选、刷新、详情和导出能力',
-        blocks: [
-          { type: 'table', columns: ['操作', 'design-lab 当前行为', '生产边界'], rows: [
-            ['搜索', '在内置数组中匹配请求 ID、密钥名称、模型和上游请求 ID', '没有请求后端；占位文字未列出上游 ID，但代码会匹配它'],
-            ['筛选', '按事件类型、静态模型、最近 24 小时/7 天/30 天和分组过滤样例', '时间依赖内置 `ageHours`，不是服务端时间查询；选项也不是账户实时数据'],
-            ['刷新', '等待约 700 毫秒后修改“更新时间”文字并显示提示', '没有重新获取日志；不代表实时性或写入延迟'],
-            ['详情', '在桌面 Dialog 或移动 Sheet 展示样例请求、Token、Cost、Latency、上游 ID和错误代码', '字段来自本地对象；其中 `Cost` 不是已确认的后端字段名'],
-            ['CSV 导出', '把当前筛选后的本地样例转换为 CSV 并在浏览器下载', '没有导出真实账户数据；格式、字段顺序、编码与长期支持待产品确认'],
-            ['JSON 导出', '把当前筛选后的本地样例对象序列化为 JSON 并下载', '不是 new-api 日志响应合同，也不代表生产页面会支持 JSON 导出'],
-            ['分页', '`Previous` 和 `Next` 按钮固定禁用', '后端接口支持分页，但当前 design-lab 没有实现分页交互'],
-          ] },
-        ],
-      },
-      {
-        id: 'retention-and-privacy',
-        title: '日志保留、完整性与隐私边界',
-        blocks: [
-          { type: 'list', items: [
-            'Partokens 尚未确认面向用户的日志保留期限、删除周期、实时性或完整性保证。',
-            'new-api 可以通过配置关闭消费日志，日志写入也可能失败；Partokens 当前部署策略仍待后端确认。',
-            '后端 `Log` 结构存在 `content`、`other` 和可选 IP 记录能力，但不表示 Partokens 会长期保存完整提示词、个人信息或 IP。',
-            '用户日志会移除部分仅管理员可见的附加信息；不要把用户界面字段视为完整审计轨迹。',
-            '当前没有足够依据承诺审计合规、不可篡改、固定保留期或完整提示词检索能力。',
-          ] },
-        ],
-      },
-      {
-        id: 'support-evidence',
-        title: '可以安全提交给支持团队的日志信息',
-        blocks: [
-          { type: 'table', columns: ['可以提交', '提交前处理'], rows: [
-            ['准确时间与时区、模型 ID、API 路径或客户端、HTTP 状态', '只保留定位所需范围'],
-            ['`X-Oneapi-Request-Id`、必要时的 `upstream_request_id`', '核对没有把 API 密钥误当成请求 ID'],
-            ['日志 `type`、输入输出用量、最终 `quota`、`use_time`', '说明字段来自哪条记录；不要自行改写单位'],
-            ['`error.code` 与 `error.message`', '移除密钥、个人信息、完整提示词、私有 URL 和其他敏感内容'],
-            ['余额或套餐是否发生变化', '只描述变化，不提交支付凭据或不必要的账户信息'],
-          ] },
-          { type: 'callout', tone: 'warning', title: '不要发送原始敏感数据', body: '禁止提交完整 API 密钥、密码、验证码、会话令牌、未脱敏个人信息、不必要的完整提示词、大段 Base64 或私有文件。完整清单和可复制模板见“联系支持”。' },
-        ],
-      },
-      {
-        id: 'reading-map',
-        title: '继续阅读',
-        blocks: [
-          { type: 'table', columns: ['需要解决的问题', '对应文档'], rows: [
-            ['理解模型价格、用量和 `quota` 的结算关系', '“模型与定价”'],
-            ['区分 401、403、429、5xx、超时与重试', '“连接、限额与重试”'],
-            ['核对余额、套餐和计费来源', '“余额、套餐与额度”'],
-            ['提交脱敏且足够的诊断信息', '“联系支持”'],
-          ] },
+          { type: 'paragraph', text: '联系支持前，请复制相关请求 ID，并说明问题发生的时间、模型和客户端。' },
         ],
       },
     ],
@@ -1927,12 +1627,260 @@ X-Oneapi-Request-Id：<完整请求 ID / 未返回>
   },
 }
 
-export function getDocsDocument(id: DocsItemId) {
-  return zhCnDocsDocuments[id]
+/**
+ * English is the canonical fallback for the public docs until the remaining
+ * locales have their own editorial pass. The compact factory keeps the
+ * localized shell and all document topics in the same language without
+ * inflating the application entry bundle with repeated object boilerplate.
+ */
+type EnglishSection = [id: string, title: string, text: string, tone?: DocsCalloutTone]
+
+function englishDoc(id: DocsItemId, summary: string, sections: EnglishSection[], prerequisites?: string[]): DocsDocument {
+  return {
+    id,
+    summary,
+    prerequisites,
+    sections: sections.map(([sectionId, title, text, tone]) => ({
+      id: sectionId,
+      title,
+      blocks: tone
+        ? [{ type: 'callout' as const, tone, title, body: text }]
+        : [{ type: 'paragraph' as const, text }],
+    })),
+  }
 }
 
-export function getDocsSearchText(id: DocsItemId) {
-  const document = zhCnDocsDocuments[id]
+const englishDocsDocuments: Partial<Record<DocsItemId, DocsDocument>> = {
+  welcome: englishDoc('welcome', 'Start with the documentation map, confirm the compatible boundary, and move from a new key to a working request.', [
+    ['start-here', 'Start here', 'For a first integration, understand the service boundary, create an API key, choose a live model, and send one small request.'],
+    ['base-url', 'One access address', 'Use the OpenAI-compatible base URL https://partokens.com/v1. Clients that support baseURL or base_url can point requests at Partokens.'],
+    ['boundary', 'Live configuration wins', 'Models, prices, limits, and availability come from the current account configuration and server response.'],
+  ]),
+  overview: englishDoc('overview', 'Partokens provides one OpenAI-compatible API entry point for the models currently available to your account.', [
+    ['what-it-is', 'What Partokens provides', 'Partokens keeps the OpenAI request shape while the account controls model access, billing, and quota.'],
+    ['boundary', 'Compatibility boundary', 'A compatible client can send the supported request to the matching endpoint. It does not guarantee that every model accepts every parameter or API.', 'info'],
+  ]),
+  'first-request': englishDoc('first-request', 'Prepare an API key and an account model, then verify the integration with one compatible request.', [
+    ['checklist', 'Integration checklist', 'Create PARTOKENS_API_KEY, read GET /v1/models, copy an exact model ID, and send a minimal request to https://partokens.com/v1.'],
+    ['diagnostics', 'Keep the request ID', 'Record X-Oneapi-Request-Id with the status, endpoint, and model so failures can be diagnosed quickly.', 'success'],
+  ], ['A Partokens API key stored outside source control', 'A model ID returned by the current account model list', 'A client that supports a custom OpenAI base URL']),
+  clients: englishDoc('clients', 'Choose an entry point for command-line tools, coding agents, official SDKs, compatible clients, or direct HTTPS.', [
+    ['choose', 'Choose an entry point', 'Use Shell or cURL for connectivity checks, an OpenAI SDK for applications, a configurable provider for agents, or direct HTTPS for custom runtimes.'],
+    ['selection', 'Validate compatibility', 'The client must accept a custom OpenAI base URL, a Bearer key, and the API used by the target model. Add advanced options one at a time.', 'warning'],
+  ]),
+  'api-keys': englishDoc('api-keys', 'Create and manage API credentials while keeping long-lived keys in an environment variable or secret store.', [
+    ['create', 'Create a key', 'Open API key management, create a key with a clear purpose and smallest practical quota, then export it before running a request.'],
+    ['hygiene', 'Key hygiene', 'Never commit keys, expose them in browser code, or paste them into logs. Use separate keys per environment and rotate suspected exposures.', 'warning'],
+  ]),
+  billing: englishDoc('billing', 'Understand how balance, plans, quota, and model usage relate, then reconcile charges with current console data.', [
+    ['terms', 'Billing vocabulary', 'Balance is available account value; plan or quota is the active allowance; model price is live route metadata; usage logs are server records.'],
+    ['reconcile', 'Reconcile a charge', 'Keep the request time, model, endpoint, status, and request ID. Compare the client result with usage logs and escalate discrepancies with redacted details.', 'info'],
+  ]),
+  'models-pricing': englishDoc('models-pricing', 'Select a model from live account metadata, verify its capabilities and price, and treat server usage records as final.', [
+    ['model-record', 'Read a model record', 'Copy the exact id, check supported_endpoint_types, and use the current price or ratio only as billing context.'],
+    ['selection', 'Before you call', 'Confirm the target API matches the model capability, start with the smallest request, and use usage logs for final cost.'],
+  ]),
+  codex: englishDoc('codex', 'Point Codex Responses requests at Partokens through native configuration or a separately maintained open-source tool.', [
+    ['provider', 'Configure a provider', 'Use https://partokens.com/v1, PARTOKENS_API_KEY, and a model copied from the current account list. Confirm Responses support before testing.'],
+    ['safety', 'Keep local config safe', 'Restrict Codex config and credential files, prefer environment variables, back up before third-party changes, and restore the backup after a failed test.', 'warning'],
+  ], ['Codex installed and runnable', 'A Partokens API key', 'A current model that supports the Responses API']),
+  sdk: englishDoc('sdk', 'Use the current OpenAI JavaScript or Python SDK with the Partokens base URL, live model discovery, and explicit error handling.', [
+    ['setup', 'SDK setup', 'Install the SDK in a trusted server environment, read a live model ID, and set baseURL or base_url to https://partokens.com/v1.'],
+    ['errors', 'Handle failures', 'Separate network failures from HTTP errors, keep X-Oneapi-Request-Id, and start with a non-streaming request before optional features.', 'warning'],
+  ]),
+  'image-studio': englishDoc('image-studio', 'Generate or edit images in the console and manage projects, references, and results.', [
+    ['start', 'Start a generation', 'Open Image Studio, select an image-capable model and Image-group API key, enter a prompt, and choose the available quality, size, background, and result count.'],
+    ['reference', 'Use a reference image', 'Upload a PNG, JPG, or WebP image to edit it from your prompt. A generated result can also become the reference for the next request.'],
+    ['results', 'Save your results', 'Download results you need to keep. New requests replace the displayed result set, while projects and recent history remain in the current browser.'],
+    ['security', 'Handle keys and interruptions', 'The full key is not stored with a project. After a cancellation or timeout, check Usage logs before retrying because upstream processing may have continued.', 'warning'],
+  ]),
+  'api-basics': {
+    id: 'api-basics',
+    summary: 'Send HTTPS requests with the Partokens base URL and a Bearer API key, then handle the result by HTTP status and response body.',
+    prerequisites: ['A Partokens API key', 'A model ID copied from the model list'],
+    sections: [
+      {
+        id: 'send-request',
+        title: 'Send a request',
+        blocks: [
+          { type: 'endpoint', label: 'Base URL', path: 'https://partokens.com/v1' },
+          { type: 'list', items: ['Send `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`.', 'Requests with a JSON body also require `Content-Type: application/json`.', 'Never place the API key in a URL, client-side code, or logs.'] },
+        ],
+      },
+      {
+        id: 'run-request',
+        title: 'Run a minimal request',
+        blocks: [
+          { type: 'list', items: ['`model`: an exact model ID returned by the model list.', '`messages`: the ordered messages sent to the model.', '`messages[].role`: use `user` for a minimal text request.', '`messages[].content`: non-empty text.'] },
+          { type: 'code-samples', samples: firstRequestSamplesEn },
+        ],
+      },
+      {
+        id: 'read-response',
+        title: 'Read the response',
+        blocks: [
+          { type: 'list', items: ['Check the HTTP status first; a 2xx status indicates a successful HTTP response.', 'Parse the JSON body and read the endpoint result, such as `choices` for chat, `data` for images, or `data` for models.', 'For a non-2xx response, read `error.message` and record `error.code` when it is present.'] },
+        ],
+      },
+      {
+        id: 'handle-errors',
+        title: 'Handle errors',
+        blocks: [
+          { type: 'list', items: ['400: correct the JSON or request fields before sending it again.', '401 / 403: check the API key and access; do not retry unchanged credentials.', '429: wait for `Retry-After` when present, otherwise use exponential backoff with jitter.', '5xx: retry with exponential backoff, a maximum attempt count, and a total deadline.', 'Network error or timeout: determine whether an HTTP response arrived before deciding to retry.'] },
+          { type: 'callout', tone: 'warning', title: 'Retry safely', body: 'GET requests can be retried within a total deadline; retry chat and image POST requests automatically only when the application accepts duplicate results and usage.' },
+        ],
+      },
+    ],
+  },
+  'chat-completions': {
+    id: 'chat-completions',
+    summary: 'Send a message array to generate a chat reply, then read the text from `choices[0].message.content`.',
+    prerequisites: ['A Partokens API key', 'A chat-capable model ID copied from the model list', 'The OpenAI SDK for the JavaScript and Python examples'],
+    sections: [
+      {
+        id: 'send-request',
+        title: 'Send a request',
+        blocks: [
+          { type: 'endpoint', method: 'POST', label: 'Chat Completions', path: 'https://partokens.com/v1/chat/completions' },
+          { type: 'list', items: ['Send `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`.', 'Send `Content-Type: application/json`.', 'For an SDK, set the base URL to `https://partokens.com/v1`.'] },
+        ],
+      },
+      {
+        id: 'fill-request',
+        title: 'Fill in the request',
+        blocks: [
+          { type: 'list', items: ['`model`: an exact model ID returned by the model list.', '`messages`: the ordered messages sent to the model.', '`messages[].role`: use `user` for a minimal text request.', '`messages[].content`: non-empty text for the message.'] },
+          { type: 'code-samples', samples: chatSamplesEn },
+        ],
+      },
+      {
+        id: 'read-response',
+        title: 'Read the response',
+        blocks: [
+          { type: 'list', items: ['`choices[0].message.content`: text from the first candidate.', '`choices[0].finish_reason`: why that candidate stopped.', '`usage`: input, output, and total token counts when returned.'] },
+          { type: 'paragraph', text: 'Treat an empty `choices` array or a first candidate without text as a response with no usable chat result.' },
+        ],
+      },
+      {
+        id: 'handle-errors',
+        title: 'Handle errors',
+        blocks: [
+          { type: 'list', items: ['400: use `error.message` to correct `model`, `messages`, or a message field.', '401 / 403: check the API key and access; do not retry unchanged credentials.', '429: wait for `Retry-After` when present, otherwise use exponential backoff with jitter.', '5xx: retry with exponential backoff, a maximum attempt count, and a total deadline.', 'Network error or timeout: the request may have run; do not resend it immediately.'] },
+          { type: 'callout', tone: 'warning', title: 'Avoid duplicate generations', body: 'Retry chat requests automatically only when the application accepts duplicate replies and usage and the client sets a timeout and maximum attempt count.' },
+        ],
+      },
+    ],
+  },
+  'image-api': {
+    id: 'image-api',
+    summary: 'Send a prompt to generate an image, then save the result from `data[0].url` or `data[0].b64_json`.',
+    prerequisites: ['A Partokens API key', 'An image-capable model ID copied from the model list', 'cURL, jq, and OpenSSL for Shell; the OpenAI SDK for JavaScript and Python'],
+    sections: [
+      {
+        id: 'send-request',
+        title: 'Send a request',
+        blocks: [
+          { type: 'endpoint', method: 'POST', label: 'Images Generations', path: 'https://partokens.com/v1/images/generations' },
+          { type: 'list', items: ['Send `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`.', 'Send `Content-Type: application/json`.', 'For an SDK, set the base URL to `https://partokens.com/v1`.'] },
+        ],
+      },
+      {
+        id: 'fill-request',
+        title: 'Fill in the request',
+        blocks: [
+          { type: 'list', items: ['`model`: an exact image model ID returned by the model list.', '`prompt`: a non-empty text description of the image.'] },
+          { type: 'code-samples', samples: imageGenerationSamplesEn },
+        ],
+      },
+      {
+        id: 'read-response',
+        title: 'Read the response',
+        blocks: [
+          { type: 'list', items: ['Confirm that the `data` array is not empty.', 'When `data[0].url` is present, download it and check the download HTTP status.', 'When no URL is present but `data[0].b64_json` exists, decode the Base64 value into a binary file.', 'Treat a result with neither field as a response with no usable image.'] },
+          { type: 'paragraph', text: 'Do not write complete Base64 image data to application logs.' },
+        ],
+      },
+      {
+        id: 'handle-errors',
+        title: 'Handle errors',
+        blocks: [
+          { type: 'list', items: ['400: use `error.message` to correct `model` or `prompt`.', '401 / 403: check the API key and access; do not retry unchanged credentials.', '429: wait for `Retry-After` when present, otherwise use exponential backoff with jitter.', '5xx: retry with exponential backoff, a maximum attempt count, and a total deadline.', 'Network error or timeout: the request may have run; do not generate again immediately.', 'Image download failure: retry the download without resending the generation request.'] },
+          { type: 'callout', tone: 'warning', title: 'Avoid duplicate generations', body: 'Retry image generation automatically only when the application accepts duplicate images and usage and the client sets a timeout and maximum attempt count.' },
+        ],
+      },
+    ],
+  },
+  'models-api': {
+    id: 'models-api',
+    summary: 'Read the models available to the current API key and reuse an exact returned model ID in other requests.',
+    prerequisites: ['A Partokens API key', 'cURL and jq for Shell; the OpenAI SDK for JavaScript and Python'],
+    sections: [
+      {
+        id: 'send-request',
+        title: 'Send a request',
+        blocks: [
+          { type: 'endpoint', method: 'GET', label: 'Models', path: 'https://partokens.com/v1/models' },
+          { type: 'list', items: ['Send `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`.', 'This GET request has no request body.'] },
+        ],
+      },
+      {
+        id: 'run-request',
+        title: 'Run a minimal request',
+        blocks: [
+          { type: 'code-samples', samples: modelsApiSamplesEn },
+        ],
+      },
+      {
+        id: 'read-response',
+        title: 'Read the response',
+        blocks: [
+          { type: 'list', items: ['`object`: a value of `list` identifies a model list.', '`data`: the model array; an empty array means the key currently has no available models.', '`data[].id`: copy the exact value into the `model` field of another request.'] },
+          { type: 'paragraph', text: 'Do not change the letter case of a model ID or add or remove a prefix.' },
+        ],
+      },
+      {
+        id: 'handle-errors',
+        title: 'Handle errors',
+        blocks: [
+          { type: 'list', items: ['401 / 403: check the API key and access; do not retry unchanged credentials.', '429: wait for `Retry-After`, or use exponential backoff with jitter.', '5xx, network error, or timeout: retry with a maximum attempt count and a total deadline.', '2xx with empty `data`: check the models available to the key; do not guess a model ID.'] },
+          { type: 'paragraph', text: 'The model list is a GET request and can be retried safely within a total deadline; set a timeout and limit the number of attempts.' },
+        ],
+      },
+    ],
+  },
+  faq: englishDoc('faq', 'Answers to common integration questions, with a clear source of truth for live models, prices, limits, logs, and data boundaries.', [
+    ['sdk', 'Can I keep using the OpenAI SDK?', 'Yes. Set the key to a Partokens key and the base URL to https://partokens.com/v1.'],
+    ['model', 'Where do I find a model name?', 'Read GET /v1/models and copy the exact id. Visibility does not guarantee every route or parameter.'],
+    ['browser', 'Can I put the key in a browser app?', 'No. Route browser requests through a server you control so long-lived keys stay private.', 'warning'],
+  ]),
+  troubleshooting: englishDoc('troubleshooting', 'Start with the smallest diagnostic request, identify the failing layer, and decide whether a retry is safe.', [
+    ['sequence', 'Diagnostic sequence', 'Check transport, access, model, parameters, balance, quota, and server response in that order.'],
+    ['retry', 'Retry deliberately', 'Keep time, model, status, endpoint, and X-Oneapi-Request-Id. A timeout may mean the upstream already processed the request.', 'warning'],
+  ]),
+  'usage-logs': englishDoc('usage-logs', 'Find account requests and review status, tokens, cost, and duration.', [
+    ['search', 'Find a request', 'Choose a time range, then filter by event type, model, group, or API key name. Request ID and upstream request ID use exact matches.'],
+    ['read', 'Review usage', 'The page shows filtered totals and 20 log records per page. Open a record to view request IDs, errors, and pricing details.'],
+    ['diagnose', 'Investigate failures', 'Keep the request time and timezone, model, HTTP status, and request ID. A client timeout does not prove that upstream processing stopped.', 'warning'],
+    ['support', 'Prepare a support report', 'Share the time, model, request ID, HTTP status, and redacted error. Never share a full API key, password, session token, prompt, or private file.'],
+  ]),
+  'contact-support': englishDoc('contact-support', 'After self-service checks, send a useful, correlatable, and redacted report through Partokens Email or Telegram support.', [
+    ['channels', 'Support channels', 'Email support@partokens.com or use the official Partokens Telegram support bot.'],
+    ['report', 'Include enough context', 'Include time and timezone, model, endpoint, HTTP status, request ID, redacted error, minimal reproduction, and client version. Remove all secrets.', 'warning'],
+  ]),
+}
+
+export function hasLocalizedDocsDocument(id: DocsItemId, locale: AppLocale) {
+  return locale === 'zh-CN' || (locale === 'en' && Boolean(englishDocsDocuments[id]))
+}
+
+export function getDocsDocument(id: DocsItemId, locale: AppLocale = 'zh-CN') {
+  const document = locale === 'en' ? (englishDocsDocuments[id] ?? zhCnDocsDocuments[id]) : zhCnDocsDocuments[id]
+  if (!document) throw new Error(`Missing published documentation: ${locale}/${id}`)
+  return document
+}
+
+export function getDocsSearchText(id: DocsItemId, locale: AppLocale = 'zh-CN') {
+  const document = getDocsDocument(id, locale)
   if (!document) return ''
   return [
     document.summary,

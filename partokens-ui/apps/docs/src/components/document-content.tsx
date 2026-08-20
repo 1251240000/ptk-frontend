@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, CircleCheck, KeyRound, Layers3 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CircleCheck, KeyRound, Layers3 } from 'lucide-react'
 import Link from 'next/link'
 
 import {
@@ -43,7 +43,6 @@ function PageFooter({ locale, pageId }: { locale: DocsLocale; pageId: PageId }) 
   const ui = uiCopy[locale]
   return (
     <footer className="docs-page-footer">
-      <span className="docs-review-state">{ui.translationStatus}</span>
       <nav aria-label={`${ui.previous} / ${ui.next}`}>
         {previous ? <Link href={docsPath(locale, previous.slug)}><ArrowLeft size={15} /><span><small>{ui.previous}</small>{getPageCopy(locale, previous.id).title}</span></Link> : <span />}
         {next ? <Link href={docsPath(locale, next.slug)}><span><small>{ui.next}</small>{getPageCopy(locale, next.id).title}</span><ArrowRight size={15} /></Link> : null}
@@ -128,16 +127,7 @@ function ApiDocument({ locale, pageId }: { locale: DocsLocale; pageId: ApiPageId
 
 export function DocumentContent({ locale, pageId }: { locale: DocsLocale; pageId: PageId }) {
   const page = getPageDefinition(pageId)
-  const ui = uiCopy[locale]
-  return (
-    <>
-      {locale === 'zh-CN' ? null : (
-        <div className="translation-review-note" role="note">
-          <AlertTriangle size={16} />
-          <span><strong>{ui.sourceDraft}</strong>{ui.sourceDraftDescription}</span>
-        </div>
-      )}
-      {page.kind === 'api' ? <ApiDocument locale={locale} pageId={pageId as ApiPageId} /> : <GuideDocument locale={locale} pageId={pageId as Exclude<PageId, `api-${string}`>} />}
-    </>
-  )
+  return page.kind === 'api'
+    ? <ApiDocument locale={locale} pageId={pageId as ApiPageId} />
+    : <GuideDocument locale={locale} pageId={pageId as Exclude<PageId, `api-${string}`>} />
 }

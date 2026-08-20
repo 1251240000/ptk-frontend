@@ -4,6 +4,8 @@
     "models-and-groups",
     "chat",
     "images",
+    "image-studio",
+    "usage-logs",
     "errors-and-limits"
   ]
 }

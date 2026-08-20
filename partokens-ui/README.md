@@ -59,14 +59,14 @@ For a built deployment, publish the corresponding source and run `PUBLIC_PARTOKE
 
 ## Documentation Updates
 
-Partokens documentation is independently authored and translated; `new-api-docs-v1` is a read-only compatibility input. The generated application content lives under `apps/docs/content/docs`, while `docs-sync-manifest.json` records the upstream files reviewed for the current version.
+Partokens documentation is independently authored and translated; `new-api-docs-v1` is a read-only compatibility input. The production documentation source of truth is `apps/docs/src/content/catalog.ts`. Files under `apps/docs/content/docs` are generated from that catalog and must not be edited manually. The legacy SPA content under `packages/content` is not deployed on localized production `/docs` routes. `docs-sync-manifest.json` records the upstream files reviewed for the current version.
 
 ```bash
 bun run docs:upstream
 bun run docs:upstream:update
 ```
 
-The first command is read-only and fails when the upstream commit or tracked documentation changes. The update command records a new baseline only when `compatibility.json` already pins the reviewed commit. All seven translations are marked `draft` pending product-owner review.
+The first command is read-only and fails when the upstream commit or tracked documentation changes. The update command records a new baseline only when `compatibility.json` already pins the reviewed commit. The catalog contains all seven supported locales, and its tests require complete page coverage while blocking pre-release language from published content.
 
 New API compatibility is also checked against the pinned sibling checkout. The check compares every required HTTP method/path pair with New API's registered Go routes and requires direct frontend request literals to be present in the manifest:
 
