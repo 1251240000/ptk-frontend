@@ -1,8 +1,8 @@
 import type { ErrorComponentProps } from '@tanstack/react-router'
-import { AlertTriangle, LoaderCircle, RefreshCw } from 'lucide-react'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { Button, Skeleton } from '@partokens/design-system/components'
+import { Button, LoadingRegion, Skeleton } from '@partokens/design-system/components'
 
 export const consoleRouteRetryStorageKey = 'partokens-console-route-retry'
 
@@ -10,18 +10,13 @@ export function ConsoleRoutePending() {
   const { t } = useTranslation()
 
   return (
-    <div role="status" aria-live="polite" aria-label={t('Loading Console page')} className="space-y-6" data-console-route-pending>
-      <span className="sr-only">{t('Loading Console page...')}</span>
-      <div className="flex items-center gap-3">
-        <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
-        <Skeleton className="h-6 w-44" />
-      </div>
+    <LoadingRegion label={t('Loading Console page')} className="space-y-6" data-console-route-pending>
       <Skeleton className="h-24 w-full rounded-md" />
       <div className="grid gap-4 lg:grid-cols-2">
         <Skeleton className="h-64 w-full rounded-md" />
         <Skeleton className="h-64 w-full rounded-md" />
       </div>
-    </div>
+    </LoadingRegion>
   )
 }
 

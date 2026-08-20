@@ -52,6 +52,7 @@ export function AccountDataState({
   error,
   empty,
   emptyTitle,
+  loadingLabel,
   emptyDescription,
   retryLabel,
   onRetry,
@@ -61,6 +62,7 @@ export function AccountDataState({
   error?: string | null
   empty?: boolean
   emptyTitle: string
+  loadingLabel?: string
   emptyDescription?: string
   retryLabel: string
   onRetry?: () => void
@@ -68,8 +70,8 @@ export function AccountDataState({
 }) {
   if (loading) {
     return (
-      <div className="space-y-3 p-4" aria-busy="true" aria-label={emptyTitle}>
-        {[0, 1, 2].map((item) => <Skeleton key={item} className="h-14 w-full" />)}
+      <div className="space-y-3 p-4" aria-busy="true" aria-label={loadingLabel ?? emptyTitle}>
+        {[0, 1, 2].map((item) => <Skeleton key={item} className="h-14 w-full animate-none" />)}
       </div>
     )
   }

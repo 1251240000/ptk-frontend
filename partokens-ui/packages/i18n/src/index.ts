@@ -1,9 +1,11 @@
 import { authTranslationRows } from './auth'
 import { accountTranslationRows } from './account'
+import { loadingTranslationRows } from './loading'
 import { playgroundTranslationRows } from './playground'
 import { studioTranslationRows } from './studio'
 
 export { accountTranslationRows } from './account'
+export { loadingTranslationRows } from './loading'
 export { playgroundTranslationRows } from './playground'
 export { studioTranslationRows } from './studio'
 
@@ -1578,6 +1580,12 @@ for (const [key, ...values] of authTranslationRows) {
 }
 
 for (const [key, ...values] of accountTranslationRows) {
+  locales.forEach((locale, index) => {
+    ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
+  })
+}
+
+for (const [key, ...values] of loadingTranslationRows) {
   locales.forEach((locale, index) => {
     ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
   })

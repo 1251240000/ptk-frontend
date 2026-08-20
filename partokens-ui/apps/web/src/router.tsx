@@ -1,10 +1,11 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet, redirect, useParams } from '@tanstack/react-router'
-import { LoaderCircle } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { LoadingRegion } from '@partokens/design-system/components'
 import { isAppLocale, resolvePreferredLocale } from '@partokens/i18n'
 
+import { AppLoadingBoundary } from '@/components/app-loading'
 import { ConsoleShell } from '@/components/console-shell'
 import { consoleRouteAsyncOptions } from '@/components/console-route-state'
 import { i18n } from '@/lib/i18n'
@@ -16,7 +17,21 @@ import {
 } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
 
-const rootRoute = createRootRoute({ component: () => <Outlet /> })
+function GlobalRoutePending() {
+  const { t } = useTranslation()
+  return <LoadingRegion className="global-route-pending" label={t('Loading page')} />
+}
+
+function RootLayout() {
+  return <AppLoadingBoundary><Outlet /></AppLoadingBoundary>
+}
+
+const rootRoute = createRootRoute({
+  component: RootLayout,
+  pendingComponent: GlobalRoutePending,
+  pendingMs: 150,
+  pendingMinMs: 300,
+})
 
 const rootIndexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -84,7 +99,7 @@ function AuthenticatedUserBoundary({ children }: { children: ReactNode }) {
     }
     else if (user.role >= 10) window.location.assign('/channels')
   }, [params.locale, resolved, user])
-  if (!resolved || !user || user.role >= 10) return <div className="route-loader"><LoaderCircle className="spin" size={22} />{t('Loading account')}</div>
+  if (!resolved || !user || user.role >= 10) return <LoadingRegion className="route-loader" label={t('Loading account')} />
   return children
 }
 
@@ -147,7 +162,7 @@ const consoleCompatibilityTree = consoleCompatibilityRoute.addChildren([consoleC
 const localeTree = localeRoute.addChildren([homeRoute, modelsRoute, docsRoute, aboutRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, verifyEmailRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree, legacyProfileSecurityRoute, legacyProfileConnectionsRoute, legacyProfileNotificationsRoute])
 const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute])
 
-export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })
+export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultPendingComponent: GlobalRoutePending, scrollRestoration: true })
 
 declare module '@tanstack/react-router' {
   interface Register { router: typeof router }

@@ -167,6 +167,19 @@ body.console-portal [data-slot='badge'].bg-destructive {
   color: var(--muted-foreground);
 }
 
+.console-root [data-slot='tabs-content'][data-state='active'] {
+  animation: console-tab-content-in var(--pt-motion-fast) var(--pt-ease-standard);
+}
+
+.console-root .profile-tabs > [data-slot='tabs-content'] {
+  min-height: 18rem;
+}
+
+@keyframes console-tab-content-in {
+  from { opacity: 0.56; }
+  to { opacity: 1; }
+}
+
 .console-root table[data-slot='table'] {
   font-size: 0.875rem;
 }
@@ -915,13 +928,16 @@ td code {
     monospace;
 }
 .route-loader {
-  min-height: calc(100svh - 56px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 12px;
+  min-height: 100svh;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
+}
+.global-route-pending {
+  min-height: 100svh;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
 }
 
 @media (max-width: 1050px) {

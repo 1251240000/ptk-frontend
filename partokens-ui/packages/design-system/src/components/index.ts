@@ -40,6 +40,13 @@ export {
 } from './dropdown-menu'
 export { Input } from './input'
 export { Label } from './label'
+export {
+  LoadingRegion,
+  LoadingTrace,
+  RouteProgress,
+  type LoadingRegionProps,
+  type LoadingTraceProps,
+} from './loading-trace'
 export { PartokensAvatar, type PartokensAvatarProps } from './partokens-avatar'
 export { PartokensMark } from './partokens-mark'
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover'

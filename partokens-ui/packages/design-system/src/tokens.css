@@ -120,6 +120,11 @@
   --pt-motion-slow: 240ms;
   --pt-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --pt-ease-emphasized: cubic-bezier(0.2, 0, 0, 1.2);
+  --pt-loading-track: var(--pt-color-border-default);
+  --pt-loading-signal: var(--pt-color-action-primary);
+  --pt-loading-surface: var(--pt-color-bg-canvas);
+  --pt-loading-text: var(--pt-color-text-secondary);
+  --pt-loading-delay: 140ms;
   --pt-z-sticky: 30;
   --pt-z-drawer: 80;
   --pt-z-dialog: 100;

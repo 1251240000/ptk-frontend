@@ -15,9 +15,38 @@
       rel="stylesheet"
     />
     <script src="/_ui/theme-init.v2.js"></script>
+    <style>
+      html,body{min-height:100%;background:#f6f8fa}html[data-theme='dark'],html[data-theme='dark'] body{background:#0d1117}
+      #partokens-boot-loader{position:fixed;z-index:200;inset:0;display:grid;place-items:center;padding:24px;background:#f6f8fa;color:#59636e;opacity:0;animation:pt-boot-reveal 1ms linear 160ms forwards}
+      html[data-theme='dark'] #partokens-boot-loader{background:#0d1117;color:#b1bac4}
+      #partokens-boot-loader.is-exiting{animation:none;opacity:0;pointer-events:none;transition:opacity 180ms cubic-bezier(.2,0,0,1)}
+      .pt-boot{display:grid;justify-items:center;gap:20px;max-width:min(28rem,calc(100vw - 48px));text-align:center}
+      .pt-boot-mark{position:relative;width:48px;height:48px}.pt-boot-mark img{position:absolute;inset:0;width:100%;height:100%}.pt-boot-mark-dark{display:none}html[data-theme='dark'] .pt-boot-mark-light{display:none}html[data-theme='dark'] .pt-boot-mark-dark{display:block}
+      .pt-boot-trace{position:relative;width:112px;height:12px}.pt-boot-trace:before{position:absolute;top:50%;right:3px;left:3px;height:1px;background:#d0d7de;content:''}.pt-boot-node{position:absolute;z-index:1;top:50%;width:7px;height:7px;border:1px solid #d0d7de;border-radius:999px;background:#f6f8fa;transform:translate(-50%,-50%)}.pt-boot-node:nth-child(1){left:3px}.pt-boot-node:nth-child(2){left:50%;width:8px;height:8px;border-color:#3164d8;border-radius:2px}.pt-boot-node:nth-child(3){left:calc(100% - 3px)}
+      .pt-boot-packet{position:absolute;z-index:2;top:50%;left:0;width:5px;height:5px;border-radius:1px;background:#3164d8;box-shadow:0 0 0 2px #f6f8fa;animation:pt-boot-route 1.35s cubic-bezier(.2,0,0,1) infinite}
+      html[data-theme='dark'] .pt-boot-trace:before{background:#30363d}html[data-theme='dark'] .pt-boot-node{border-color:#30363d;background:#0d1117}html[data-theme='dark'] .pt-boot-node:nth-child(2){border-color:#7c9cff}html[data-theme='dark'] .pt-boot-packet{background:#7c9cff;box-shadow:0 0 0 2px #0d1117}
+      .pt-boot-copy{display:grid;gap:8px}.pt-boot-copy strong{color:#1f2328;font:600 14px/1.4 Inter,"Noto Sans SC","Noto Sans TC","Noto Sans JP",sans-serif;letter-spacing:0}.pt-boot-copy span{font:400 12px/1.5 Inter,"Noto Sans SC","Noto Sans TC","Noto Sans JP",sans-serif;letter-spacing:0}.pt-boot-copy button{width:max-content;margin:4px auto 0;padding:7px 12px;border:1px solid #d0d7de;border-radius:6px;background:#fff;color:#1f2328;font:500 12px/1.4 Inter,"Noto Sans SC","Noto Sans TC","Noto Sans JP",sans-serif;cursor:pointer}.pt-boot-copy [hidden]{display:none}
+      html[data-theme='dark'] .pt-boot-copy strong{color:#f0f6fc}html[data-theme='dark'] .pt-boot-copy button{border-color:#30363d;background:#161b22;color:#f0f6fc}
+      @keyframes pt-boot-reveal{to{opacity:1}}@keyframes pt-boot-route{0%{left:0;transform:translate(-10%,-50%)}46%,54%{left:50%;transform:translate(-50%,-50%)}100%{left:100%;transform:translate(-90%,-50%)}}
+      @media(prefers-reduced-motion:reduce){.pt-boot-packet{left:50%;animation:none;transform:translate(-50%,-50%)}}
+      @media(forced-colors:active){#partokens-boot-loader{background:Canvas;color:CanvasText}.pt-boot-trace:before{background:CanvasText}.pt-boot-node{border-color:CanvasText;background:Canvas}.pt-boot-node:nth-child(2),.pt-boot-packet{border-color:Highlight;background:Highlight;box-shadow:none}}
+    </style>
     <title>Partokens</title>
   </head>
   <body>
+    <div id="partokens-boot-loader" role="status" aria-live="polite" aria-busy="true" aria-label="Preparing Partokens">
+      <div class="pt-boot">
+        <span class="pt-boot-mark" aria-hidden="true">
+          <img class="pt-boot-mark-light" src="/brand/partokens-avatar-monochrome-light-transparent-64.png" alt="" width="48" height="48" />
+          <img class="pt-boot-mark-dark" src="/brand/partokens-avatar-monochrome-dark-transparent-64.png" alt="" width="48" height="48" />
+        </span>
+        <span class="pt-boot-trace" aria-hidden="true"><i class="pt-boot-node"></i><i class="pt-boot-node"></i><i class="pt-boot-node"></i><i class="pt-boot-packet"></i></span>
+        <span class="pt-boot-copy"><strong data-boot-label>Preparing Partokens</strong><span data-boot-long hidden>Taking longer than usual</span><button data-boot-reload type="button" hidden>Reload page</button></span>
+      </div>
+    </div>
+    <script>
+      (()=>{const el=document.getElementById('partokens-boot-loader');if(!el)return;el.dataset.startedAt=String(performance.now());const supported=['zh-CN','zh-TW','en','ja','ru','fr','vi'];const copy={'zh-CN':['正在准备 Partokens','加载时间比预期更长','重新加载页面'],'zh-TW':['正在準備 Partokens','載入時間比預期更長','重新載入頁面'],en:['Preparing Partokens','Taking longer than usual','Reload page'],ja:['Partokens を準備中','通常より時間がかかっています','ページを再読み込み'],ru:['Подготовка Partokens','Загрузка занимает больше времени, чем обычно','Перезагрузить страницу'],fr:['Préparation de Partokens','Le chargement prend plus de temps que prévu','Recharger la page'],vi:['Đang chuẩn bị Partokens','Quá trình tải đang lâu hơn bình thường','Tải lại trang']};const normalize=value=>{if(value==='zh-TW'||/^zh-(TW|HK)/i.test(value))return'zh-TW';if(/^zh/i.test(value))return'zh-CN';const short=value.split('-')[0];return supported.includes(value)?value:supported.includes(short)?short:'en'};let saved='';try{saved=localStorage.getItem('partokens-locale')||''}catch{}const route=location.pathname.split('/').filter(Boolean)[0]||'';const locale=supported.includes(route)?route:normalize(saved||navigator.language||'en');const text=copy[locale]||copy.en;document.documentElement.lang=locale;el.setAttribute('aria-label',text[0]);el.querySelector('[data-boot-label]').textContent=text[0];const timer=setTimeout(()=>{if(!el.isConnected)return;const long=el.querySelector('[data-boot-long]');const reload=el.querySelector('[data-boot-reload]');long.textContent=text[1];reload.textContent=text[2];long.hidden=false;reload.hidden=false;reload.addEventListener('click',()=>location.reload())},8000);window.addEventListener('pagehide',()=>clearTimeout(timer),{once:true})})()
+    </script>
     <div id="root"></div>
   </body>
 </html>

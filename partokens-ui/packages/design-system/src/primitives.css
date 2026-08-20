@@ -808,8 +808,147 @@
 
 .pt-spinner { animation: pt-spin 0.8s linear infinite; }
 
+.pt-loading-trace {
+  display: inline-flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pt-space-3);
+  color: var(--pt-loading-text);
+  font-family: var(--pt-font-interface);
+  font-size: var(--pt-font-size-12);
+  line-height: var(--pt-line-height-ui);
+}
+
+.pt-loading-trace__rail {
+  position: relative;
+  width: 7rem;
+  height: 0.75rem;
+  display: block;
+}
+
+.pt-loading-trace__rail::before {
+  position: absolute;
+  top: 50%;
+  right: 0.1875rem;
+  left: 0.1875rem;
+  height: 1px;
+  background: var(--pt-loading-track);
+  content: '';
+  transform: translateY(-50%);
+}
+
+.pt-loading-trace__node {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border: 1px solid var(--pt-loading-track);
+  border-radius: var(--pt-radius-round);
+  background: var(--pt-loading-surface);
+  transform: translate(-50%, -50%);
+}
+
+.pt-loading-trace__node--client { left: 0.21875rem; }
+.pt-loading-trace__node--router {
+  left: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-color: var(--pt-loading-signal);
+  border-radius: var(--pt-radius-2);
+}
+.pt-loading-trace__node--model { left: calc(100% - 0.21875rem); }
+
+.pt-loading-trace__packet {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 0;
+  width: 0.3125rem;
+  height: 0.3125rem;
+  border-radius: 1px;
+  background: var(--pt-loading-signal);
+  box-shadow: 0 0 0 2px var(--pt-loading-surface);
+  animation: pt-loading-route 1.35s var(--pt-ease-standard) infinite;
+}
+
+.pt-loading-trace[data-compact] { gap: 0; }
+.pt-loading-trace[data-compact] .pt-loading-trace__rail { width: 4.5rem; }
+.pt-loading-trace__label { max-width: min(26rem, calc(100vw - 3rem)); text-align: center; }
+
+.pt-loading-region {
+  min-width: 0;
+  display: grid;
+  gap: var(--pt-space-5);
+}
+
+.pt-loading-region__status {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--pt-space-3);
+  color: var(--pt-loading-text);
+  font-family: var(--pt-font-interface);
+  font-size: var(--pt-font-size-13);
+}
+
+.pt-loading-region__status .pt-loading-trace { flex: 0 0 auto; }
+.pt-loading-region__status .pt-loading-trace__rail { width: 4.5rem; }
+.pt-loading-region__status small { margin-inline-start: auto; color: var(--pt-color-text-tertiary); }
+.pt-loading-region__content { min-width: 0; }
+
+.pt-route-progress {
+  position: fixed;
+  z-index: calc(var(--pt-z-toast) + 1);
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--pt-motion-fast) var(--pt-ease-standard);
+}
+
+.pt-route-progress::before {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--pt-loading-track) 70%, transparent);
+  content: '';
+}
+
+.pt-route-progress > span {
+  position: absolute;
+  inset: 0;
+  background: var(--pt-loading-signal);
+  transform: scaleX(1);
+  transform-origin: left center;
+  transition: transform var(--pt-motion-base) var(--pt-ease-standard);
+}
+
+.pt-route-progress[data-active] {
+  opacity: 1;
+  transition-delay: var(--pt-loading-delay);
+}
+
+.pt-route-progress[data-active] > span {
+  animation: pt-route-progress 1.8s var(--pt-ease-standard) infinite;
+}
+
 @keyframes pt-spin { to { transform: rotate(360deg); } }
 @keyframes pt-select-in { from { opacity: 0; transform: translateY(-4px) scale(0.985); } }
+@keyframes pt-loading-route {
+  0% { left: 0; transform: translate(-10%, -50%); }
+  46% { left: 50%; transform: translate(-50%, -50%); }
+  54% { left: 50%; transform: translate(-50%, -50%); }
+  100% { left: 100%; transform: translate(-90%, -50%); }
+}
+@keyframes pt-route-progress {
+  0% { transform: scaleX(0.08); }
+  55% { transform: scaleX(0.64); }
+  100% { transform: scaleX(0.88); }
+}
 
 @media (max-width: 48rem) {
   .pt-button,
@@ -823,5 +962,19 @@
 @media (prefers-reduced-motion: reduce) {
   .pt-spinner,
   .pt-select-listbox,
-  .pt-menu { animation: none; }
+  .pt-menu,
+  .pt-loading-trace__packet,
+  .pt-route-progress[data-active] > span { animation: none; }
+
+  .pt-loading-trace__packet { left: 50%; transform: translate(-50%, -50%); }
+  .pt-route-progress[data-active] > span { transform: scaleX(1); }
+}
+
+@media (forced-colors: active) {
+  .pt-loading-trace__rail::before,
+  .pt-route-progress::before { background: CanvasText; }
+  .pt-loading-trace__node { border-color: CanvasText; background: Canvas; }
+  .pt-loading-trace__node--router,
+  .pt-loading-trace__packet,
+  .pt-route-progress > span { border-color: Highlight; background: Highlight; }
 }

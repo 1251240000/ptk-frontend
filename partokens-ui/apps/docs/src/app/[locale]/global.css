@@ -2,6 +2,7 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 @import "@partokens/design-system/tokens.css";
+@import "@partokens/design-system/primitives.css";
 @import "@partokens/design-system/partokens-avatar.css";
 @source '../../../../../packages/design-system/src';
 
@@ -61,6 +62,23 @@ body {
   color: var(--ink);
   font-family: "IBM Plex Sans", "Noto Sans SC", "Noto Sans TC", "Noto Sans JP", sans-serif;
   letter-spacing: 0;
+}
+
+.docs-loading-state {
+  width: min(100% - 40px, 960px);
+  min-height: min(70vh, 720px);
+  display: grid;
+  align-content: center;
+  margin: 0 auto;
+  padding: 40px 0 80px;
+}
+
+.docs-loading-state__body { display: grid; gap: 14px; }
+.docs-loading-state__columns { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(180px, .8fr); gap: 24px; margin-top: 18px; }
+
+@media (max-width: 640px) {
+  .docs-loading-state { width: min(100% - 32px, 960px); min-height: 60vh; }
+  .docs-loading-state__columns { grid-template-columns: 1fr; }
 }
 
 button,

@@ -163,9 +163,9 @@ export function ProfilePage() {
   const [gotifyPriority, setGotifyPriority] = useState(settings.gotify_priority ?? 5)
 
   const status = useQuery({ queryKey: ['status'], queryFn: getStatus, staleTime: 60_000 })
-  const oauthBindings = useQuery({ queryKey: ['oauth-bindings'], queryFn: getOAuthBindings, retry: false })
-  const twoFactor = useQuery({ queryKey: ['two-factor-status'], queryFn: getTwoFactorStatus, retry: false })
-  const passkey = useQuery({ queryKey: ['passkey-status'], queryFn: getPasskeyStatus, retry: false })
+  const oauthBindings = useQuery({ queryKey: ['oauth-bindings'], queryFn: getOAuthBindings, retry: false, enabled: tab === 'connections' })
+  const twoFactor = useQuery({ queryKey: ['two-factor-status'], queryFn: getTwoFactorStatus, retry: false, enabled: tab === 'security' })
+  const passkey = useQuery({ queryKey: ['passkey-status'], queryFn: getPasskeyStatus, retry: false, enabled: tab === 'security' })
   const statusData = status.data?.data
   const twoFactorData = twoFactor.data?.data
   const passkeyData = passkey.data?.data
@@ -504,7 +504,7 @@ export function ProfilePage() {
     <div className="space-y-6" data-account-page="profile">
       <AccountPageHeader title={t('Profile')} description={t('Manage account details, connected services, preferences, and security.')} />
 
-      <Tabs value={tab} onValueChange={(value) => selectTab(value as ProfileTab)} className="min-w-0 space-y-5">
+      <Tabs value={tab} onValueChange={(value) => selectTab(value as ProfileTab)} className="profile-tabs min-w-0 space-y-5">
         <div>
           <TabsList className="analytics-segmented grid h-auto w-full grid-cols-2 sm:inline-flex sm:h-10 sm:w-auto">
             <TabsTrigger value="profile"><UserRound />{t('Profile')}</TabsTrigger>
@@ -545,7 +545,7 @@ export function ProfilePage() {
       <TabsContent value="connections" className="mt-0">
         <section className="overflow-hidden rounded-lg border">
           <AccountSectionHeading eyebrow={t('Connected services').toUpperCase()} title={t('Account bindings')} description={t('Connect the identity providers available on this deployment.')} icon={Link2} />
-          <AccountDataState loading={status.isLoading || oauthBindings.isLoading} error={(status.isError && !status.data) || (oauthBindings.isError && !oauthBindings.data) ? t('Interface data unavailable') : null} empty={false} emptyTitle={t('Account bindings')} retryLabel={t('Retry')} onRetry={() => void Promise.all([status.refetch(), oauthBindings.refetch()])}>
+          <AccountDataState loading={status.isLoading || oauthBindings.isLoading} loadingLabel={t('Loading connections')} error={(status.isError && !status.data) || (oauthBindings.isError && !oauthBindings.data) ? t('Interface data unavailable') : null} empty={false} emptyTitle={t('Account bindings')} retryLabel={t('Retry')} onRetry={() => void Promise.all([status.refetch(), oauthBindings.refetch()])}>
           <div className="divide-y">
             <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,1.1fr)] lg:items-center">
               <div className="flex min-w-0 items-start gap-3">
@@ -577,7 +577,7 @@ export function ProfilePage() {
       </TabsContent>
 
       <TabsContent value="security" className="mt-0 space-y-4">
-        <AccountDataState loading={securityLoading} error={securityError && (!twoFactor.data || !passkey.data) ? t('Interface data unavailable') : null} empty={false} emptyTitle={t('Security settings unavailable')} retryLabel={t('Retry')} onRetry={() => void Promise.all([twoFactor.refetch(), passkey.refetch()])}>
+        <AccountDataState loading={securityLoading} loadingLabel={t('Loading security settings')} error={securityError && (!twoFactor.data || !passkey.data) ? t('Interface data unavailable') : null} empty={false} emptyTitle={t('Security settings unavailable')} retryLabel={t('Retry')} onRetry={() => void Promise.all([twoFactor.refetch(), passkey.refetch()])}>
         <div className="space-y-4">
           <section className="overflow-hidden rounded-lg border">
             <AccountSectionHeading eyebrow={t('Sign-in and recovery').toUpperCase()} title={t('Account security')} description={t('Manage the sign-in methods used to protect this account.')} icon={ShieldCheck} />
