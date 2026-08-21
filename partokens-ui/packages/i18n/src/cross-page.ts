@@ -1,0 +1,15 @@
+export const crossPageTranslationRows = [
+  ['API routes', 'API 路由', 'API 路由', 'API routes', 'API ルート', 'Маршруты API', 'Routes API', 'Tuyến API'],
+  ['Service boundary', '服务边界', '服務邊界', 'Service boundary', 'サービス境界', 'Границы сервиса', 'Limites du service', 'Phạm vi dịch vụ'],
+  ['Release notes', '版本说明', '版本說明', 'Release notes', 'リリースノート', 'Примечания к выпуску', 'Notes de version', 'Ghi chú phát hành'],
+  ['Current', '当前', '當前', 'Current', '現在', 'Текущий', 'Actuel', 'Hiện tại'],
+  ['Prompt', '提示词', '提示詞', 'Prompt', 'プロンプト', 'Промпт', 'Instruction', 'Câu lệnh'],
+  ['Route', '路由', '路由', 'Route', 'ルート', 'Маршрут', 'Route', 'Tuyến'],
+  ['Result', '结果', '結果', 'Result', '結果', 'Результат', 'Résultat', 'Kết quả'],
+  ['Model gateway', '模型网关', '模型閘道', 'Model gateway', 'モデルゲートウェイ', 'Шлюз моделей', 'Passerelle de modèles', 'Cổng mô hình'],
+  ['Recovery', '账户恢复', '帳戶復原', 'Recovery', 'アカウント復旧', 'Восстановление', 'Récupération', 'Khôi phục'],
+  ['Toggle sidebar', '切换侧边栏', '切換側邊欄', 'Toggle sidebar', 'サイドバーを切り替える', 'Переключить боковую панель', 'Basculer la barre latérale', 'Chuyển đổi thanh bên'],
+  ['Console navigation', '控制台导航', '控制台導覽', 'Console navigation', 'コンソールナビゲーション', 'Навигация по консоли', 'Navigation de la console', 'Điều hướng bảng điều khiển'],
+  ['Displays console navigation on mobile.', '在移动设备上显示控制台导航。', '在行動裝置上顯示控制台導覽。', 'Displays console navigation on mobile.', 'モバイルでコンソールナビゲーションを表示します。', 'Отображает навигацию по консоли на мобильном устройстве.', 'Affiche la navigation de la console sur mobile.', 'Hiển thị điều hướng bảng điều khiển trên thiết bị di động.'],
+  ['Page not found', '页面不存在', '找不到頁面', 'Page not found', 'ページが見つかりません', 'Страница не найдена', 'Page introuvable', 'Không tìm thấy trang'],
+] as const

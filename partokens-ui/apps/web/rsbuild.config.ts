@@ -14,6 +14,9 @@ export default defineConfig({
     entry: {
       index: './src/main.tsx',
     },
+    define: {
+      'import.meta.env.PUBLIC_PARTOKENS_SOURCE_URL': JSON.stringify(process.env.PUBLIC_PARTOKENS_SOURCE_URL || ''),
+    },
   },
   resolve: {
     alias: {
@@ -40,6 +43,7 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: false,
+    historyApiFallback: true,
     publicDir: [
       { name: path.resolve(rootDir, 'public') },
       { name: path.resolve(rootDir, '../../config'), copyOnBuild: true },

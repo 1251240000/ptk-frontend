@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { canonicalConsoleRoutes, consoleLocales, readGitMetadata, sha256, type ReleaseManifest } from './release-contract'
+import { canonicalConsoleRoutes, consoleLocales, localizedDocsPaths, readGitMetadata, sha256, type ReleaseManifest } from './release-contract'
 
 const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const mode = process.argv[2]
@@ -55,10 +55,22 @@ function checkPackage() {
     'deploy/README.md',
     'release-manifest.json',
     'web/_ui/release.json',
+    'docs/apps/docs/.next/prerender-manifest.json',
   ]
   for (const relative of required) {
     if (!existsSync(join(root, relative))) fail(`Packaged release is missing ${relative}`)
   }
+
+  const docsPrerenderManifest = JSON.parse(readFileSync(join(root, 'docs/apps/docs/.next/prerender-manifest.json'), 'utf8')) as {
+    routes?: Record<string, unknown>
+  }
+  const missingDocsRoutes = localizedDocsPaths.filter((route) => !docsPrerenderManifest.routes?.[route])
+  if (missingDocsRoutes.length) fail(`Packaged docs release is missing ${missingDocsRoutes.length} localized routes: ${missingDocsRoutes.join(', ')}`)
+
+  const docsPackage = JSON.parse(readFileSync(join(root, 'docs/apps/docs/package.json'), 'utf8')) as {
+    scripts?: { start?: string }
+  }
+  if (docsPackage.scripts?.start !== 'node server.js') fail('Packaged docs start script must launch the standalone server')
 
   const manifestPath = join(root, 'release-manifest.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ReleaseManifest

@@ -178,7 +178,7 @@ type StatusPageCopy = {
   scopeBody: string
 }
 
-const statusPageCopy: Record<AppLocale, StatusPageCopy> = {
+export const statusPageCopy: Record<AppLocale, StatusPageCopy> = {
   'zh-CN': {
     eyebrow: '服务运行状况', title: '服务状态', description: '查看 Partokens API 当前可用性与部署信息。', currentStatus: '当前状态',
     operational: 'API 服务运行正常', operationalBody: '状态接口响应正常，Partokens API 当前可连接。', unavailable: '暂时无法确认服务状态', unavailableBody: '状态检查未成功。请稍后重试；这不代表所有 API 请求都不可用。', checking: '正在检查服务状态', checkingBody: '正在连接 Partokens 状态接口。',
@@ -318,7 +318,7 @@ function PublicShell({ children, ...props }: PublicPrototypeProps & { children: 
       <div className="r3-footer-main">
         <div className="r3-footer-brand"><Brand /><p>{getLocaleContent(locale, publicContent).aboutLead}</p><span className="r3-footer-copyright">© {new Date().getFullYear()} Partokens, Inc.</span></div>
         <div className="r3-footer-links">
-          <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('console')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console')}>{t('Image studio')}</button></div>
+          <div><strong>{t('Product')}</strong><button type="button" onClick={() => navigate('console-playground')}>{t('Playground')}</button><button type="button" onClick={() => navigate('console-studio')}>{t('Image studio')}</button></div>
           <div><strong>{t('Resources')}</strong><button type="button" onClick={() => navigate('notices')}>{t('Notices')}</button><button type="button" onClick={() => navigate('status')}>{t('Status')}</button></div>
           <div><strong>{t('Legal')}</strong><button type="button" onClick={() => navigate('legal-user')}>{t('User Agreement')}</button><button type="button" onClick={() => navigate('legal-service')}>{t('Terms of Service')}</button><button type="button" onClick={() => navigate('legal-privacy')}>{t('Privacy Policy')}</button></div>
           <div><strong>{t('Contact')}</strong><a href="mailto:support@partokens.com">Email</a><a href="https://t.me/PartokensSupportBot" target="_blank" rel="noreferrer">Telegram<ExternalLink size={13} /></a></div>
@@ -540,7 +540,7 @@ function ModelsPage({ locale, go, authenticated, pricingModels = [], pricingLoad
     </PageIntro>
 
     <section className="r3-route-overview" aria-labelledby="route-overview-title">
-      <div className="r3-section-copy"><span>API ROUTES</span><h2 id="route-overview-title">{t('Compatible access')}</h2><p>{t('Use the Partokens compatible endpoint in clients that support a custom OpenAI base URL.')}</p><code>https://partokens.com/v1</code></div>
+      <div className="r3-section-copy"><span>{t('API routes').toUpperCase()}</span><h2 id="route-overview-title">{t('Compatible access')}</h2><p>{t('Use the Partokens compatible endpoint in clients that support a custom OpenAI base URL.')}</p><code>https://partokens.com/v1</code></div>
       <div className="r3-endpoint-list">
         {endpoints.map(({ icon: Icon, label, path, tone }) => <article key={path} data-tone={tone}><span><Icon size={18} /></span><div><strong>{label}</strong><code>{path}</code></div><Route size={18} /></article>)}
       </div>
@@ -577,9 +577,9 @@ function AboutPage({ locale, publicContent }: Pick<PublicPrototypeProps, 'locale
   ]
   return <main className="r3-page r3-about-page">
     <PageIntro eyebrow={t('About Partokens')} title={content.aboutTitle} description={content.aboutLead} />
-    <section className="r3-about-statement"><span>PARTOKENS / ROUTE</span><p>{content.aboutBody}</p><div aria-hidden="true"><span>Prompt</span><ArrowRight size={18} /><span>Route</span><ArrowRight size={18} /><span>Result</span></div></section>
+    <section className="r3-about-statement"><span>PARTOKENS / {t('Route').toUpperCase()}</span><p>{content.aboutBody}</p><div aria-hidden="true"><span>{t('Prompt')}</span><ArrowRight size={18} /><span>{t('Route')}</span><ArrowRight size={18} /><span>{t('Result')}</span></div></section>
     <section className="r3-principles">{principles.map(({ icon: Icon, title, body }, index) => <article key={title}><code>0{index + 1}</code><Icon size={21} /><h2>{title}</h2><p>{body}</p></article>)}</section>
-    <section className="r3-service-boundary"><div><span>SERVICE BOUNDARY</span><h2>{t('Independent UI')}</h2></div><div><strong>Partokens UI</strong><ArrowRight size={19} /><strong>New API</strong><ArrowRight size={19} /><strong>{t('Provider route')}</strong></div></section>
+    <section className="r3-service-boundary"><div><span>{t('Service boundary').toUpperCase()}</span><h2>{t('Independent UI')}</h2></div><div><strong>Partokens UI</strong><ArrowRight size={19} /><strong>New API</strong><ArrowRight size={19} /><strong>{t('Provider route')}</strong></div></section>
   </main>
 }
 
@@ -597,12 +597,26 @@ function LegalPage({ locale, screen, go, publicContent }: Pick<PublicPrototypePr
     { target: 'legal-service', kind: 'service-agreement' },
     { target: 'legal-privacy', kind: 'privacy-policy' },
   ]
+  const sectionId = (index: number) => `legal-${kind}-section-${index + 1}`
   return <main className="r3-page r3-legal-layout">
-    <aside className="r3-legal-index"><span>{t('Legal')}</span><nav>{legalLinks.map((link) => { const item = getLegalDocument(locale, link.kind, publicContent); return <button type="button" key={link.kind} aria-current={kind === link.kind ? 'page' : undefined} onClick={() => go(link.target)}><FileText size={16} />{item.title}</button> })}</nav></aside>
+    <aside className="r3-legal-index"><span>{t('Legal')}</span><nav aria-label={t('Legal')}>{legalLinks.map((link) => { const item = getLegalDocument(locale, link.kind, publicContent); return <button type="button" key={link.kind} aria-current={kind === link.kind ? 'page' : undefined} onClick={() => go(link.target)}><FileText size={16} />{item.title}</button> })}</nav></aside>
     <article className="r3-legal-document">
-      <PageIntro eyebrow={t('Legal')} title={document.title} description={document.summary} />
-      <div className="r3-legal-meta"><span><FileCheck2 size={15} />{document.reviewState === 'reviewed' ? t('Reviewed content') : t('Draft content')}</span><span>{t('Effective date')}: <time dateTime={document.effectiveDate}>{document.effectiveDate}</time></span>{document.reviewState === 'draft' ? <span>{t('Owner review required')}</span> : null}</div>
-      <div className="r3-legal-body">{document.sections.map((section, index) => <section key={section.title}><span>{String(index + 1).padStart(2, '0')}</span><div><h2>{section.title}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div></section>)}</div>
+      <header className="r3-legal-header">
+        <span className="r3-legal-kicker"><FileText size={15} />{t('Legal')}</span>
+        <h1>{document.title}</h1>
+        <p>{document.summary}</p>
+        <dl className="r3-legal-meta">
+          <div data-review={document.reviewState}>
+            <dt><FileCheck2 size={15} />{document.reviewState === 'reviewed' ? t('Reviewed content') : t('Draft content')}</dt>
+            {document.reviewState === 'draft' ? <dd>{t('Owner review required')}</dd> : null}
+          </div>
+          <div><dt>{t('Effective date')}</dt><dd><time dateTime={document.effectiveDate}>{document.effectiveDate}</time></dd></div>
+        </dl>
+        <nav className="r3-legal-section-index" aria-label={document.title}>
+          {document.sections.map((section, index) => <a key={sectionId(index)} href={`#${sectionId(index)}`}><span>{String(index + 1).padStart(2, '0')}</span>{section.title}</a>)}
+        </nav>
+      </header>
+      <div className="r3-legal-body">{document.sections.map((section, index) => <section id={sectionId(index)} tabIndex={-1} key={section.title}><span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><div><h2>{section.title}</h2>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div></section>)}</div>
     </article>
   </main>
 }
@@ -613,9 +627,9 @@ function NoticesPage({ locale, publicContent }: Pick<PublicPrototypeProps, 'loca
   const policy = getNoticePolicy(locale, publicContent)
   useEffect(() => markNoticeSeen(notice), [notice.id, notice.version])
   return <main className="r3-page r3-notices-page">
-    <PageIntro eyebrow="RELEASE NOTES" title={t('Notices')} description={notice.title} />
+    <PageIntro eyebrow={t('Release notes').toUpperCase()} title={t('Notices')} description={notice.title} />
     <section className="r3-notice-entry">
-      <aside><span>CURRENT</span><code>{notice.version}</code></aside>
+      <aside><span>{t('Current').toUpperCase()}</span><code>{notice.version}</code></aside>
       <article><header><span className="r3-release-badge"><Bell size={15} />{notice.releaseLabel}</span><time dateTime={notice.publishedAt}>{notice.publishedAt}</time></header><h2>{notice.title}</h2><p>{notice.body}</p><div>{notice.highlights.map((highlight, index) => <span key={highlight}>{index === 0 ? <CheckCircle2 size={16} /> : <ShieldCheck size={16} />}{highlight}</span>)}</div></article>
     </section>
     <section className="r3-notice-policy"><CircleDollarSign size={20} /><div><h2>{policy.title}</h2><p>{policy.body}</p></div></section>

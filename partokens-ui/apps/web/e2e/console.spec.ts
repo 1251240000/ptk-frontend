@@ -4,6 +4,14 @@ import { installMockApi, primeUserSession } from './mock-api'
 
 const evidenceScreenshots = process.env.PARTOKENS_E2E_EVIDENCE_DIR || '../../dogfood-output/r60-console-staging-validation/screenshots'
 
+function requestGate() {
+  let markStarted: () => void = () => undefined
+  let release: () => void = () => undefined
+  const started = new Promise<void>((resolve) => { markStarted = resolve })
+  const held = new Promise<void>((resolve) => { release = resolve })
+  return { started, held, markStarted, release }
+}
+
 test('the canonical console keeps the existing authentication boundary and return path', async ({ page }) => {
   await installMockApi(page)
   await page.route('**/api/user/auth/refresh', async (route) => {
@@ -20,11 +28,13 @@ test('the canonical console keeps the existing authentication boundary and retur
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 })
 
-test('the canonical console keeps administrators on the native management entry', async ({ page }) => {
+test('administrators can use the localized Partokens Console', async ({ page }) => {
   await installMockApi(page, { role: 10 })
   await page.goto('/en/console/overview')
 
-  await expect.poll(() => new URL(page.url()).pathname).toBe('/channels')
+  await expect(page).toHaveURL(/\/en\/console\/overview$/)
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible()
+  await expect(page.getByText('Fixture User', { exact: true }).first()).toBeVisible()
 })
 
 test('compatibility entries redirect to locale-preserving canonical routes and keep search', async ({ page }) => {
@@ -106,8 +116,8 @@ test('the desktop shell uses the real session, theme store, and keyboard sidebar
 
   await page.screenshot({ path: `${evidenceScreenshots}/canonical-console-1440.png` })
 
-  await page.getByRole('button', { name: 'Change theme' }).click()
-  await page.getByRole('menuitemradio', { name: 'Dark' }).click()
+  await page.getByRole('button', { name: 'Theme' }).click()
+  await page.getByRole('menuitemradio', { name: 'Dark mode' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
   await page.getByRole('link', { name: 'Analytics' }).click()
@@ -128,7 +138,7 @@ test('the mobile sidebar closes by Escape and navigation, then restores trigger 
   const trigger = page.locator('[data-console-sidebar-trigger]')
   await trigger.focus()
   await page.keyboard.press('Enter')
-  const mobileSidebar = page.getByRole('dialog', { name: 'Sidebar' })
+  const mobileSidebar = page.getByRole('dialog', { name: 'Console navigation' })
   await expect(mobileSidebar).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(mobileSidebar).toHaveCount(0)
@@ -155,12 +165,12 @@ test('the 320px Console shell exposes named controls in keyboard order without o
 
   const trigger = page.locator('[data-console-sidebar-trigger]')
   await expect(trigger).toHaveAccessibleName(/sidebar/i)
-  await expect(page.getByRole('button', { name: 'Change theme' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Theme' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Account menu' })).toBeVisible()
   await trigger.focus()
   await page.keyboard.press('Enter')
 
-  const sidebar = page.getByRole('dialog', { name: 'Sidebar' })
+  const sidebar = page.getByRole('dialog', { name: 'Console navigation' })
   await expect(sidebar).toBeVisible()
   const labels = await sidebar.locator('button:not([disabled]), a[href]').evaluateAll((elements) => elements.map((element) =>
     element.getAttribute('aria-label') || element.textContent?.replace(/\s+/g, ' ').trim() || '',
@@ -265,7 +275,7 @@ test('canonical console overview refreshes a child-query 401 while keeping an ad
   const recent = page.getByRole('region', { name: 'Recent usage' })
   await expect(readiness).toContainText('Your account cannot access API key readiness.')
   await expect(recent).toContainText('No recent usage')
-  await expect(page.getByRole('region', { name: 'API service' })).toContainText('Available')
+  await expect(page.getByRole('region', { name: 'Subscription status' })).toContainText('Active')
   await expect(page.getByText('server-secret-must-not-render')).toHaveCount(0)
 
   await readiness.getByRole('button', { name: 'Retry' }).click()
@@ -414,8 +424,10 @@ test('canonical console analytics stops incomplete contracts and renders true em
   let state: 'partial' | 'empty' = 'partial'
   await primeUserSession(page)
   await installMockApi(page)
+  const request = requestGate()
   await page.route('**/api/data/self**', async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 800))
+    request.markStarted()
+    await request.held
     const data = state === 'empty' ? [] : [
       { created_at: 1_721_520_000, model_name: 'gpt-4.1-mini', request_count: 3, token_used: 320, quota: 2_000 },
       { created_at: 1_721_520_000, model_name: 'missing-metrics' },
@@ -425,9 +437,11 @@ test('canonical console analytics stops incomplete contracts and renders true em
   await page.route('**/api/data/flow/self**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: '', data: state === 'empty' ? [] : [{ token_name: 'missing-metrics' }] }) })
   })
-  await page.goto('/en/console/analytics')
+  await page.goto('/en/console/analytics', { waitUntil: 'domcontentloaded' })
 
+  await request.started
   await expect(page.getByLabel('Loading analytics')).toBeVisible()
+  request.release()
   await expect(page.getByText('Model usage', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Routes' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'Data unavailable for this view' })).toBeVisible()
@@ -453,8 +467,8 @@ for (const width of [390, 320]) {
 
     await expect(page.getByRole('heading', { name: '数据看板' })).toBeVisible()
     if (width === 390) await page.screenshot({ path: `${evidenceScreenshots}/analytics-390.png`, fullPage: true })
-    await page.getByRole('button', { name: '切换主题' }).click()
-    await page.getByRole('menuitemradio', { name: 'Dark' }).click()
+    await page.getByRole('button', { name: '主题' }).click()
+    await page.getByRole('menuitemradio', { name: '深色模式' }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await page.getByRole('tab', { name: '路由' }).click()
     await expect(page.getByRole('tabpanel', { name: '路由' }).locator('article').filter({ hasText: 'Studio fixture' }).first()).toBeVisible()
@@ -594,19 +608,23 @@ test('canonical console usage logs exposes loading, partial, redacted, contract,
   let state: 'partial' | 'contract' | 'empty' = 'partial'
   await primeUserSession(page)
   await installMockApi(page)
+  const request = requestGate()
   await page.route('**/api/log/self**', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname !== '/api/log/self') return route.fallback()
-    await new Promise((resolve) => setTimeout(resolve, 350))
+    request.markStarted()
+    await request.held
     const items = state === 'empty' ? [] : state === 'contract' ? [{ id: 2 }] : [
       { id: 1, created_at: 1_721_520_000, type: 2, token_name: 'Bearer private-token', model_name: 'https://private.example/model?key=secret', prompt_tokens: 4, content: 'sk-request-content-secret', other: '{"output_url":"https://private.example/result?sig=secret"}' },
       { id: 2 },
     ]
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: '', data: { items, total: items.length, page: 1, page_size: 20 } }) })
   })
-  await page.goto('/en/console/usage-logs')
+  await page.goto('/en/console/usage-logs', { waitUntil: 'domcontentloaded' })
 
+  await request.started
   await expect(page.getByLabel('Loading usage logs')).toBeVisible()
+  request.release()
   await expect(page.getByRole('status').filter({ hasText: 'Some log records or fields were unavailable or redacted' })).toBeVisible()
   await expect(page.getByText('Bearer [redacted]').first()).toBeVisible()
   await expect(page.getByRole('table').getByText('[redacted URL]')).toBeVisible()
@@ -645,8 +663,8 @@ for (const width of [390, 320]) {
     await page.goto('/zh-CN/console/usage-logs')
 
     await expect(page.getByRole('heading', { name: '使用日志' })).toBeVisible()
-    await page.getByRole('button', { name: '切换主题' }).click()
-    await page.getByRole('menuitemradio', { name: 'Dark' }).click()
+    await page.getByRole('button', { name: '主题' }).click()
+    await page.getByRole('menuitemradio', { name: '深色模式' }).click()
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     const details = page.getByRole('button', { name: /查看 req_fixture.*详情/ }).first()
     await expect(details).toBeVisible()
@@ -1042,16 +1060,20 @@ test('canonical console API keys exposes loading, partial, contract, and empty l
   let state: 'partial' | 'contract' | 'empty' = 'partial'
   await primeUserSession(page)
   await installMockApi(page)
+  const request = requestGate()
   await page.route('**/api/token/**', async (route) => {
     const url = new URL(route.request().url())
     if (route.request().method() !== 'GET' || url.pathname !== '/api/token/') return route.fallback()
-    await new Promise((resolve) => setTimeout(resolve, 350))
+    request.markStarted()
+    await request.held
     const items = state === 'empty' ? [] : state === 'contract' ? [{ status: 1 }] : [{ id: 11, name: 'Partial key', key: 'PART**********KEYS', status: 1 }, { id: 12 }]
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: '', data: { items, total: items.length, page: 1, page_size: 100 } }) })
   })
-  await page.goto('/en/console/keys')
+  await page.goto('/en/console/keys', { waitUntil: 'domcontentloaded' })
 
+  await request.started
   await expect(page.getByLabel('Loading API keys')).toBeVisible()
+  request.release()
   await expect(page.getByRole('status').filter({ hasText: 'Some API key records or fields are unavailable' })).toHaveCount(0)
   await expect(page.getByText('Partial key', { exact: true }).first()).toBeVisible()
 

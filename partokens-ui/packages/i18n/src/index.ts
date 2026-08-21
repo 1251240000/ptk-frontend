@@ -1,10 +1,12 @@
 import { authTranslationRows } from './auth'
 import { accountTranslationRows } from './account'
+import { crossPageTranslationRows } from './cross-page'
 import { loadingTranslationRows } from './loading'
 import { playgroundTranslationRows } from './playground'
 import { studioTranslationRows } from './studio'
 
 export { accountTranslationRows } from './account'
+export { crossPageTranslationRows } from './cross-page'
 export { loadingTranslationRows } from './loading'
 export { playgroundTranslationRows } from './playground'
 export { studioTranslationRows } from './studio'
@@ -1598,6 +1600,12 @@ for (const [key, ...values] of playgroundTranslationRows) {
 }
 
 for (const [key, ...values] of studioTranslationRows) {
+  locales.forEach((locale, index) => {
+    ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
+  })
+}
+
+for (const [key, ...values] of crossPageTranslationRows) {
   locales.forEach((locale, index) => {
     ;(resources[locale].translation as Record<string, string>)[key] = values[index] ?? key
   })

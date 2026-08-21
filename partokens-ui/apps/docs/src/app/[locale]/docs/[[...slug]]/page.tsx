@@ -23,6 +23,8 @@ export default async function DocumentationPage({ params }: { params: Promise<{ 
   )
 }
 
+export const dynamicParams = false
+
 export function generateStaticParams() {
   return source.generateParams().map((params) => ({ locale: params.lang, slug: params.slug }))
 }

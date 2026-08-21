@@ -60,15 +60,9 @@ import {
 
 async function authDestination(
   locale: AppLocale,
-  user: CurrentUser,
   navigate: ReturnType<typeof useNavigate>,
   returnTo?: string | null,
 ): Promise<void> {
-  if (user.role >= 10) {
-    window.location.assign('/channels')
-    return
-  }
-
   const queryReturn = new URLSearchParams(window.location.search).get('redirect')
   const safeReturn = validatedReturnPath(locale, returnTo || queryReturn)
   await navigate({ to: (safeReturn || canonicalConsolePath(locale, 'overview')) as never })
@@ -114,7 +108,7 @@ export function SignInPage() {
         await navigate({ to: '/$locale/auth/otp', params: { locale }, search: true })
         return
       }
-      await authDestination(locale, result.data.user, navigate)
+      await authDestination(locale, navigate)
     } catch (cause) {
       setError(authErrorMessage(cause, t, t('Sign in failed')))
       setBusy(false)
@@ -339,7 +333,7 @@ export function VerifyEmailPage() {
   }
 
   return <AuthFrame screen="verify-email">
-    <PageHeading eyebrow="EMAIL" title={t('Verify your email')} body={t('Enter the code sent to your email to verify the contact address for registration.')} backLabel={t('Sign up')} onBack={() => void navigate({ to: '/$locale/auth/sign-up', params: { locale } })} />
+    <PageHeading eyebrow={t('Email').toUpperCase()} title={t('Verify your email')} body={t('Enter the code sent to your email to verify the contact address for registration.')} backLabel={t('Sign up')} onBack={() => void navigate({ to: '/$locale/auth/sign-up', params: { locale } })} />
     <form className="r32-auth-form" onSubmit={verify}>
       <AuthField label={t('Email')} value={email} icon={Mail} type="email" readOnly name="email" />
       <AuthField label={t('Verification code')} value={code} onChange={setCode} icon={ShieldCheck} inputMode="numeric" autoComplete="one-time-code" required autoFocus name="verification-code" />
@@ -383,7 +377,7 @@ export function ForgotPasswordPage() {
   }
 
   return <AuthFrame screen="forgot-password">
-    <PageHeading eyebrow="RECOVERY" title={t('Forgot password')} body={t('Enter the registered email to receive a one-time password reset link.')} backLabel={t('Return to sign in')} onBack={() => window.location.assign(`/${locale}/auth/sign-in`)} />
+    <PageHeading eyebrow={t('Recovery').toUpperCase()} title={t('Forgot password')} body={t('Enter the registered email to receive a one-time password reset link.')} backLabel={t('Return to sign in')} onBack={() => window.location.assign(`/${locale}/auth/sign-in`)} />
     <form className="r32-auth-form" onSubmit={(event) => void submit(event)}>
       <AuthField label={t('Email')} value={email} onChange={setEmail} icon={Mail} type="email" autoComplete="email" required autoFocus name="email" />
       {turnstileRequired ? <TurnstileField siteKey={status.data?.data.turnstile_site_key} onToken={setTurnstile} /> : null}
@@ -433,7 +427,7 @@ export function OtpPage() {
         failure.code = result.code
         throw failure
       }
-      await authDestination(locale, result.data.user, navigate)
+      await authDestination(locale, navigate)
     } catch (cause) {
       setError(authErrorMessage(cause, t, t('Verification failed')))
       setBusy(false)
@@ -441,7 +435,7 @@ export function OtpPage() {
   }
 
   return <AuthFrame screen="two-factor">
-    <PageHeading eyebrow="SECURITY" title={t('Two-factor verification')} body={backup ? t('Each backup code works once and becomes invalid after verification.') : t('Enter an authenticator code or backup code to finish signing in.')} backLabel={t('Return to sign in')} onBack={cancel} />
+    <PageHeading eyebrow={t('Security').toUpperCase()} title={t('Two-factor verification')} body={backup ? t('Each backup code works once and becomes invalid after verification.') : t('Enter an authenticator code or backup code to finish signing in.')} backLabel={t('Return to sign in')} onBack={cancel} />
     {expired ? <>
       <InlineStatus error>{t('Login flow expired. Please sign in again.')}</InlineStatus>
       <RouteButton onClick={cancel}><LockKeyhole size={16} />{t('Return to sign in')}</RouteButton>
@@ -534,7 +528,7 @@ export function ResetPasswordPage() {
   }
 
   return <AuthFrame screen="reset-password">
-    <PageHeading eyebrow="RECOVERY" title={t('Reset password')} body={password ? t('The full new password is shown only once on this page. Store it now.') : t('After the reset link is confirmed, the service will issue a new account password.')} backLabel={t('Return to sign in')} onBack={() => window.location.assign(`/${locale}/auth/sign-in`)} />
+    <PageHeading eyebrow={t('Recovery').toUpperCase()} title={t('Reset password')} body={password ? t('The full new password is shown only once on this page. Store it now.') : t('After the reset link is confirmed, the service will issue a new account password.')} backLabel={t('Return to sign in')} onBack={() => window.location.assign(`/${locale}/auth/sign-in`)} />
     {password ? <div className="r32-generated-password">
       <span><Check size={16} />{t('New password')}</span>
       <div><code>{password}</code><button type="button" className="pt-icon-button" aria-label={copied ? t('Password copied.') : t('Copy password')} title={copied ? t('Password copied.') : t('Copy password')} onClick={() => void copyPassword()}>{copied ? <Check size={17} /> : <Copy size={17} />}</button></div>
@@ -623,7 +617,7 @@ export function OAuthCallbackPage() {
     const timer = window.setTimeout(() => {
       const returnTo = context?.returnTo
       clearOAuthContext()
-      void authDestination(locale, user, navigate, returnTo)
+      void authDestination(locale, navigate, returnTo)
     }, 1200)
     return () => window.clearTimeout(timer)
   }, [context?.returnTo, locale, navigate, user, view])

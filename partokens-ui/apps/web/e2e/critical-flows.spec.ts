@@ -163,15 +163,15 @@ test('registration highlights invalid username and password fields until they ar
   }
 })
 
-test('administrators leave the standalone locale routes for the native management entry', async ({ page }) => {
+test('administrators enter the localized Partokens Console after sign-in', async ({ page }) => {
   await installMockApi(page, { role: 10 })
   await page.goto('/en/auth/sign-in')
   await page.getByLabel('Username or email').fill('fixture-admin')
   await page.getByLabel('Password', { exact: true }).fill('fixture-password')
   await page.getByRole('checkbox').check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.waitForURL(/\/channels$/)
-  expect(new URL(page.url()).pathname).toBe('/channels')
+  await page.waitForURL(/\/en\/console\/overview$/)
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible()
 })
 
 test('OAuth callback restores the saved locale and enters the ordinary-user console', async ({ page }) => {
@@ -276,6 +276,8 @@ test('API key lifecycle covers create, edit, disable, reveal, and delete', async
 
   await page.getByRole('button', { name: 'Create key' }).first().click()
   await page.getByLabel('Name').fill('Phase seven key')
+  await page.getByRole('combobox', { name: 'Group' }).click()
+  await page.getByRole('option', { name: /Image/ }).click()
   await page.getByRole('button', { name: 'Create key' }).last().click()
   await expect(page.getByRole('dialog', { name: 'Reveal full key?' })).toBeVisible()
   await page.getByRole('button', { name: 'Confirm reveal' }).click()
@@ -338,31 +340,23 @@ test('usage-log filters preserve self scope and open a redacted detail drawer', 
   await expect(page.getByText(/billing_mode/)).toHaveCount(0)
 })
 
-test('overview and the public model catalog use live fixture state', async ({ page }) => {
+test('overview uses live fixture state', async ({ page }) => {
   await primeUserSession(page)
   await installMockApi(page)
   await page.goto('/en/console/overview')
 
   await expect(page.getByRole('heading', { name: 'Recent usage' })).toBeVisible()
   await expect(page.getByText('Studio fixture', { exact: true }).first()).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Create a key' })).toHaveAttribute('href', '/en/console/keys')
-  await expect(page.getByRole('link', { name: 'Open Playground' }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/en/console/keys')
   await expect(page.getByRole('link', { name: 'Inspect logs' })).toHaveAttribute('href', '/en/console/usage-logs')
-  await expect(page.getByText('/v1/chat/completions').first()).toBeVisible()
-
-  await page.goto('/en/models')
-  await expect(page.locator('.r3-model-row')).toHaveCount(2)
-  await expect(page.getByRole('heading', { name: 'gpt-4.1-mini' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'gpt-image-1' })).toBeVisible()
+  await expect(page.getByText('https://partokens.com', { exact: true })).toBeVisible()
 })
 
-test('public model marketplace explains a deployment-level pricing login requirement', async ({ page }) => {
+test('the unreleased public model marketplace stays outside the public surface', async ({ page }) => {
   await installMockApi(page, { anonymous: true })
   await page.goto('/en/models')
-  await expect(page.getByRole('heading', { name: 'Sign in to view model pricing' })).toBeVisible()
-  await expect(page.locator('.r3-model-gate').getByText('This deployment requires an account before showing model pricing.', { exact: true })).toBeVisible()
-  await expect(page.getByRole('main').getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible()
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow')
 })
 
 test('wallet exposes only current presets and revalidates the selected amount at submission', async ({ page }) => {
@@ -392,7 +386,7 @@ test('wallet exposes only current presets and revalidates the selected amount at
   await expect(dialog.getByRole('combobox', { name: 'Payment method' })).toHaveText('Fixture Pay')
   await expect(dialog.getByText('You pay').locator('..')).toContainText('$45')
   await dialog.getByRole('button', { name: 'Confirm top-up' }).click()
-  const paymentError = page.getByRole('alert')
+  const paymentError = page.getByText('Payment fixture stopped before checkout.', { exact: true })
   await expect(paymentError).toContainText('Payment fixture stopped before checkout.')
   expect(payment).toMatchObject({ amount: 50, payment_method: 'fixture-pay' })
   await paymentError.scrollIntoViewIfNeeded()
@@ -438,7 +432,7 @@ test('Image Studio matches the design-lab flow while keeping the key in memory a
   await expect(keyDialog).toContainText('The full key stays in memory only for this Studio session.')
   await keyDialog.getByRole('combobox', { name: 'API key' }).click()
   await page.getByRole('option', { name: 'Studio fixture' }).click()
-  await keyDialog.getByRole('button', { name: 'Unlock and generate' }).click()
+  await keyDialog.getByRole('button', { name: 'Continue generating' }).click()
   await expect(page.getByRole('img', { name: 'A precise fixture image, Variation 1' })).toBeVisible()
   await expect(page.getByText('1 of 1')).toBeVisible()
   expect(usedSessionCredential).toBe(true)

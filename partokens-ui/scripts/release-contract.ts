@@ -11,6 +11,30 @@ export const consoleChunkNames: Record<(typeof canonicalConsoleRoutes)[number], 
   'usage-logs': 'console-usage-logs',
 }
 
+export const docsLocales = ['zh-CN', 'zh-TW', 'en', 'ja', 'ru', 'fr', 'vi'] as const
+export const docsPaths = [
+  '',
+  'getting-started/authentication',
+  'getting-started/first-request',
+  'guides/models-and-groups',
+  'guides/chat',
+  'guides/images',
+  'guides/image-studio',
+  'guides/usage-logs',
+  'guides/errors-and-limits',
+  'api/chat-completions',
+  'api/responses',
+  'api/embeddings',
+  'api/image-generations',
+  'api/image-edits',
+  'api/audio-transcriptions',
+  'api/models',
+] as const
+
+export const localizedDocsPaths = docsLocales.flatMap((locale) =>
+  docsPaths.map((path) => `/${locale}/docs${path ? `/${path}` : ''}`),
+)
+
 export type ReleaseChannel = 'staging' | 'production'
 
 export type ReleaseManifest = {

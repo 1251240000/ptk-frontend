@@ -43,18 +43,19 @@ type DocsDetailLabels = {
   next: string
   copyCode: string
   copied: string
+  codeLanguage: string
   directory: string
   fallback: string
 }
 
 const docsDetailLabels: Record<AppLocale, DocsDetailLabels> = {
-  'zh-CN': { prerequisites: '前置条件', onThisPage: '本页内容', previous: '上一篇', next: '下一篇', copyCode: '复制代码', copied: '已复制', directory: '文档目录', fallback: '本页正文暂未翻译，当前显示简体中文版本。' },
-  'zh-TW': { prerequisites: '前置條件', onThisPage: '本頁內容', previous: '上一篇', next: '下一篇', copyCode: '複製程式碼', copied: '已複製', directory: '文件目錄', fallback: '本頁正文暫未翻譯，目前顯示簡體中文版本。' },
-  en: { prerequisites: 'Prerequisites', onThisPage: 'On this page', previous: 'Previous', next: 'Next', copyCode: 'Copy code', copied: 'Copied', directory: 'Documentation index', fallback: 'This article is not translated yet. The Simplified Chinese source is shown below.' },
-  ja: { prerequisites: '前提条件', onThisPage: 'このページ', previous: '前へ', next: '次へ', copyCode: 'コードをコピー', copied: 'コピーしました', directory: 'ドキュメント一覧', fallback: 'この記事は未翻訳のため、簡体字中国語の原文を表示しています。' },
-  ru: { prerequisites: 'Предварительные условия', onThisPage: 'На этой странице', previous: 'Назад', next: 'Далее', copyCode: 'Копировать код', copied: 'Скопировано', directory: 'Содержание документации', fallback: 'Перевод пока недоступен. Ниже показана версия на упрощенном китайском.' },
-  fr: { prerequisites: 'Prérequis', onThisPage: 'Sur cette page', previous: 'Précédent', next: 'Suivant', copyCode: 'Copier le code', copied: 'Copié', directory: 'Sommaire', fallback: 'Cet article n’est pas encore traduit. La version source en chinois simplifié est affichée.' },
-  vi: { prerequisites: 'Điều kiện tiên quyết', onThisPage: 'Trong trang này', previous: 'Trước', next: 'Tiếp', copyCode: 'Sao chép mã', copied: 'Đã sao chép', directory: 'Mục lục tài liệu', fallback: 'Bài viết chưa được dịch. Phiên bản tiếng Trung giản thể được hiển thị bên dưới.' },
+  'zh-CN': { prerequisites: '前置条件', onThisPage: '本页内容', previous: '上一篇', next: '下一篇', copyCode: '复制代码', copied: '已复制', codeLanguage: '代码语言', directory: '文档目录', fallback: '本页正文暂未翻译，当前显示简体中文版本。' },
+  'zh-TW': { prerequisites: '前置條件', onThisPage: '本頁內容', previous: '上一篇', next: '下一篇', copyCode: '複製程式碼', copied: '已複製', codeLanguage: '程式語言', directory: '文件目錄', fallback: '本頁正文暫未翻譯，目前顯示簡體中文版本。' },
+  en: { prerequisites: 'Prerequisites', onThisPage: 'On this page', previous: 'Previous', next: 'Next', copyCode: 'Copy code', copied: 'Copied', codeLanguage: 'Code language', directory: 'Documentation index', fallback: 'This article is not translated yet. The Simplified Chinese source is shown below.' },
+  ja: { prerequisites: '前提条件', onThisPage: 'このページ', previous: '前へ', next: '次へ', copyCode: 'コードをコピー', copied: 'コピーしました', codeLanguage: 'コード言語', directory: 'ドキュメント一覧', fallback: 'この記事は未翻訳のため、簡体字中国語の原文を表示しています。' },
+  ru: { prerequisites: 'Предварительные условия', onThisPage: 'На этой странице', previous: 'Назад', next: 'Далее', copyCode: 'Копировать код', copied: 'Скопировано', codeLanguage: 'Язык кода', directory: 'Содержание документации', fallback: 'Перевод пока недоступен. Ниже показана версия на упрощенном китайском.' },
+  fr: { prerequisites: 'Prérequis', onThisPage: 'Sur cette page', previous: 'Précédent', next: 'Suivant', copyCode: 'Copier le code', copied: 'Copié', codeLanguage: 'Langage du code', directory: 'Sommaire', fallback: 'Cet article n’est pas encore traduit. La version source en chinois simplifié est affichée.' },
+  vi: { prerequisites: 'Điều kiện tiên quyết', onThisPage: 'Trong trang này', previous: 'Trước', next: 'Tiếp', copyCode: 'Sao chép mã', copied: 'Đã sao chép', codeLanguage: 'Ngôn ngữ mã', directory: 'Mục lục tài liệu', fallback: 'Bài viết chưa được dịch. Phiên bản tiếng Trung giản thể được hiển thị bên dưới.' },
 }
 
 const docsItems = docsCatalog.flatMap((group) => group.items)
@@ -95,7 +96,7 @@ function DocsCodeSamples({ samples, labels }: { samples: DocsCodeSample[]; label
   const selected = samples.find((sample) => sample.language === language) ?? samples[0]
   if (!selected) return null
   return <div className="r3-docs-code-samples">
-    {samples.length > 1 ? <div className="pt-segmented r3-sdk-tabs" aria-label="Code language">{samples.map((sample) => <button type="button" key={sample.language} aria-pressed={selected.language === sample.language} onClick={() => setLanguage(sample.language)}>{sample.language === 'shell' ? 'Shell' : sample.language === 'javascript' ? 'JavaScript' : 'Python'}</button>)}</div> : null}
+    {samples.length > 1 ? <div className="pt-segmented r3-sdk-tabs" aria-label={labels.codeLanguage}>{samples.map((sample) => <button type="button" key={sample.language} aria-pressed={selected.language === sample.language} onClick={() => setLanguage(sample.language)}>{sample.language === 'shell' ? 'Shell' : sample.language === 'javascript' ? 'JavaScript' : 'Python'}</button>)}</div> : null}
     <CodeBlock code={selected.code} label={selected.label} copyLabel={`${labels.copyCode}: ${selected.label}`} copiedLabel={labels.copied} />
   </div>
 }

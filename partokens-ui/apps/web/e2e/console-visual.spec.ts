@@ -33,6 +33,14 @@ async function expectHeaderControlsFit(page: Page) {
   }
 }
 
+function requestGate() {
+  let markStarted: () => void = () => undefined
+  let release: () => void = () => undefined
+  const started = new Promise<void>((resolve) => { markStarted = resolve })
+  const held = new Promise<void>((resolve) => { release = resolve })
+  return { started, held, markStarted, release }
+}
+
 async function expectGeometryMatch(production: Page, design: Page, selector: string, label: string) {
   const actual = await production.locator(selector).first().boundingBox()
   const baseline = await design.locator(selector).first().boundingBox()
@@ -258,13 +266,17 @@ test('Canonical Console Analytics loading and unavailable states preserve the co
   await page.setViewportSize({ width: 390, height: 844 })
   await primeUserSession(page)
   await installMockApi(page)
+  const request = requestGate()
   await page.route('**/api/data/self**', async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    request.markStarted()
+    await request.held
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: '', data: [{ created_at: 1_721_520_000, model_name: 'partial-model', count: 3 }] }) })
   })
-  await page.goto('/en/console/analytics')
+  await page.goto('/en/console/analytics', { waitUntil: 'domcontentloaded' })
+  await request.started
   await expect(page.getByLabel('Loading analytics')).toBeVisible()
   await page.screenshot({ path: `${output}/analytics-production-loading-390.png` })
+  request.release()
   await page.getByRole('tab', { name: 'Tokens' }).click()
   await expect(page.getByRole('alert')).toContainText('Data unavailable for this view')
   await page.screenshot({ path: `${output}/analytics-production-unavailable-390.png` })
@@ -323,16 +335,21 @@ test('Canonical Console API Keys loading, partial, and contract states preserve 
   await page.setViewportSize({ width: 390, height: 844 })
   await primeUserSession(page)
   await installMockApi(page)
+  const request = requestGate()
   await page.route('**/api/token/**', async (route) => {
     const url = new URL(route.request().url())
     if (route.request().method() !== 'GET' || url.pathname !== '/api/token/') return route.fallback()
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    request.markStarted()
+    await request.held
     const items = state === 'partial' ? [{ id: 11, name: 'Partial key', key: 'PART**********KEYS', status: 1 }] : [{ status: 1 }]
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: '', data: { items, total: items.length, page: 1, page_size: 100 } }) })
   })
-  await page.goto('/en/console/keys')
+  await page.goto('/en/console/keys', { waitUntil: 'domcontentloaded' })
+  await request.started
   await expect(page.getByLabel('Loading API keys')).toBeVisible()
   await page.screenshot({ path: `${output}/keys-production-loading-390.png` })
+  request.release()
+  await expect(page.getByRole('heading', { name: 'Partial key', exact: true, level: 2 })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: 'Some API key records or fields are unavailable' })).toHaveCount(0)
   await page.screenshot({ path: `${output}/keys-production-partial-390.png` })
 
@@ -374,18 +391,22 @@ test('Canonical Console Usage Logs loading, partial, and contract states preserv
   await page.setViewportSize({ width: 390, height: 844 })
   await primeUserSession(page)
   await installMockApi(page)
+  const request = requestGate()
   await page.route('**/api/log/self**', async (route) => {
     const url = new URL(route.request().url())
     if (url.pathname !== '/api/log/self') return route.fallback()
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    request.markStarted()
+    await request.held
     const items = state === 'partial'
       ? [{ id: 1, created_at: 1_721_520_000, type: 2, token_name: 'Safe key', model_name: 'partial-model', prompt_tokens: 4 }]
       : [{ id: 2 }]
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, message: '', data: { items, total: items.length, page: 1, page_size: 20 } }) })
   })
-  await page.goto('/en/console/usage-logs')
+  await page.goto('/en/console/usage-logs', { waitUntil: 'domcontentloaded' })
+  await request.started
   await expect(page.getByLabel('Loading usage logs')).toBeVisible()
   await page.screenshot({ path: `${output}/logs-production-loading-390.png` })
+  request.release()
   await expect(page.getByRole('status').filter({ hasText: 'Some log records or fields were unavailable' })).toBeVisible()
   await page.screenshot({ path: `${output}/logs-production-partial-390.png` })
 

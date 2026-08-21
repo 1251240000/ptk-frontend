@@ -7,6 +7,7 @@ import {
   canonicalConsoleRoutes,
   consoleChunkNames,
   consoleLocales,
+  localizedDocsPaths,
   readGitMetadata,
   sha256,
   type ReleaseChannel,
@@ -21,11 +22,38 @@ function requirePath(path: string) {
   if (!existsSync(path)) throw new Error(`Required build artifact is missing: ${path}`)
 }
 
+function assertDocsBuild(root: string) {
+  const manifestPath = join(root, 'prerender-manifest.json')
+  requirePath(manifestPath)
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { routes?: Record<string, unknown> }
+  const routes = manifest.routes ?? {}
+  const missing = localizedDocsPaths.filter((route) => !routes[route])
+  if (missing.length) {
+    throw new Error(`Docs build is missing ${missing.length} localized routes: ${missing.join(', ')}`)
+  }
+}
+
 function walkFiles(root: string): string[] {
   return readdirSync(root).flatMap((entry) => {
     const path = join(root, entry)
     return statSync(path).isDirectory() ? walkFiles(path) : [path]
   })
+}
+
+function resolveBuildAsset(root: string, asset: string) {
+  const expected = join(root, asset.replace(/^\//, ''))
+  if (existsSync(expected)) return expected
+  const assetRelative = asset.replace(/^\//, '')
+  const directory = dirname(assetRelative)
+  const basename = assetRelative.slice(assetRelative.lastIndexOf('/') + 1)
+  const stem = basename.replace(/\.js$/, '')
+  const candidate = walkFiles(root).find((path) => {
+    const relativePath = relative(root, path)
+    const candidateBasename = relativePath.slice(relativePath.lastIndexOf('/') + 1)
+    return dirname(relativePath) === directory && candidateBasename.match(new RegExp(`^${stem}\\.[a-z0-9]+\\.js$`))
+  })
+  if (!candidate) throw new Error(`Unable to resolve built asset ${asset}`)
+  return candidate
 }
 
 function treeSha256(root: string) {
@@ -56,6 +84,7 @@ requirePath(join(webBuild, 'index.html'))
 requirePath(join(webBuild, 'public-content/manifest.json'))
 requirePath(join(docsStandalone, 'apps/docs/server.js'))
 requirePath(docsStatic)
+assertDocsBuild(docsBuild)
 
 resetGeneratedDirectory(stageRoot, 'release.tmp')
 mkdirSync(stageRoot, { recursive: true })
@@ -66,6 +95,15 @@ cpSync(join(webBuild, 'public-content'), join(stageRoot, 'web/public-content'), 
 cpSync(docsStandalone, join(stageRoot, 'docs'), { recursive: true })
 cpSync(docsStatic, join(stageRoot, 'docs/apps/docs/.next/static'), { recursive: true })
 if (existsSync(docsPublic)) cpSync(docsPublic, join(stageRoot, 'docs/apps/docs/public'), { recursive: true })
+
+const packagedDocsPackagePath = join(stageRoot, 'docs/apps/docs/package.json')
+if (existsSync(packagedDocsPackagePath)) {
+  const packagedDocsPackage = JSON.parse(readFileSync(packagedDocsPackagePath, 'utf8')) as {
+    scripts?: Record<string, string>
+  }
+  packagedDocsPackage.scripts = { ...packagedDocsPackage.scripts, start: 'node server.js' }
+  writeFileSync(packagedDocsPackagePath, `${JSON.stringify(packagedDocsPackage, null, 2)}\n`)
+}
 cpSync(join(projectRoot, 'deploy'), join(stageRoot, 'deploy'), { recursive: true })
 
 const compatibility = JSON.parse(readFileSync(join(projectRoot, 'compatibility.json'), 'utf8')) as {
@@ -92,9 +130,8 @@ const consoleChunks = Object.fromEntries(canonicalConsoleRoutes.map((route) => {
   const matches = asyncAssets.filter((asset) => asset.includes(`/async/${consoleChunkNames[route]}.`))
   if (matches.length !== 1) throw new Error(`Unable to identify the ${route} release chunk`)
   const asset = matches[0]!
-  const path = join(stageRoot, 'web', asset.replace(/^\//, ''))
-  requirePath(path)
-  return [route, { path: asset, bytes: statSync(path).size, sha256: sha256(path) }]
+  const path = resolveBuildAsset(join(stageRoot, 'web'), asset)
+  return [route, { path: `/${relative(join(stageRoot, 'web'), path)}`, bytes: statSync(path).size, sha256: sha256(path) }]
 }))
 
 const manifest: ReleaseManifest = {

@@ -1,6 +1,17 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const evidenceRoot = process.env.PARTOKENS_E2E_OUTPUT_DIR || '../../dogfood-output/r60-console-staging-validation'
+const e2eSuites = [
+  'account.spec.ts',
+  'auth-visual.spec.ts',
+  'console-release-readiness.spec.ts',
+  'console-visual.spec.ts',
+  'console.spec.ts',
+  'critical-flows.spec.ts',
+  'playground.spec.ts',
+  'public-content.spec.ts',
+  'studio.spec.ts',
+] as const
 
 export default defineConfig({
   testDir: './e2e',
@@ -15,23 +26,22 @@ export default defineConfig({
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
   },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
+  projects: e2eSuites.map((suite) => ({
+    name: suite.replace('.spec.ts', ''),
+    testMatch: suite,
+    use: { ...devices['Desktop Chrome'] },
+  })),
   webServer: [
     {
-      command: 'bun run dev -- --host 127.0.0.1 --port 4174',
+      command: 'bunx rsbuild build && bun run preview -- --host 127.0.0.1 --port 4174 --strict-port',
       url: 'http://127.0.0.1:4174/en/',
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     {
-      command: 'bun run --cwd ../design-lab dev',
+      command: 'bun run --cwd ../design-lab dev -- --strictPort',
       url: 'http://127.0.0.1:4180/#console',
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       timeout: 120_000,
     },
   ],

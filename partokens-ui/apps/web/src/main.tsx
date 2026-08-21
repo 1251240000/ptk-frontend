@@ -10,6 +10,7 @@ import '@/features/public/public.css'
 import '@/features/auth/auth.css'
 import '@/styles.css'
 import '@/lib/i18n'
+import { publicSourceUrl } from '@/lib/release'
 import { router } from '@/router'
 
 const queryClient = new QueryClient({
@@ -18,6 +19,8 @@ const queryClient = new QueryClient({
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Application root is missing')
+
+if (publicSourceUrl) document.documentElement.dataset.partokensSource = publicSourceUrl
 
 createRoot(root).render(
   <StrictMode>

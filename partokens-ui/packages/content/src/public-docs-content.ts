@@ -176,7 +176,7 @@ response="$(curl --silent --show-error --fail-with-body \\
   -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "<YOUR_IMAGE_MODEL_ID>",
+    "model": "<YOUR_MODEL_ID>",
     "prompt": "一枚放在白色桌面上的玻璃纸镇，柔和自然光"
   }')"
 
@@ -201,7 +201,7 @@ const client = new OpenAI({
 });
 
 const result = await client.images.generate({
-  model: "<YOUR_IMAGE_MODEL_ID>",
+  model: "<YOUR_MODEL_ID>",
   prompt: "一枚放在白色桌面上的玻璃纸镇，柔和自然光",
 });
 
@@ -233,7 +233,7 @@ client = OpenAI(
 )
 
 result = client.images.generate(
-    model="<YOUR_IMAGE_MODEL_ID>",
+    model="<YOUR_MODEL_ID>",
     prompt="一枚放在白色桌面上的玻璃纸镇，柔和自然光",
 )
 
@@ -266,7 +266,7 @@ response="$(curl --silent --show-error --fail-with-body \\
   -H "Authorization: Bearer $PARTOKENS_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "<YOUR_IMAGE_MODEL_ID>",
+    "model": "<YOUR_MODEL_ID>",
     "prompt": "A glass paperweight on a white table in soft natural light"
   }')"
 
@@ -291,7 +291,7 @@ const client = new OpenAI({
 });
 
 const result = await client.images.generate({
-  model: "<YOUR_IMAGE_MODEL_ID>",
+  model: "<YOUR_MODEL_ID>",
   prompt: "A glass paperweight on a white table in soft natural light",
 });
 
@@ -323,7 +323,7 @@ client = OpenAI(
 )
 
 result = client.images.generate(
-    model="<YOUR_IMAGE_MODEL_ID>",
+    model="<YOUR_MODEL_ID>",
     prompt="A glass paperweight on a white table in soft natural light",
 )
 
@@ -1297,7 +1297,7 @@ export PARTOKENS_MODEL="your-model"` }] },
         id: 'send-request',
         title: '发送请求',
         blocks: [
-          { type: 'endpoint', method: 'POST', label: 'Images Generations', path: 'https://partokens.com/v1/images/generations' },
+          { type: 'endpoint', method: 'POST', label: 'Image Generations', path: 'https://partokens.com/v1/images/generations' },
           { type: 'list', items: ['发送 `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>` 请求头。', '发送 `Content-Type: application/json` 请求头。', '使用 SDK 时将 Base URL 设置为 `https://partokens.com/v1`。'] },
         ],
       },
@@ -1780,7 +1780,7 @@ const englishDocsDocuments: Partial<Record<DocsItemId, DocsDocument>> = {
         id: 'send-request',
         title: 'Send a request',
         blocks: [
-          { type: 'endpoint', method: 'POST', label: 'Images Generations', path: 'https://partokens.com/v1/images/generations' },
+          { type: 'endpoint', method: 'POST', label: 'Image Generations', path: 'https://partokens.com/v1/images/generations' },
           { type: 'list', items: ['Send `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`.', 'Send `Content-Type: application/json`.', 'For an SDK, set the base URL to `https://partokens.com/v1`.'] },
         ],
       },
@@ -1869,12 +1869,1287 @@ const englishDocsDocuments: Partial<Record<DocsItemId, DocsDocument>> = {
   ]),
 }
 
+const conciseSdkJavaScriptSample: DocsCodeSample = {
+  language: 'javascript',
+  label: 'JavaScript / Node.js',
+  code: `// PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" PARTOKENS_MODEL="<YOUR_MODEL_ID>" node example.mjs
+import OpenAI from "openai";
+
+const apiKey = process.env.PARTOKENS_API_KEY;
+const model = process.env.PARTOKENS_MODEL;
+if (!apiKey || !model) throw new Error("Set PARTOKENS_API_KEY and PARTOKENS_MODEL");
+
+const client = new OpenAI({
+  apiKey,
+  baseURL: "https://partokens.com/v1",
+});
+
+const response = await client.chat.completions.create({
+  model,
+  messages: [{ role: "user", content: "Reply with: connection successful" }],
+});
+
+const text = response.choices[0]?.message?.content;
+if (!text) throw new Error("The response contains no chat text");
+console.log(text);`,
+}
+
+const conciseSdkPythonSample: DocsCodeSample = {
+  language: 'python',
+  label: 'Python',
+  code: `# PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>" PARTOKENS_MODEL="<YOUR_MODEL_ID>" python example.py
+import os
+from openai import OpenAI
+
+api_key = os.environ.get("PARTOKENS_API_KEY")
+model = os.environ.get("PARTOKENS_MODEL")
+if not api_key or not model:
+    raise RuntimeError("Set PARTOKENS_API_KEY and PARTOKENS_MODEL")
+
+client = OpenAI(
+    api_key=api_key,
+    base_url="https://partokens.com/v1",
+)
+
+response = client.chat.completions.create(
+    model=model,
+    messages=[{"role": "user", "content": "Reply with: connection successful"}],
+)
+
+text = response.choices[0].message.content
+if not text:
+    raise RuntimeError("The response contains no chat text")
+print(text)`,
+}
+
+const conciseDocsDocuments: Record<'zh-CN' | 'en', Partial<Record<DocsItemId, DocsDocument>>> = {
+  'zh-CN': {
+    welcome: {
+      id: 'welcome',
+      summary: '选择合适的接入方式，准备账户、API 密钥和实时模型 ID，然后完成一次最小调用。',
+      sections: [
+        {
+          id: 'choose-path',
+          title: '选择接入路径',
+          blocks: [
+            { type: 'paragraph', text: '所有接入方式使用同一组账户权限、API 密钥、模型 ID 和 OpenAI 兼容 Base URL。按当前任务选择最短路径。' },
+            { type: 'list', items: ['Shell / cURL：用于首次连通性检查和问题复现。', 'OpenAI JavaScript 或 Python SDK：用于服务、脚本和已有 SDK 项目。', '支持自定义 OpenAI Base URL 的客户端：用于已有工具；配置前确认客户端可以填写 Base URL、Bearer 密钥和模型 ID。', '控制台工作台：用于直接体验当前账户提供的聊天或图像能力。'] },
+          ],
+        },
+        {
+          id: 'prepare-access',
+          title: '准备账户与密钥',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '创建 API 密钥', body: '登录控制台，打开“API 密钥”，创建密钥并将其安全保存为 `<YOUR_PARTOKENS_API_KEY>`。' },
+              { title: '复制实时模型 ID', body: '打开顶部导航中的“模型”，或使用该密钥调用模型列表，复制当前返回的精确 ID `<YOUR_MODEL_ID>`。' },
+              { title: '保存连接信息', body: '将密钥放入环境变量或密钥管理系统；不要写入仓库、URL、日志或浏览器代码。' },
+            ] },
+            { type: 'endpoint', label: 'Base URL', path: 'https://partokens.com/v1' },
+          ],
+        },
+        {
+          id: 'complete-first-call',
+          title: '完成首次调用',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '打开首次接入文档', body: '前往“快速开始：完成首次接入”，选择 Shell、JavaScript 或 Python 示例。' },
+              { title: '替换连接参数', body: '保留统一 Base URL，并填入 `<YOUR_PARTOKENS_API_KEY>` 和 `<YOUR_MODEL_ID>`。' },
+              { title: '确认结果', body: '发送最小请求，先检查 HTTP 状态，再确认响应中有可读取结果；失败时保留请求时间、状态和请求 ID。' },
+            ] },
+            { type: 'callout', tone: 'success', title: '先验证最小请求', body: '最小请求成功后，再接入应用并逐项增加可选参数。本文不重复完整请求示例。' },
+          ],
+        },
+        {
+          id: 'continue-reading',
+          title: '继续阅读文档',
+          blocks: [
+            { type: 'list', items: ['了解服务范围：阅读“Partokens 是什么”。', '管理凭据：阅读“API 密钥管理”。', '选择模型与核对价格：阅读“模型与定价”和“模型列表 API”。', '配置 SDK 或客户端：阅读“SDK 配置”“支持的客户端总览”或“Codex 与 CLI 配置”。', '排查请求与扣减：阅读“连接、限额与重试”和“使用日志”。', '自助检查后仍需帮助：阅读“联系支持”。'] },
+          ],
+        },
+      ],
+    },
+    overview: {
+      id: 'overview',
+      summary: 'Partokens 提供 OpenAI 兼容 API 入口，用于访问当前账户可用的模型和能力。',
+      sections: [
+        {
+          id: 'confirm-scope',
+          title: '确认服务范围',
+          blocks: [
+            { type: 'paragraph', text: 'Partokens 提供统一的 OpenAI 兼容 Base URL、账户控制台和公开 API 文档。应用可以通过 HTTPS、OpenAI SDK 或支持自定义 Base URL 的客户端发起请求。' },
+            { type: 'callout', tone: 'info', title: '兼容不代表完全相同', body: 'OpenAI 兼容说明可复用常见的连接方式和请求结构，不表示每个账户、模型、端点或可选参数都可用。' },
+          ],
+        },
+        {
+          id: 'choose-entry',
+          title: '选择调用入口',
+          blocks: [
+            { type: 'list', items: ['查看模型：打开账户“模型”页面，或调用 `GET /v1/models`。', '发送模型请求：从目标 API 页面选择与模型当前能力一致的端点，并从最小必填字段开始。', '使用 SDK 或兼容客户端：将 Base URL 设置为 `https://partokens.com/v1`，使用 Partokens Bearer 密钥和精确模型 ID。', '直接体验：登录控制台后使用当前提供的聊天或图像工作台。'] },
+          ],
+        },
+        {
+          id: 'check-live-data',
+          title: '核对实时信息',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '核对模型与端点', body: '以账户“模型”页面或同一密钥调用模型列表得到的当前结果为准。' },
+              { title: '核对价格与额度', body: '以当前账户显示的信息、调用后的使用日志和实际扣减为准。' },
+              { title: '核对参数', body: '以对应 API 文档和目标模型的实际响应为准；不要根据模型名称或其他服务推断。' },
+            ] },
+            { type: 'endpoint', method: 'GET', label: 'Models', path: 'https://partokens.com/v1/models' },
+          ],
+        },
+        {
+          id: 'verify-compatibility',
+          title: '验证兼容性',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '确认客户端设置', body: '确认可以设置 Base URL、Bearer 密钥和精确模型 ID。' },
+              { title: '运行目标端点的最小请求', body: '使用 `<YOUR_PARTOKENS_API_KEY>` 和 `<YOUR_MODEL_ID>`，只发送该端点要求的核心字段。' },
+              { title: '逐项增加能力', body: '最小请求成功后再逐个加入可选参数，并以每次实际响应确认支持情况。' },
+            ] },
+            { type: 'callout', tone: 'warning', title: '以实际响应为准', body: '模型可见或客户端可配置，只表示具备接入条件；目标模型对目标端点和参数的实际响应才是兼容性依据。' },
+          ],
+        },
+      ],
+    },
+    faq: {
+      id: 'faq',
+      summary: '回答接入、账户、模型、用量和常见失败问题，并指出应核对的实时依据。',
+      sections: [
+        {
+          id: 'choose-integration',
+          title: '选择接入方式',
+          blocks: [{ type: 'faq', items: [
+            { question: '可以继续使用 OpenAI SDK 吗？', answer: '可以。将 Base URL 设置为 `https://partokens.com/v1`，使用 Partokens API 密钥，并填写账户当前返回的精确模型 ID。' },
+            { question: '应该选择 Shell、SDK 还是兼容客户端？', answer: 'Shell 适合最小检查和复现；SDK 适合服务与脚本；已有客户端只有在可以自定义 Base URL、Bearer 密钥和模型 ID 时才具备接入条件。' },
+            { question: '在哪里查看完整请求示例？', answer: '首次调用请阅读“快速开始：完成首次接入”；字段与响应结构请查看对应 API 页面。' },
+          ] }],
+        },
+        {
+          id: 'manage-account',
+          title: '管理密钥与账户',
+          blocks: [{ type: 'faq', items: [
+            { question: 'API 密钥应该保存在哪里？', answer: '将 `<YOUR_PARTOKENS_API_KEY>` 保存在环境变量或密钥管理系统中，不要写入仓库、URL、日志或浏览器代码。' },
+            { question: '如何轮换密钥？', answer: '先创建并验证替代密钥，更新所有使用方，再从控制台停用或删除旧密钥。怀疑泄露时立即处置旧密钥。' },
+            { question: '余额、套餐和可用额度以哪里为准？', answer: '以当前账户页面、请求的实际响应、使用日志和实际扣减为准。' },
+          ] }],
+        },
+        {
+          id: 'check-model-usage',
+          title: '核对模型与用量',
+          blocks: [{ type: 'faq', items: [
+            { question: '应该填写哪个模型 ID？', answer: '从账户“模型”页面或 `GET /v1/models` 复制当前返回的精确 ID，并原样用作 `<YOUR_MODEL_ID>`。不要猜测模型名。' },
+            { question: '模型出现在列表中就支持所有端点和参数吗？', answer: '不支持这样推断。请核对模型当前显示的能力，并通过目标端点的最小请求和实际响应逐项验证。' },
+            { question: '使用日志中有记录就代表调用成功吗？', answer: '不一定。还要核对记录类型、客户端收到的 HTTP 状态和错误、Token、费用与耗时。' },
+          ] }],
+        },
+        {
+          id: 'resolve-common-failures',
+          title: '处理常见失败',
+          blocks: [{ type: 'faq', items: [
+            { question: '请求失败时先检查什么？', answer: '先用 `GET https://partokens.com/v1/models` 检查连接和鉴权，再根据 400、401、403、429 或 5xx 修正请求；保留时间、时区、端点、模型和请求 ID。' },
+            { question: '所有失败都可以直接重试吗？', answer: '不可以。400、401 和 403 应先修正；429 遵循 `Retry-After` 或退避等待；5xx 只对可安全重放的请求进行有限重试。' },
+            { question: '取消或超时后应该怎么做？', answer: '先在“使用日志”按时间、模型、密钥名称和请求 ID 查找记录并核对扣减，再决定是否重试。' },
+            { question: '什么时候联系支持？', answer: '完成“连接、限额与重试”和“使用日志”的自助检查后，如仍无法定位，请按“联系支持”准备脱敏诊断信息。' },
+          ] }],
+        },
+      ],
+    },
+    troubleshooting: {
+      id: 'troubleshooting',
+      summary: '先运行最小模型列表请求，再按 HTTP 状态判断修正方式和重试条件。',
+      prerequisites: ['已创建 Partokens API 密钥', '可以查看命令返回的 HTTP 状态、响应头和响应正文'],
+      sections: [
+        {
+          id: 'run-minimal-check',
+          title: '运行最小检查',
+          blocks: [
+            { type: 'paragraph', text: '下面的 `GET /v1/models` 不会发起生成任务，可用于检查域名解析、TLS、代理、Base URL 和鉴权。命令同时显示响应头，便于记录请求 ID。' },
+            { type: 'code-samples', samples: [{ language: 'shell', label: '连接与鉴权检查', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+
+curl --silent --show-error --include \\
+  https://partokens.com/v1/models \\
+  -H "Authorization: Bearer $PARTOKENS_API_KEY"` }] },
+          ],
+        },
+        {
+          id: 'fix-by-status',
+          title: '根据状态修正',
+          blocks: [
+            { type: 'list', items: ['连接错误：未收到 HTTP 状态时，检查网络、DNS、TLS、代理、连接超时，以及 URL 是否准确为 `https://partokens.com/v1/models`。', '400：根据返回的错误修正 JSON、必填字段、模型 ID 或目标端点；修正前不要重复请求。', '401：确认环境变量已设置、Bearer 头完整、密钥未被截断，并在控制台检查密钥状态。', '403：根据返回的错误核对密钥访问范围、模型可用性以及账户当前余额或套餐；修正后再请求。', '429：优先遵循 `Retry-After`；未提供时减少并发并使用带随机抖动的指数退避。', '5xx：保留请求 ID；仅对可以安全重放的请求进行有限退避重试。'] },
+            { type: 'callout', tone: 'info', title: '状态是排查起点', body: '同一状态可能有不同原因。最终判断应结合响应正文、请求 ID、账户当前信息和使用日志。' },
+          ],
+        },
+        {
+          id: 'decide-retry',
+          title: '决定是否重试',
+          blocks: [
+            { type: 'list', items: ['可以重试：`GET /v1/models` 的短暂连接错误、429 等待完成后，或短暂 5xx；设置总时限和最大尝试次数。', '修正后再试：400、401、403，以及明确由模型、端点、参数、密钥或账户状态导致的失败。', '先查日志：客户端取消或超时无法证明请求未执行。先按时间、模型、密钥名称和请求 ID 核对使用日志及扣减。', '避免重复执行：聊天、图像生成或编辑请求只有在可以接受重复结果和重复用量时，才进行自动重试。'] },
+            { type: 'callout', tone: 'warning', title: '取消或超时后不要立即重放', body: '如果使用日志显示请求已执行或产生扣减，请先核对结果和请求 ID；如仍无法判断，准备诊断信息后联系支持。' },
+          ],
+        },
+        {
+          id: 'prepare-diagnostics',
+          title: '准备排障信息',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '记录请求', body: '保留准确时间与时区、模型、端点、HTTP 状态和请求 ID。' },
+              { title: '保留脱敏错误', body: '保留足以说明问题的错误内容，并移除凭据、个人信息、完整提示词和私有文件。' },
+              { title: '核对使用日志', body: '说明是否找到对应记录，并记录所用时间范围、模型、密钥名称和请求 ID。' },
+              { title: '整理最小复现', body: '列出最少步骤、预期结果和实际结果，再按“联系支持”选择正式渠道。' },
+            ] },
+            { type: 'callout', tone: 'warning', title: '不要提交凭据', body: '支持信息中不得包含完整 API 密钥、密码、验证码或会话令牌。' },
+          ],
+        },
+      ],
+    },
+    'usage-logs': {
+      id: 'usage-logs',
+      summary: '在控制台查找调用记录，并核对类型、错误、Token、费用、耗时和扣减。',
+      sections: [
+        {
+          id: 'open-logs',
+          title: '打开使用日志',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '进入控制台', body: '登录 Partokens 并打开控制台。' },
+              { title: '打开使用日志', body: '在侧栏“常规”区域选择“使用日志”。' },
+              { title: '刷新当前数据', body: '需要重新获取记录时选择“刷新”，再按请求发生时间开始查找。' },
+            ] },
+            { type: 'paragraph', text: '使用日志用于核对账户调用和事件；客户端收到的 HTTP 状态、响应头和脱敏错误也应同时保留。' },
+          ],
+        },
+        {
+          id: 'filter-requests',
+          title: '筛选调用记录',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '选择时间范围', body: '选择覆盖请求发生时间的范围，并确认记录时间与客户端时间使用的时区。' },
+              { title: '选择模型', body: '使用页面的模型筛选缩小结果；模型 ID 应与请求中使用的值完全一致。' },
+              { title: '按密钥名称查找', body: '打开精确搜索字段菜单，选择“API 密钥名称”，输入日志中显示的密钥名称，不要输入密钥值。' },
+              { title: '按请求 ID 查找', body: '打开精确搜索字段菜单，选择“请求 ID”，输入完整请求 ID。' },
+            ] },
+            { type: 'list', items: ['一次只使用足以定位记录的条件；没有结果时先检查时间范围、时区和精确值。', '清除不适用的筛选后重新查询，避免旧条件排除目标记录。'] },
+          ],
+        },
+        {
+          id: 'review-results',
+          title: '核对结果与扣减',
+          blocks: [
+            { type: 'list', items: ['类型与错误：使用“类型”区分用量和错误事件；遇到错误事件时，用时间和请求 ID 对照客户端保存的 HTTP 状态与脱敏错误。', 'Token：核对输入、输出和缓存 Token；缺失或不适用的字段不要自行推算。', '费用：核对记录费用和筛选范围内的费用汇总，再与账户扣减变化对照。', '耗时：核对总耗时；流式请求还可核对首个 Token 的耗时。', '详情：打开目标记录，确认请求 ID、时间、模型、密钥名称、Token、费用和耗时属于同一次调用。'] },
+            { type: 'callout', tone: 'info', title: '记录不等于成功', body: '日志可能包含用量、错误或其他账户事件。应结合类型、客户端结果和实际扣减判断调用结果。' },
+          ],
+        },
+        {
+          id: 'handle-failures',
+          title: '处理失败与超时',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '关联失败记录', body: '用准确时间、模型、密钥名称和请求 ID 查找目标记录，并对照客户端 HTTP 状态与脱敏错误。' },
+              { title: '核对是否产生用量', body: '查看 Token、费用和耗时，判断该请求是否留下执行与扣减记录。' },
+              { title: '谨慎处理取消或超时', body: '取消或超时不代表请求一定停止；确认日志和扣减后再决定是否重试。' },
+              { title: '准备支持信息', body: '仍无法判断时，记录查询时间范围、时区和筛选条件，并前往“联系支持”。' },
+            ] },
+            { type: 'callout', tone: 'warning', title: '不要用敏感值搜索', body: '筛选时使用密钥名称，不要粘贴完整 API 密钥；提交问题前移除凭据、个人信息、完整提示词和私有文件。' },
+          ],
+        },
+      ],
+    },
+    'contact-support': {
+      id: 'contact-support',
+      summary: '完成自助检查后，通过 Partokens Email 或 Telegram 提交可关联且已经脱敏的问题报告。',
+      sections: [
+        {
+          id: 'check-before-contact',
+          title: '完成联系前检查',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '复现最小请求', body: 'API 问题先按“连接、限额与重试”运行最小检查，并记录实际 HTTP 状态。' },
+              { title: '核对模型与账户', body: '确认模型来自当前列表，并检查密钥状态、访问范围和账户当前信息。' },
+              { title: '查找使用日志', body: '按时间、模型、密钥名称和请求 ID 查找记录，核对 Token、费用和耗时。' },
+              { title: '确认仍需协助', body: '说明已完成的检查、预期结果和实际结果，避免只提交“不可用”。' },
+            ] },
+            { type: 'list', items: ['登录或账户问题：记录页面、准确时间与时区和脱敏错误。', 'API 问题：记录端点、模型、HTTP 状态和请求 ID。', '取消或超时：先说明使用日志中是否存在记录和扣减。'] },
+          ],
+        },
+        {
+          id: 'prepare-diagnostics',
+          title: '准备诊断信息',
+          blocks: [
+            { type: 'list', items: ['请求或问题发生的准确时间与时区。', '请求使用的精确模型 ID。', 'API 端点或发生问题的控制台页面。', '实际 HTTP 状态；未收到响应时明确说明。', '完整请求 ID；未返回时明确说明。', '保留错误含义的脱敏错误信息。', '从最少输入开始的复现步骤、预期结果和实际结果。', '使用日志中是否找到记录，以及核对到的 Token、费用和耗时。'] },
+          ],
+        },
+        {
+          id: 'remove-sensitive-data',
+          title: '移除敏感内容',
+          blocks: [
+            { type: 'list', items: ['禁止提交 API 密钥或其他访问凭据。', '禁止提交密码、验证码、恢复码、Cookie 或会话令牌。', '禁止提交姓名、邮箱、电话、地址、身份信息或其他个人信息。', '禁止提交完整提示词、完整请求正文或与复现无关的原始内容。', '禁止提交私有文件、私有下载地址、大段 Base64 或未经检查的日志导出。'] },
+            { type: 'callout', tone: 'warning', title: '疑似泄露时先轮换密钥', body: '立即停用或删除相关密钥，创建并验证替代密钥，再更新所有使用方。不要向支持渠道发送旧密钥。' },
+          ],
+        },
+        {
+          id: 'use-official-channels',
+          title: '使用正式支持渠道',
+          blocks: [
+            { type: 'paragraph', text: '请选择以下任一公开支持渠道，并在首条消息中提供已脱敏的最小诊断信息。文档不承诺响应时间或解决时限。' },
+            { type: 'links', items: [
+              { label: 'Email 支持', href: 'mailto:support@partokens.com' },
+              { label: 'Telegram 支持机器人', href: 'https://t.me/PartokensSupportBot' },
+            ] },
+          ],
+        },
+      ],
+    },
+    billing: {
+      id: 'billing',
+      summary: '在控制台查看余额、套餐和用量，选择计费来源，并在额度不足时完成检查和恢复。',
+      prerequisites: ['可以登录 Partokens 控制台'],
+      sections: [
+        {
+          id: 'view-balance-plan',
+          title: '查看余额与套餐',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '打开钱包', body: '登录控制台，在侧栏的“账户”中选择“钱包”。' },
+              { title: '查看账户状态', body: '在页面顶部查看账户余额、总用量和有效套餐数量。' },
+              { title: '查看套餐额度', body: '在“选择套餐”区域选择“查看有效套餐”，核对每个套餐的状态、总额度、剩余额度和已用比例。' },
+            ] },
+            { type: 'list', items: ['账户余额显示当前可用余额。', '总用量显示账户已经产生的用量。', '有效套餐详情显示当前仍可使用的套餐及其剩余额度。'] },
+          ],
+        },
+        {
+          id: 'choose-billing-source',
+          title: '选择计费来源',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '找到计费偏好', body: '在“钱包”的“选择套餐”区域底部找到“用量计费偏好”。存在有效套餐时可以修改该设置。' },
+              { title: '选择当前偏好', body: '按需要选择“套餐优先”“余额优先”“仅套餐”或“仅余额”；保存成功后再发起调用。' },
+            ] },
+            { type: 'list', items: ['“套餐优先”和“余额优先”用于指定首先尝试的来源。', '“仅套餐”和“仅余额”将调用限制为对应来源。', '更改前先确认所选来源当前可用。'] },
+          ],
+        },
+        {
+          id: 'review-usage',
+          title: '核对用量',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '打开使用日志', body: '在控制台侧栏的“常规”中选择“使用日志”。' },
+              { title: '缩小时间与模型范围', body: '选择覆盖调用发生时间的范围，再选择模型；需要精确定位时，将搜索字段切换为“请求 ID”并输入完整请求 ID。' },
+              { title: '核对调用和扣减', body: '打开对应记录，核对请求时间、类型、模型、错误信息、用量、费用和请求 ID，再与钱包中的余额或套餐剩余额度变化对照。' },
+            ] },
+          ],
+        },
+        {
+          id: 'resolve-insufficient-quota',
+          title: '处理额度不足',
+          blocks: [
+            { type: 'list', items: ['余额不足：在“钱包”确认余额，使用当前可用的充值入口增加余额，或改用有可用额度的套餐。', '套餐额度不足或套餐不可用：打开有效套餐详情核对状态和剩余额度；选择当前可购买的套餐，或将计费偏好改为可用来源。', '请求被拒绝：保留 HTTP 状态、错误信息和请求 ID，在使用日志确认是否产生记录；401 或 403 还需检查 API 密钥状态和访问权限。', '修正余额、套餐、计费偏好或密钥后，先发送一次最小请求验证；未修正前不要重复提交。'] },
+          ],
+        },
+      ],
+    },
+    'models-pricing': {
+      id: 'models-pricing',
+      summary: '查找当前可用模型，核对能力和价格信息，为任务选择对应接口并处理模型错误。',
+      prerequisites: ['可以登录 Partokens 账户', '使用 API 查询时已准备 `<YOUR_PARTOKENS_API_KEY>`'],
+      sections: [
+        {
+          id: 'find-models',
+          title: '查找模型',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '查看账户模型', body: '登录后打开顶部导航中的“模型”，查看当前账户显示的模型。' },
+              { title: '查询密钥可用模型', body: '也可以使用 `<YOUR_PARTOKENS_API_KEY>` 调用模型列表接口，查看该密钥当前返回的模型。' },
+              { title: '复制模型 ID', body: '从页面或响应的 `data[].id` 复制精确模型 ID，并在后续请求中原样使用 `<YOUR_MODEL_ID>`。' },
+            ] },
+            { type: 'endpoint', method: 'GET', label: 'Models', path: 'https://partokens.com/v1/models' },
+          ],
+        },
+        {
+          id: 'check-capability-price',
+          title: '核对能力与价格',
+          blocks: [
+            { type: 'list', items: ['在模型页面核对 `<YOUR_MODEL_ID>` 当前显示的端点、计费方式和价格信息。', '能力和价格缺失时不要根据模型名称补全，也不要从相似名称推测。', '调用前确认目标接口出现在该模型的当前能力信息中；价格选择以页面当时显示的账户数据为准。', '调用后的实际用量和扣减在控制台“使用日志”中核对。'] },
+          ],
+        },
+        {
+          id: 'choose-api',
+          title: '选择调用接口',
+          blocks: [
+            { type: 'list', items: ['Chat Completions：模型明确支持聊天补全时，使用 `POST /v1/chat/completions` 发送消息列表。', 'Responses：模型明确支持 Responses 时，使用 `POST /v1/responses`；Codex 原生连接使用此接口。', '图像接口：模型明确支持图像能力时，使用 `POST /v1/images/generations` 生成图像；使用参考图编辑时由生图工作台调用图像编辑接口。', '同一模型不一定支持所有接口或可选参数；先用目标接口的最小请求验证。'] },
+          ],
+        },
+        {
+          id: 'resolve-model-errors',
+          title: '处理模型问题',
+          blocks: [
+            { type: 'list', items: ['模型不可见：刷新模型页面；使用 API 时，确认 `GET /v1/models` 返回成功，并查看 `data` 是否为空。', '模型不可调用：确认请求使用了返回的精确 ID，并用同一 API 密钥重新查询模型列表；该密钥的列表中没有模型时不要猜测 ID。', '参数不兼容或 400：读取 `error.message`，移除非必要参数，按目标接口的最小字段重新请求。', '403：读取错误信息，检查 API 密钥状态、模型访问权限以及余额或套餐；修正后再请求。', '模型页面可见但调用仍失败：保留请求时间、模型 ID、HTTP 状态和请求 ID，再到使用日志核对记录。'] },
+          ],
+        },
+      ],
+    },
+    codex: {
+      id: 'codex',
+      summary: '使用 Codex 原生 model provider 配置连接 Partokens，并通过最小命令验证 Responses 调用。',
+      prerequisites: ['已创建 API 密钥 `<YOUR_PARTOKENS_API_KEY>`', '已取得支持 Responses 的模型 ID `<YOUR_MODEL_ID>`', 'Codex 已安装并可以运行'],
+      sections: [
+        {
+          id: 'prepare-codex',
+          title: '准备 Codex',
+          blocks: [
+            { type: 'list', items: ['运行 `codex --version`，确认当前终端可以启动 Codex。', '从账户模型页面或 `GET https://partokens.com/v1/models` 复制精确的 `<YOUR_MODEL_ID>`，并确认它支持 Responses。', '准备 Partokens API 密钥 `<YOUR_PARTOKENS_API_KEY>`。'] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: '设置环境变量', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"` }] },
+          ],
+        },
+        {
+          id: 'configure-connection',
+          title: '配置连接',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '打开用户配置', body: '编辑 `~/.codex/config.toml`，并保留其中仍需要的其他设置。' },
+              { title: '添加 Partokens provider', body: '写入以下模型与 provider 配置；`env_key` 读取刚才设置的环境变量。' },
+            ] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: '~/.codex/config.toml', code: `model = "<YOUR_MODEL_ID>"
+model_provider = "partokens"
+
+[model_providers.partokens]
+name = "Partokens"
+base_url = "https://partokens.com/v1"
+env_key = "PARTOKENS_API_KEY"
+wire_api = "responses"` }] },
+          ],
+        },
+        {
+          id: 'verify-call',
+          title: '验证调用',
+          blocks: [
+            { type: 'code-samples', samples: [{ language: 'shell', label: '最小验证', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+codex exec "Reply only with: connection successful"` }] },
+            { type: 'list', items: ['命令正常返回 `connection successful` 表示 Codex 已通过配置发送并完成请求。', '随后可在控制台“使用日志”按时间、模型和请求 ID 核对这次调用。'] },
+          ],
+        },
+        {
+          id: 'handle-failures',
+          title: '处理失败',
+          blocks: [
+            { type: 'list', items: ['配置错误：Codex 无法读取配置或未使用预期模型时，检查 TOML 语法、`model_provider`、`<YOUR_MODEL_ID>`，并确认环境变量在运行命令的同一终端中已设置。', '连接错误：未收到 HTTP 状态时，检查网络、代理、DNS、TLS，以及 `base_url` 是否为 `https://partokens.com/v1`。', 'HTTP/API 错误：收到 400、401、403、429 或 5xx 时，保留状态、错误信息和请求 ID；先修正参数、密钥、权限或额度，再按错误类型决定是否重试。', '模型不支持 Responses：从当前模型列表重新选择明确支持 Responses 的模型；不要把 `wire_api` 改为其他值。'] },
+          ],
+        },
+      ],
+    },
+    'image-studio': {
+      id: 'image-studio',
+      summary: '从控制台打开生图工作台，选择当前模型和密钥，生成或编辑图像并保存需要的结果。',
+      prerequisites: ['可以登录 Partokens 控制台', '账户中有可用的图像模型和 API 密钥'],
+      sections: [
+        {
+          id: 'open-studio',
+          title: '打开工作台',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '进入控制台', body: '登录 Partokens，打开控制台。' },
+              { title: '打开生图工作台', body: '在侧栏的“工作区”中选择“生图工作台”。' },
+              { title: '确认工作区', body: '左侧为生成设置，右侧为本次生成结果。' },
+            ] },
+          ],
+        },
+        {
+          id: 'select-model-key',
+          title: '选择模型与密钥',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '选择模型', body: '在“模型”中选择当前列表提供的图像模型，并将该精确值作为 `<YOUR_MODEL_ID>`；不要手动猜写模型名。' },
+              { title: '选择 API 密钥', body: '首次生成时，在“需要 API 密钥”窗口选择与该模型兼容的有效密钥，然后继续生成。' },
+              { title: '没有可用密钥时', body: '使用窗口中的“创建密钥”，或打开“API 密钥”页面后创建可用于所选模型的密钥，再返回工作台。' },
+            ] },
+          ],
+        },
+        {
+          id: 'generate-edit',
+          title: '生成或编辑图像',
+          blocks: [
+            { type: 'steps', items: [
+              { title: '填写提示词', body: '在“提示词”中描述需要生成或编辑的图像。' },
+              { title: '设置输出', body: '从界面提供的选项中选择质量、图像尺寸和生成数量。' },
+              { title: '按需添加参考图', body: '上传 PNG、JPG 或 WebP 参考图进行编辑；也可以对生成结果选择“用作参考图”。' },
+              { title: '开始任务', body: '选择“生成”，等待结果区域显示图像；若模型不接受某项设置，改用该模型当前提供的选项后再试。' },
+            ] },
+          ],
+        },
+        {
+          id: 'save-handle-failures',
+          title: '保存与处理失败',
+          blocks: [
+            { type: 'list', items: ['保存结果：在需要保留的图像上选择下载；下一次生成会替换当前显示的结果。', '生成失败或参数不支持：读取页面错误，改用当前模型提供的质量、尺寸或数量，并移除不兼容设置。', '401：检查所选 API 密钥是否仍然有效；403：检查密钥对模型的访问、账户余额和套餐。修正前不要重复生成。', '429：按响应提示等待后再重试；5xx：保留请求信息，仅在有限次数和总时限内退避重试。'] },
+            { type: 'callout', tone: 'warning', title: '取消或超时后先查日志', body: '离开生成中的页面并确认停止，或等待超时后，先到控制台“使用日志”按时间、模型和请求 ID 核对是否形成记录和扣减，再决定是否重试。' },
+          ],
+        },
+      ],
+    },
+    'first-request': {
+      id: 'first-request',
+      summary: '准备 API 密钥、Base URL 和模型 ID，发送一次最小聊天请求并确认返回文本。',
+      prerequisites: ['已创建 Partokens API 密钥', '已从账户模型列表取得可用模型 ID'],
+      sections: [
+        {
+          id: 'prepare',
+          title: '准备接入',
+          blocks: [
+            { type: 'list', items: ['准备 API 密钥 `<YOUR_PARTOKENS_API_KEY>`。', '使用 Base URL `https://partokens.com/v1`。', '从账户模型列表复制准确的模型 ID `<YOUR_MODEL_ID>`。'] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: '设置环境变量', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+export PARTOKENS_MODEL="<YOUR_MODEL_ID>"` }] },
+          ],
+        },
+        {
+          id: 'send',
+          title: '发送请求',
+          blocks: [
+            { type: 'endpoint', method: 'POST', label: 'Chat Completions', path: 'https://partokens.com/v1/chat/completions' },
+            { type: 'code-samples', samples: firstRequestSamples },
+          ],
+        },
+        {
+          id: 'read',
+          title: '读取响应',
+          blocks: [{ type: 'list', items: ['先检查 HTTP 状态，再解析 JSON。', '读取第一条聊天文本：`choices[0].message.content`。', '如果 `choices` 为空或文本为空，将响应视为没有可用结果。'] }],
+        },
+        {
+          id: 'failures',
+          title: '处理失败',
+          blocks: [{ type: 'list', items: ['401：检查 Bearer 密钥是否完整、有效且来自当前环境。', '400：根据 `error.message` 修正模型、消息或 JSON 字段。', '429：等待 `Retry-After`；未提供时使用带抖动的指数退避。', '5xx：在有限次数和总时限内退避重试。', '连接错误或超时：先确认是否收到 HTTP 响应；聊天请求不要无条件重复发送。'] }],
+        },
+      ],
+    },
+    clients: {
+      id: 'clients',
+      summary: '按使用场景选择 Shell、OpenAI SDK 或支持自定义 Base URL 的兼容客户端，并用同一组连接参数验证调用。',
+      prerequisites: ['已创建 Partokens API 密钥', '已取得可用模型 ID'],
+      sections: [
+        {
+          id: 'choose',
+          title: '选择客户端',
+          blocks: [{ type: 'list', items: ['Shell / cURL：用于连通性检查、自动化脚本和问题复现。', 'OpenAI JavaScript SDK：用于 Node.js 服务和脚本。', 'OpenAI Python SDK：用于 Python 服务和脚本。', 'Codex：用于编码任务，调用支持 Responses API 的模型。', '支持自定义 OpenAI Base URL 的兼容客户端：用于已有客户端迁移；客户端必须提供 Base URL、Bearer 密钥和模型 ID 设置。'] }],
+        },
+        {
+          id: 'configure',
+          title: '配置连接',
+          blocks: [
+            { type: 'endpoint', label: 'Base URL', path: 'https://partokens.com/v1' },
+            { type: 'list', items: ['Bearer 密钥使用 `<YOUR_PARTOKENS_API_KEY>`，通过 `Authorization: Bearer ...` 发送。', '模型填写账户返回的精确 ID `<YOUR_MODEL_ID>`。', '模型发现调用 `GET /v1/models`；Shell、SDK 和兼容客户端使用 `POST /v1/chat/completions` 验证聊天，Codex 使用 `POST /v1/responses`。'] },
+          ],
+        },
+        {
+          id: 'verify',
+          title: '验证调用',
+          blocks: [
+            { type: 'code-samples', samples: firstRequestSamples },
+            { type: 'list', items: ['兼容客户端先执行 `GET https://partokens.com/v1/models`，再用同一密钥和模型 ID 发送聊天请求。', 'Shell、JavaScript、Python 和兼容客户端确认 HTTP 成功且能读取 `choices[0].message.content`。', 'Codex 完成 Base URL、密钥和模型配置后运行 `codex exec "只回复：连接成功"`。'] },
+          ],
+        },
+        {
+          id: 'troubleshoot',
+          title: '处理问题',
+          blocks: [{ type: 'list', items: ['客户端配置错误：请求未发出，或 URL、Bearer 头、模型字段不正确；修正配置后重试。', '网络错误：没有收到 HTTP 状态，检查 DNS、TLS、代理和连接超时。', 'API 错误：收到 HTTP 状态和 JSON `error`；按 401、400、429 或 5xx 处理，不要把 API 错误当作客户端崩溃。'] }],
+        },
+      ],
+    },
+    'api-keys': {
+      id: 'api-keys',
+      summary: '在控制台创建 API 密钥，安全配置到运行环境，并按顺序轮换或撤销旧密钥。',
+      prerequisites: ['可以登录 Partokens 控制台'],
+      sections: [
+        {
+          id: 'create',
+          title: '创建密钥',
+          blocks: [{ type: 'steps', items: [
+            { title: '打开密钥管理', body: '登录控制台，进入 API 密钥页面并选择“创建密钥”。' },
+            { title: '填写必要设置', body: '填写名称并选择分组；按需要设置额度上限和过期时间。' },
+            { title: '保存密钥', body: '提交后在密钥列表使用“显示完整值”或“复制”获取凭据，并立即放入安全的运行环境。' },
+          ] }],
+        },
+        {
+          id: 'configure',
+          title: '配置密钥',
+          blocks: [
+            { type: 'list', items: ['服务端优先使用环境变量或密钥管理系统，不要写入仓库、URL、日志或浏览器代码。', '请求头使用 `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`。'] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: '设置环境变量', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"` }] },
+          ],
+        },
+        {
+          id: 'rotate',
+          title: '轮换与撤销',
+          blocks: [{ type: 'steps', items: [
+            { title: '创建新密钥', body: '为同一应用创建替代密钥，并安全保存。' },
+            { title: '先验证新密钥', body: '只替换一个受控环境，调用 `GET /v1/models` 确认新密钥可用。' },
+            { title: '替换所有使用方', body: '更新服务、任务和密钥管理系统中的旧值，确认新配置已生效。' },
+            { title: '停用旧密钥', body: '在密钥列表的操作菜单中选择“禁用”暂停，或选择“删除”移除旧密钥。' },
+          ] }],
+        },
+        {
+          id: 'exceptions',
+          title: '处理异常',
+          blocks: [{ type: 'list', items: ['401：检查环境变量、Bearer 头和密钥状态；确认没有使用旧值。', '403：检查密钥所属分组、访问范围或可用状态；修正后再请求。', '疑似泄露：立即停用或删除疑似密钥，创建并验证新密钥，再替换所有使用方。', '密钥失效、停用或耗尽后：不要反复重试，创建替代密钥并重新验证。'] }],
+        },
+      ],
+    },
+    sdk: {
+      id: 'sdk',
+      summary: '安装 OpenAI JavaScript 或 Python SDK，配置 Partokens Base URL 和密钥，发送最小聊天请求并读取文本。',
+      prerequisites: ['Node.js 或 Python 运行环境', '已创建 Partokens API 密钥', '已取得模型 ID'],
+      sections: [
+        {
+          id: 'install',
+          title: '安装 SDK',
+          blocks: [
+            { type: 'paragraph', text: '在服务端项目中安装当前支持的 OpenAI SDK。' },
+            { type: 'code-samples', samples: [{ language: 'shell', label: '安装与环境变量', code: `npm install openai
+python -m pip install openai
+
+export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+export PARTOKENS_MODEL="<YOUR_MODEL_ID>"` }] },
+          ],
+        },
+        {
+          id: 'configure',
+          title: '配置客户端',
+          blocks: [
+            { type: 'list', items: ['JavaScript 使用 `apiKey` 和 `baseURL`。', 'Python 使用 `api_key` 和 `base_url`。', '两个 SDK 的 Base URL 都设置为 `https://partokens.com/v1`，模型使用 `<YOUR_MODEL_ID>` 对应的环境变量值。'] },
+            { type: 'endpoint', method: 'POST', label: 'Chat Completions', path: 'https://partokens.com/v1/chat/completions' },
+          ],
+        },
+        {
+          id: 'send-read',
+          title: '发送并读取请求',
+          blocks: [{ type: 'code-samples', samples: [conciseSdkJavaScriptSample, conciseSdkPythonSample] }],
+        },
+        {
+          id: 'errors',
+          title: '处理错误',
+          blocks: [{ type: 'list', items: ['连接错误：检查 DNS、TLS、代理和网络后再重试。', 'HTTP 错误：读取状态、`error.message` 和 `X-Oneapi-Request-Id`，先修正 400、401 或 403。', '429：遵循 `Retry-After`，否则使用带抖动的指数退避。', '5xx：设置最大次数和总时限后退避重试。', '超时：设置 SDK 超时时间；聊天请求可能已经执行，确认使用记录后再决定是否重试。'] }],
+        },
+      ],
+    },
+  },
+  en: {
+    welcome: {
+      id: 'welcome',
+      summary: 'Choose an integration method, prepare the account, API key, and live model ID, then complete one minimal call.',
+      sections: [
+        {
+          id: 'choose-path',
+          title: 'Choose an integration path',
+          blocks: [
+            { type: 'paragraph', text: 'Every integration method uses the same account access, API key, model ID, and OpenAI-compatible Base URL. Choose the shortest path for the current task.' },
+            { type: 'list', items: ['Shell / cURL: first connectivity checks and reproductions.', 'OpenAI JavaScript or Python SDK: services, scripts, and existing SDK projects.', 'A client with a custom OpenAI Base URL: existing tools that expose Base URL, Bearer key, and model ID settings.', 'Console workspaces: direct access to the chat or image capabilities currently available to the account.'] },
+          ],
+        },
+        {
+          id: 'prepare-access',
+          title: 'Prepare the account and key',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Create an API key', body: 'Sign in to the console, open API keys, create a key, and store it securely as `<YOUR_PARTOKENS_API_KEY>`.' },
+              { title: 'Copy a live model ID', body: 'Open Models in the top navigation, or call the models endpoint with that key, then copy the exact current ID as `<YOUR_MODEL_ID>`.' },
+              { title: 'Store the connection details', body: 'Keep the key in an environment variable or secret manager; do not put it in a repository, URL, log, or browser code.' },
+            ] },
+            { type: 'endpoint', label: 'Base URL', path: 'https://partokens.com/v1' },
+          ],
+        },
+        {
+          id: 'complete-first-call',
+          title: 'Complete the first call',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Open the first integration guide', body: 'Go to Quick start: first integration and choose the Shell, JavaScript, or Python example.' },
+              { title: 'Replace the connection values', body: 'Keep the common Base URL and provide `<YOUR_PARTOKENS_API_KEY>` and `<YOUR_MODEL_ID>`.' },
+              { title: 'Confirm the result', body: 'Send the minimal request, check the HTTP status first, and confirm that the response contains a readable result. Keep the request time, status, and request ID on failure.' },
+            ] },
+            { type: 'callout', tone: 'success', title: 'Verify the minimum first', body: 'After the minimal request succeeds, connect the application and add optional parameters one at a time. This page does not repeat the full request example.' },
+          ],
+        },
+        {
+          id: 'continue-reading',
+          title: 'Continue with the docs',
+          blocks: [
+            { type: 'list', items: ['Understand the service scope: What is Partokens?', 'Manage credentials: API key management.', 'Choose models and check prices: Models and pricing and Models API.', 'Configure an SDK or client: SDK setup, Supported clients, or Codex and CLI setup.', 'Investigate requests and deductions: Connection, limits, and retries and Usage logs.', 'Get help after self-service checks: Contact support.'] },
+          ],
+        },
+      ],
+    },
+    overview: {
+      id: 'overview',
+      summary: 'Partokens provides OpenAI-compatible API access to the models and capabilities currently available to an account.',
+      sections: [
+        {
+          id: 'confirm-scope',
+          title: 'Confirm the service scope',
+          blocks: [
+            { type: 'paragraph', text: 'Partokens provides a common OpenAI-compatible Base URL, an account console, and public API documentation. Applications can send requests through HTTPS, OpenAI SDKs, or clients with a custom Base URL.' },
+            { type: 'callout', tone: 'info', title: 'Compatibility is not identity', body: 'OpenAI compatibility lets you reuse common connection methods and request shapes. It does not make every account, model, endpoint, or optional parameter available.' },
+          ],
+        },
+        {
+          id: 'choose-entry',
+          title: 'Choose an API entry point',
+          blocks: [
+            { type: 'list', items: ['View models: open Models for the account or call `GET /v1/models`.', 'Send a model request: choose the endpoint that matches the model\'s current capability from the relevant API page, then start with required fields only.', 'Use an SDK or compatible client: set the Base URL to `https://partokens.com/v1` and provide a Partokens Bearer key and exact model ID.', 'Try a capability directly: sign in to the console and use a currently available chat or image workspace.'] },
+          ],
+        },
+        {
+          id: 'check-live-data',
+          title: 'Check live information',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Check models and endpoints', body: 'Use the current account Models page or the model list returned with the same key.' },
+              { title: 'Check prices and quota', body: 'Use current account information, Usage logs after the call, and the actual deduction.' },
+              { title: 'Check parameters', body: 'Use the relevant API page and the target model\'s actual response. Do not infer support from a model name or another service.' },
+            ] },
+            { type: 'endpoint', method: 'GET', label: 'Models', path: 'https://partokens.com/v1/models' },
+          ],
+        },
+        {
+          id: 'verify-compatibility',
+          title: 'Verify compatibility',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Confirm the client settings', body: 'Confirm that the client exposes Base URL, Bearer key, and exact model ID settings.' },
+              { title: 'Run a minimal request on the target endpoint', body: 'Use `<YOUR_PARTOKENS_API_KEY>` and `<YOUR_MODEL_ID>` with only the endpoint\'s core fields.' },
+              { title: 'Add capabilities one at a time', body: 'After the minimum succeeds, add optional parameters individually and use each actual response to confirm support.' },
+            ] },
+            { type: 'callout', tone: 'warning', title: 'Use the actual response', body: 'A visible model or configurable client only confirms an integration prerequisite. The target model\'s response on the target endpoint and parameters is the compatibility result.' },
+          ],
+        },
+      ],
+    },
+    faq: {
+      id: 'faq',
+      summary: 'Answers to integration, account, model, usage, and common failure questions, with the live sources to check.',
+      sections: [
+        {
+          id: 'choose-integration',
+          title: 'Choose an integration method',
+          blocks: [{ type: 'faq', items: [
+            { question: 'Can I keep using an OpenAI SDK?', answer: 'Yes. Set the Base URL to `https://partokens.com/v1`, use a Partokens API key, and provide the exact model ID currently returned for the account.' },
+            { question: 'Should I use Shell, an SDK, or a compatible client?', answer: 'Use Shell for minimal checks and reproductions, an SDK for services and scripts, and an existing client only when it exposes Base URL, Bearer key, and model ID settings.' },
+            { question: 'Where are the complete request examples?', answer: 'Use Quick start: first integration for a first call, and the relevant API page for fields and response shapes.' },
+          ] }],
+        },
+        {
+          id: 'manage-account',
+          title: 'Manage keys and account',
+          blocks: [{ type: 'faq', items: [
+            { question: 'Where should I store the API key?', answer: 'Store `<YOUR_PARTOKENS_API_KEY>` in an environment variable or secret manager. Do not put it in a repository, URL, log, or browser code.' },
+            { question: 'How do I rotate a key?', answer: 'Create and verify a replacement first, update every consumer, then disable or delete the old key in the console. Act on the old key immediately if exposure is suspected.' },
+            { question: 'Where do I check balance, plans, and available quota?', answer: 'Use the current account pages, the request\'s actual response, Usage logs, and the actual deduction.' },
+          ] }],
+        },
+        {
+          id: 'check-model-usage',
+          title: 'Check models and usage',
+          blocks: [{ type: 'faq', items: [
+            { question: 'Which model ID should I use?', answer: 'Copy the exact current ID from Models or `GET /v1/models` and use it unchanged as `<YOUR_MODEL_ID>`. Do not guess a model name.' },
+            { question: 'Does a listed model support every endpoint and parameter?', answer: 'Do not make that assumption. Check the model\'s current capability and verify each target endpoint and parameter with a minimal request and its actual response.' },
+            { question: 'Does a Usage log record mean the call succeeded?', answer: 'Not necessarily. Also review the record type, the HTTP status and error kept by the client, tokens, cost, and duration.' },
+          ] }],
+        },
+        {
+          id: 'resolve-common-failures',
+          title: 'Resolve common failures',
+          blocks: [{ type: 'faq', items: [
+            { question: 'What should I check first when a request fails?', answer: 'Use `GET https://partokens.com/v1/models` to check connection and authentication, then correct the request according to 400, 401, 403, 429, or 5xx. Keep the time, timezone, endpoint, model, and request ID.' },
+            { question: 'Can every failure be retried immediately?', answer: 'No. Correct 400, 401, and 403 first. Follow `Retry-After` or back off for 429. Retry 5xx only a limited number of times and only when replay is safe.' },
+            { question: 'What should I do after cancellation or timeout?', answer: 'First search Usage logs by time, model, key name, and request ID and review any deduction, then decide whether to retry.' },
+            { question: 'When should I contact support?', answer: 'After completing the checks in Connection, limits, and retries and Usage logs, use Contact support to prepare redacted diagnostic information.' },
+          ] }],
+        },
+      ],
+    },
+    troubleshooting: {
+      id: 'troubleshooting',
+      summary: 'Run a minimal models request first, then use the HTTP status to choose a correction and retry policy.',
+      prerequisites: ['A Partokens API key', 'Access to the command\'s HTTP status, response headers, and response body'],
+      sections: [
+        {
+          id: 'run-minimal-check',
+          title: 'Run a minimal check',
+          blocks: [
+            { type: 'paragraph', text: 'The `GET /v1/models` request below does not start a generation task. Use it to check DNS, TLS, proxy settings, the Base URL, and authentication. The command also shows response headers so you can keep the request ID.' },
+            { type: 'code-samples', samples: [{ language: 'shell', label: 'Connection and authentication check', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+
+curl --silent --show-error --include \\
+  https://partokens.com/v1/models \\
+  -H "Authorization: Bearer $PARTOKENS_API_KEY"` }] },
+          ],
+        },
+        {
+          id: 'fix-by-status',
+          title: 'Fix issues by status',
+          blocks: [
+            { type: 'list', items: ['Connection error: when no HTTP status arrives, check the network, DNS, TLS, proxy, connection timeout, and that the URL is exactly `https://partokens.com/v1/models`.', '400: use the returned error to correct JSON, required fields, model ID, or target endpoint. Do not repeat the request unchanged.', '401: confirm that the environment variable is set, the Bearer header is complete, the key is not truncated, and the key remains enabled in the console.', '403: use the returned error to check key access, model availability, and the account\'s current balance or plan, then correct the issue before retrying.', '429: follow `Retry-After` when present. Otherwise reduce concurrency and use jittered exponential backoff.', '5xx: keep the request ID and use bounded backoff only when the request is safe to replay.'] },
+            { type: 'callout', tone: 'info', title: 'Status is the starting point', body: 'The same status can have different causes. Use the response body, request ID, current account information, and Usage logs for the final diagnosis.' },
+          ],
+        },
+        {
+          id: 'decide-retry',
+          title: 'Decide whether to retry',
+          blocks: [
+            { type: 'list', items: ['Retry: a temporary connection failure for `GET /v1/models`, 429 after the required wait, or a temporary 5xx. Set a total deadline and maximum attempt count.', 'Correct first: 400, 401, 403, and failures clearly caused by a model, endpoint, parameter, key, or account state.', 'Check logs first: client cancellation or timeout does not prove that a request did not run. Search Usage logs by time, model, key name, and request ID, then review any deduction.', 'Avoid duplicate work: automatically retry chat, image generation, or image edits only when duplicate results and usage are acceptable.'] },
+            { type: 'callout', tone: 'warning', title: 'Do not replay immediately after cancellation or timeout', body: 'If Usage logs show execution or a deduction, review the result and request ID first. When the outcome remains unclear, prepare diagnostic information and contact support.' },
+          ],
+        },
+        {
+          id: 'prepare-diagnostics',
+          title: 'Prepare diagnostics',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Record the request', body: 'Keep the exact time and timezone, model, endpoint, HTTP status, and request ID.' },
+              { title: 'Keep a redacted error', body: 'Preserve enough error text to explain the issue and remove credentials, personal information, complete prompts, and private files.' },
+              { title: 'Review Usage logs', body: 'State whether a matching record was found and keep the time range, model, key name, and request ID used to search.' },
+              { title: 'Write a minimal reproduction', body: 'List the fewest steps, expected result, and actual result, then use Contact support to select an official channel.' },
+            ] },
+            { type: 'callout', tone: 'warning', title: 'Do not submit credentials', body: 'Support information must not contain a complete API key, password, verification code, or session token.' },
+          ],
+        },
+      ],
+    },
+    'usage-logs': {
+      id: 'usage-logs',
+      summary: 'Find calls in the console and review type, errors, tokens, cost, duration, and deductions.',
+      sections: [
+        {
+          id: 'open-logs',
+          title: 'Open Usage logs',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Open the console', body: 'Sign in to Partokens and open the console.' },
+              { title: 'Open Usage logs', body: 'In the General section of the sidebar, select Usage logs.' },
+              { title: 'Refresh current data', body: 'Select Refresh when you need to retrieve current records, then start from the request time.' },
+            ] },
+            { type: 'paragraph', text: 'Usage logs help correlate account calls and events. Also keep the HTTP status, response headers, and redacted error received by the client.' },
+          ],
+        },
+        {
+          id: 'filter-requests',
+          title: 'Filter requests',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Choose a time range', body: 'Choose a range that includes the request time and confirm the timezone used by the log and client timestamps.' },
+              { title: 'Choose a model', body: 'Use the model filter to narrow the results. The model ID must exactly match the request value.' },
+              { title: 'Search by key name', body: 'Open the exact search field menu, choose API key name, and enter the name shown in the log. Do not enter the key value.' },
+              { title: 'Search by request ID', body: 'Open the exact search field menu, choose Request ID, and enter the complete request ID.' },
+            ] },
+            { type: 'list', items: ['Use only the conditions needed to locate the record. If there is no result, check the time range, timezone, and exact values first.', 'Clear filters that do not apply before searching again so an old condition does not exclude the record.'] },
+          ],
+        },
+        {
+          id: 'review-results',
+          title: 'Review results and deductions',
+          blocks: [
+            { type: 'list', items: ['Type and error: use Type to distinguish usage and error events. For an error event, correlate its time and request ID with the HTTP status and redacted error kept by the client.', 'Tokens: review input, output, and cached tokens. Do not calculate fields that are absent or not applicable.', 'Cost: review the record cost and the filtered cost total, then compare them with the account deduction.', 'Duration: review total duration. Streaming calls may also show time to first token.', 'Details: open the matching record and confirm that request ID, time, model, key name, tokens, cost, and duration belong to the same call.'] },
+            { type: 'callout', tone: 'info', title: 'A record is not proof of success', body: 'Logs can contain usage, error, or other account events. Use the type, client result, and actual deduction together to determine the outcome.' },
+          ],
+        },
+        {
+          id: 'handle-failures',
+          title: 'Handle failures and timeouts',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Correlate the failed record', body: 'Use the exact time, model, key name, and request ID, then compare the record with the client HTTP status and redacted error.' },
+              { title: 'Check whether usage was recorded', body: 'Review tokens, cost, and duration to determine whether the request left execution and deduction records.' },
+              { title: 'Treat cancellation or timeout carefully', body: 'Cancellation or timeout does not prove that processing stopped. Review logs and deductions before retrying.' },
+              { title: 'Prepare support information', body: 'If the outcome remains unclear, keep the search time range, timezone, and filters, then open Contact support.' },
+            ] },
+            { type: 'callout', tone: 'warning', title: 'Do not search with a secret', body: 'Filter by key name, not the complete API key. Before reporting a problem, remove credentials, personal information, complete prompts, and private files.' },
+          ],
+        },
+      ],
+    },
+    'contact-support': {
+      id: 'contact-support',
+      summary: 'After self-service checks, send a correlatable and redacted report through Partokens Email or Telegram support.',
+      sections: [
+        {
+          id: 'check-before-contact',
+          title: 'Complete pre-contact checks',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Reproduce the minimum', body: 'For an API issue, run the minimal check in Connection, limits, and retries and record the actual HTTP status.' },
+              { title: 'Check the model and account', body: 'Confirm that the model comes from the current list, then check the key status, access, and current account information.' },
+              { title: 'Search Usage logs', body: 'Search by time, model, key name, and request ID, then review tokens, cost, and duration.' },
+              { title: 'Confirm that help is still needed', body: 'State the checks already completed, expected result, and actual result instead of reporting only that something is unavailable.' },
+            ] },
+            { type: 'list', items: ['Sign-in or account issue: keep the page, exact time and timezone, and redacted error.', 'API issue: keep the endpoint, model, HTTP status, and request ID.', 'Cancellation or timeout: first state whether Usage logs contain a record and deduction.'] },
+          ],
+        },
+        {
+          id: 'prepare-diagnostics',
+          title: 'Prepare diagnostic information',
+          blocks: [
+            { type: 'list', items: ['Exact time and timezone of the request or issue.', 'Exact model ID used by the request.', 'API endpoint or console page where the issue occurred.', 'Actual HTTP status, or a clear statement that no response arrived.', 'Complete request ID, or a clear statement that none was returned.', 'A redacted error that preserves the meaning of the failure.', 'Minimal reproduction steps, expected result, and actual result.', 'Whether a matching Usage log record was found, including the tokens, cost, and duration reviewed.'] },
+          ],
+        },
+        {
+          id: 'remove-sensitive-data',
+          title: 'Remove sensitive data',
+          blocks: [
+            { type: 'list', items: ['Do not submit an API key or any other access credential.', 'Do not submit passwords, verification codes, recovery codes, cookies, or session tokens.', 'Do not submit names, email addresses, phone numbers, addresses, identity details, or other personal information.', 'Do not submit complete prompts, complete request bodies, or raw content unrelated to the reproduction.', 'Do not submit private files, private download URLs, large Base64 values, or unreviewed log exports.'] },
+            { type: 'callout', tone: 'warning', title: 'Rotate a key before reporting suspected exposure', body: 'Disable or delete the affected key immediately, create and verify a replacement, then update every consumer. Do not send the old key to a support channel.' },
+          ],
+        },
+        {
+          id: 'use-official-channels',
+          title: 'Use official support channels',
+          blocks: [
+            { type: 'paragraph', text: 'Choose either public support channel below and include the minimum redacted diagnostic information in the first message. The documentation does not promise a response or resolution time.' },
+            { type: 'links', items: [
+              { label: 'Email support', href: 'mailto:support@partokens.com' },
+              { label: 'Telegram support bot', href: 'https://t.me/PartokensSupportBot' },
+            ] },
+          ],
+        },
+      ],
+    },
+    billing: {
+      id: 'billing',
+      summary: 'Review balance, plans, and usage in the console, choose a billing source, and recover from insufficient quota.',
+      prerequisites: ['Access to the Partokens console'],
+      sections: [
+        {
+          id: 'view-balance-plan',
+          title: 'View balance and plan',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Open Wallet', body: 'Sign in to the console and select Wallet under Account in the sidebar.' },
+              { title: 'Review account status', body: 'At the top of the page, review the account balance, total usage, and active plan count.' },
+              { title: 'Review plan quota', body: 'In Choose a plan, select View active and check each plan status, total quota, remaining quota, and used percentage.' },
+            ] },
+            { type: 'list', items: ['Account balance shows the currently available balance.', 'Total usage shows usage already recorded for the account.', 'Active plan details show plans that can still be used and their remaining quota.'] },
+          ],
+        },
+        {
+          id: 'choose-billing-source',
+          title: 'Choose a billing source',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Find the preference', body: 'At the bottom of Choose a plan on Wallet, find Usage billing preference. You can change it while an active plan is available.' },
+              { title: 'Choose the current preference', body: 'Select Subscription first, Balance first, Subscription only, or Balance only, then wait for the update to succeed before calling the API.' },
+            ] },
+            { type: 'list', items: ['Subscription first and Balance first select which source is tried first.', 'Subscription only and Balance only restrict usage to that source.', 'Confirm that the selected source is currently available before changing the preference.'] },
+          ],
+        },
+        {
+          id: 'review-usage',
+          title: 'Review usage',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Open Usage logs', body: 'In the console sidebar, select Usage logs under General.' },
+              { title: 'Narrow the time and model', body: 'Select a range that covers the call, then select the model. For an exact lookup, change the search field to Request ID and enter the complete request ID.' },
+              { title: 'Compare the call and deduction', body: 'Open the matching record and review its time, type, model, error, usage, cost, and request ID, then compare it with the balance or remaining plan quota in Wallet.' },
+            ] },
+          ],
+        },
+        {
+          id: 'resolve-insufficient-quota',
+          title: 'Resolve insufficient quota',
+          blocks: [
+            { type: 'list', items: ['Insufficient balance: check Wallet and use the currently available top-up option, or switch to a plan with available quota.', 'Insufficient or unavailable plan: open active plan details and check its status and remaining quota; choose a currently available plan or change the billing preference to an available source.', 'Rejected request: keep the HTTP status, error, and request ID, then check Usage logs for a record. For 401 or 403, also check the API key status and access.', 'After correcting the balance, plan, billing preference, or key, send one minimal request first. Do not resubmit unchanged requests.'] },
+          ],
+        },
+      ],
+    },
+    'models-pricing': {
+      id: 'models-pricing',
+      summary: 'Find currently available models, review capability and pricing information, choose the matching API, and resolve model errors.',
+      prerequisites: ['Access to a Partokens account', 'The API key `<YOUR_PARTOKENS_API_KEY>` when querying through the API'],
+      sections: [
+        {
+          id: 'find-models',
+          title: 'Find models',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'View account models', body: 'After signing in, open Models from the top navigation to see the models currently shown for the account.' },
+              { title: 'Query models for a key', body: 'You can also call the models endpoint with `<YOUR_PARTOKENS_API_KEY>` to see the models currently returned for that key.' },
+              { title: 'Copy the model ID', body: 'Copy the exact model ID from the page or `data[].id`, and use it unchanged as `<YOUR_MODEL_ID>` in later requests.' },
+            ] },
+            { type: 'endpoint', method: 'GET', label: 'Models', path: 'https://partokens.com/v1/models' },
+          ],
+        },
+        {
+          id: 'check-capability-price',
+          title: 'Check capabilities and price',
+          blocks: [
+            { type: 'list', items: ['On the Models page, review the endpoints, billing mode, and pricing information currently shown for `<YOUR_MODEL_ID>`.', 'When capability or price information is absent, do not infer it from the model name or a similar name.', 'Before calling, confirm that the target API appears in the model\'s current capability information. Use the account data shown at that time for price selection.', 'Review actual usage and deductions in Usage logs after the call.'] },
+          ],
+        },
+        {
+          id: 'choose-api',
+          title: 'Choose an API',
+          blocks: [
+            { type: 'list', items: ['Chat Completions: when the model explicitly supports chat completions, send a message list to `POST /v1/chat/completions`.', 'Responses: when the model explicitly supports Responses, use `POST /v1/responses`; native Codex connections use this API.', 'Image API: when the model explicitly supports images, use `POST /v1/images/generations` to generate an image. Image Studio uses the image edit API when a reference image is supplied.', 'A model may not support every API or optional parameter. Start with a minimal request to the target API.'] },
+          ],
+        },
+        {
+          id: 'resolve-model-errors',
+          title: 'Resolve model issues',
+          blocks: [
+            { type: 'list', items: ['Model not visible: refresh Models. When using the API, confirm that `GET /v1/models` succeeded and check whether `data` is empty.', 'Model not callable: use the exact returned ID and query the model list again with the same API key. Do not guess an ID when that key receives an empty list.', 'Incompatible parameter or 400: read `error.message`, remove optional parameters, and retry with the minimum fields for the target API.', '403: read the error, then check the API key status, model access, and balance or plan before trying again.', 'Model visible but still failing: keep the request time, model ID, HTTP status, and request ID, then find the record in Usage logs.'] },
+          ],
+        },
+      ],
+    },
+    codex: {
+      id: 'codex',
+      summary: 'Connect native Codex to Partokens with a model provider configuration and verify the Responses call with a minimal command.',
+      prerequisites: ['The API key `<YOUR_PARTOKENS_API_KEY>`', 'A Responses-capable model ID `<YOUR_MODEL_ID>`', 'Codex installed and runnable'],
+      sections: [
+        {
+          id: 'prepare-codex',
+          title: 'Prepare Codex',
+          blocks: [
+            { type: 'list', items: ['Run `codex --version` and confirm that Codex starts in the current terminal.', 'Copy the exact `<YOUR_MODEL_ID>` from the account Models page or `GET https://partokens.com/v1/models`, and confirm that it supports Responses.', 'Prepare the Partokens API key `<YOUR_PARTOKENS_API_KEY>`.'] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: 'Set the environment variable', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"` }] },
+          ],
+        },
+        {
+          id: 'configure-connection',
+          title: 'Configure the connection',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Open user configuration', body: 'Edit `~/.codex/config.toml` and keep any other settings you still need.' },
+              { title: 'Add the Partokens provider', body: 'Add the model and provider configuration below. `env_key` reads the environment variable set above.' },
+            ] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: '~/.codex/config.toml', code: `model = "<YOUR_MODEL_ID>"
+model_provider = "partokens"
+
+[model_providers.partokens]
+name = "Partokens"
+base_url = "https://partokens.com/v1"
+env_key = "PARTOKENS_API_KEY"
+wire_api = "responses"` }] },
+          ],
+        },
+        {
+          id: 'verify-call',
+          title: 'Verify the call',
+          blocks: [
+            { type: 'code-samples', samples: [{ language: 'shell', label: 'Minimal verification', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+codex exec "Reply only with: connection successful"` }] },
+            { type: 'list', items: ['A normal `connection successful` result confirms that Codex sent and completed the request through this configuration.', 'You can then find the call in Usage logs by its time, model, and request ID.'] },
+          ],
+        },
+        {
+          id: 'handle-failures',
+          title: 'Handle failures',
+          blocks: [
+            { type: 'list', items: ['Configuration error: if Codex cannot read the file or uses an unexpected model, check the TOML syntax, `model_provider`, and `<YOUR_MODEL_ID>`, and confirm that the environment variable is set in the same terminal.', 'Connection error: when no HTTP status arrives, check the network, proxy, DNS, TLS, and that `base_url` is `https://partokens.com/v1`.', 'HTTP/API error: for 400, 401, 403, 429, or 5xx, keep the status, error, and request ID. Correct parameters, key, access, or quota before deciding whether to retry.', 'Model does not support Responses: select a currently listed model that explicitly supports Responses. Do not change `wire_api` to another value.'] },
+          ],
+        },
+      ],
+    },
+    'image-studio': {
+      id: 'image-studio',
+      summary: 'Open Image Studio from the console, select a current model and key, generate or edit images, and save the results you need.',
+      prerequisites: ['Access to the Partokens console', 'An available image model and API key'],
+      sections: [
+        {
+          id: 'open-studio',
+          title: 'Open the workspace',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Open the console', body: 'Sign in to Partokens and open the console.' },
+              { title: 'Open Image Studio', body: 'In the sidebar, select Image studio under Workspace.' },
+              { title: 'Check the workspace', body: 'Generation settings are on the left and the current result set is on the right.' },
+            ] },
+          ],
+        },
+        {
+          id: 'select-model-key',
+          title: 'Select a model and key',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Select a model', body: 'In Model, choose an image model from the current list and use that exact value as `<YOUR_MODEL_ID>`. Do not guess a model name.' },
+              { title: 'Select an API key', body: 'On the first generation, choose an active key compatible with the model in the API key required dialog, then continue generating.' },
+              { title: 'When no key is available', body: 'Use Create key in the dialog, or open API keys and create a key for the selected model before returning to Image Studio.' },
+            ] },
+          ],
+        },
+        {
+          id: 'generate-edit',
+          title: 'Generate or edit images',
+          blocks: [
+            { type: 'steps', items: [
+              { title: 'Enter a prompt', body: 'Describe the image to generate or edit in Prompt.' },
+              { title: 'Set the output', body: 'Choose quality, image size, and number of images from the options shown.' },
+              { title: 'Add a reference when needed', body: 'Upload a PNG, JPG, or WebP image to edit it, or choose Use as reference on a generated result.' },
+              { title: 'Start the task', body: 'Select Generate and wait for images in Results. If the model rejects a setting, choose one of the options currently provided for that model.' },
+            ] },
+          ],
+        },
+        {
+          id: 'save-handle-failures',
+          title: 'Save and handle failures',
+          blocks: [
+            { type: 'list', items: ['Save a result: choose Download image on every image you need to keep. The next generation replaces the displayed result set.', 'Generation failure or unsupported parameter: read the page error, choose a quality, size, or count offered for the current model, and remove incompatible settings.', '401: check that the selected API key is still valid. 403: check key access to the model and the account balance or plan. Do not regenerate until corrected.', '429: wait as directed before retrying. For 5xx, keep the request details and use bounded backoff with a total deadline.'] },
+            { type: 'callout', tone: 'warning', title: 'Check logs after cancellation or timeout', body: 'After leaving an active generation and confirming Stop, or after a timeout, first check Usage logs by time, model, and request ID for a record and deduction, then decide whether to retry.' },
+          ],
+        },
+      ],
+    },
+    'first-request': {
+      id: 'first-request',
+      summary: 'Prepare an API key, Base URL, and model ID, send one minimal chat request, and confirm the returned text.',
+      prerequisites: ['A Partokens API key', 'A model ID available to the account'],
+      sections: [
+        {
+          id: 'prepare',
+          title: 'Prepare the integration',
+          blocks: [
+            { type: 'list', items: ['Prepare the API key `<YOUR_PARTOKENS_API_KEY>`.', 'Use the Base URL `https://partokens.com/v1`.', 'Copy the exact available model ID `<YOUR_MODEL_ID>` from the account model list.'] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: 'Set environment variables', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+export PARTOKENS_MODEL="<YOUR_MODEL_ID>"` }] },
+          ],
+        },
+        {
+          id: 'send',
+          title: 'Send the request',
+          blocks: [
+            { type: 'endpoint', method: 'POST', label: 'Chat Completions', path: 'https://partokens.com/v1/chat/completions' },
+            { type: 'code-samples', samples: firstRequestSamplesEn },
+          ],
+        },
+        {
+          id: 'read',
+          title: 'Read the response',
+          blocks: [{ type: 'list', items: ['Check the HTTP status before parsing JSON.', 'Read the first chat text from `choices[0].message.content`.', 'Treat an empty `choices` array or empty text as no usable result.'] }],
+        },
+        {
+          id: 'failures',
+          title: 'Handle failures',
+          blocks: [{ type: 'list', items: ['401: check that the Bearer key is complete, valid, and from the intended environment.', '400: use `error.message` to correct the model, messages, or JSON fields.', '429: wait for `Retry-After`; when absent, use jittered exponential backoff.', '5xx: retry with backoff, a maximum attempt count, and a total deadline.', 'Connection error or timeout: confirm whether an HTTP response arrived; do not resend a chat request unconditionally.'] }],
+        },
+      ],
+    },
+    clients: {
+      id: 'clients',
+      summary: 'Choose Shell, an OpenAI SDK, or a client with a custom Base URL, then verify the call with the same connection settings.',
+      prerequisites: ['A Partokens API key', 'An available model ID'],
+      sections: [
+        {
+          id: 'choose',
+          title: 'Choose a client',
+          blocks: [{ type: 'list', items: ['Shell / cURL: connectivity checks, automation scripts, and reproductions.', 'OpenAI JavaScript SDK: Node.js services and scripts.', 'OpenAI Python SDK: Python services and scripts.', 'Codex: coding tasks with a model that supports the Responses API.', 'An OpenAI-compatible client with a custom Base URL: existing clients that expose Base URL, Bearer key, and model ID settings.'] }],
+        },
+        {
+          id: 'configure',
+          title: 'Configure the connection',
+          blocks: [
+            { type: 'endpoint', label: 'Base URL', path: 'https://partokens.com/v1' },
+            { type: 'list', items: ['Send the Bearer key `<YOUR_PARTOKENS_API_KEY>` as `Authorization: Bearer ...`.', 'Use the exact account model ID `<YOUR_MODEL_ID>`.', 'Discover models with `GET /v1/models`; Shell, SDKs, and compatible clients verify chat with `POST /v1/chat/completions`, while Codex uses `POST /v1/responses`.'] },
+          ],
+        },
+        {
+          id: 'verify',
+          title: 'Verify the call',
+          blocks: [
+            { type: 'code-samples', samples: firstRequestSamplesEn },
+            { type: 'list', items: ['For another compatible client, run `GET https://partokens.com/v1/models`, then send the chat request with the same key and model ID.', 'For Shell, JavaScript, Python, and compatible clients, confirm a successful HTTP response and readable `choices[0].message.content`.', 'After configuring its Base URL, key, and model, verify Codex with `codex exec "Reply only with: connection successful"`.'] },
+          ],
+        },
+        {
+          id: 'troubleshoot',
+          title: 'Troubleshoot',
+          blocks: [{ type: 'list', items: ['Client configuration error: no request or an invalid URL, Bearer header, or model; correct the setting before retrying.', 'Network error: no HTTP status arrived; check DNS, TLS, proxy, and connection timeout.', 'API error: an HTTP status and JSON `error` arrived; handle 401, 400, 429, or 5xx as an API result, not as a client crash.'] }],
+        },
+      ],
+    },
+    'api-keys': {
+      id: 'api-keys',
+      summary: 'Create an API key in the console, configure it in a secure runtime, and rotate or revoke old keys in order.',
+      prerequisites: ['Access to the Partokens console'],
+      sections: [
+        {
+          id: 'create',
+          title: 'Create a key',
+          blocks: [{ type: 'steps', items: [
+            { title: 'Open key management', body: 'Sign in to the console, open API keys, and choose Create key.' },
+            { title: 'Set the required options', body: 'Enter a name and select a group; set a quota limit and expiration when needed.' },
+            { title: 'Save the credential', body: 'After submitting, use Reveal or Copy in the key list and place the credential in a secure runtime immediately.' },
+          ] }],
+        },
+        {
+          id: 'configure',
+          title: 'Configure the key',
+          blocks: [
+            { type: 'list', items: ['Use a server-side environment variable or secret manager; never put the key in a repository, URL, log, or browser code.', 'Send it as `Authorization: Bearer <YOUR_PARTOKENS_API_KEY>`.'] },
+            { type: 'code-samples', samples: [{ language: 'shell', label: 'Set the environment variable', code: `export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"` }] },
+          ],
+        },
+        {
+          id: 'rotate',
+          title: 'Rotate and revoke',
+          blocks: [{ type: 'steps', items: [
+            { title: 'Create the replacement', body: 'Create a replacement key for the same application and store it securely.' },
+            { title: 'Verify it first', body: 'Change one controlled environment and call `GET /v1/models` to confirm the replacement works.' },
+            { title: 'Replace every use', body: 'Update services, jobs, and secret-manager values, then confirm the new configuration is active.' },
+            { title: 'Disable the old key', body: 'From the key list actions, choose Disable to pause or Delete to remove the old key.' },
+          ] }],
+        },
+        {
+          id: 'exceptions',
+          title: 'Handle exceptions',
+          blocks: [{ type: 'list', items: ['401: check the environment variable, Bearer header, and key status; make sure an old value is not in use.', '403: check the key group, access scope, and enabled state before trying again.', 'Suspected exposure: disable or delete the key immediately, create and verify a replacement, then update every use.', 'Expired, disabled, or exhausted key: do not retry repeatedly; create a replacement and verify it.'] }],
+        },
+      ],
+    },
+    sdk: {
+      id: 'sdk',
+      summary: 'Install the OpenAI JavaScript or Python SDK, configure the Partokens Base URL and key, and read text from a minimal chat request.',
+      prerequisites: ['A Node.js or Python runtime', 'A Partokens API key', 'A model ID'],
+      sections: [
+        {
+          id: 'install',
+          title: 'Install the SDK',
+          blocks: [
+            { type: 'paragraph', text: 'Install the supported OpenAI SDK in a server-side project.' },
+            { type: 'code-samples', samples: [{ language: 'shell', label: 'Install and set variables', code: `npm install openai
+python -m pip install openai
+
+export PARTOKENS_API_KEY="<YOUR_PARTOKENS_API_KEY>"
+export PARTOKENS_MODEL="<YOUR_MODEL_ID>"` }] },
+          ],
+        },
+        {
+          id: 'configure',
+          title: 'Configure the client',
+          blocks: [
+            { type: 'list', items: ['JavaScript uses `apiKey` and `baseURL`.', 'Python uses `api_key` and `base_url`.', 'Set both SDKs to `https://partokens.com/v1`; provide `<YOUR_MODEL_ID>` through the model environment variable.'] },
+            { type: 'endpoint', method: 'POST', label: 'Chat Completions', path: 'https://partokens.com/v1/chat/completions' },
+          ],
+        },
+        {
+          id: 'send-read',
+          title: 'Send and read a request',
+          blocks: [{ type: 'code-samples', samples: [conciseSdkJavaScriptSample, conciseSdkPythonSample] }],
+        },
+        {
+          id: 'errors',
+          title: 'Handle errors',
+          blocks: [{ type: 'list', items: ['Connection error: check DNS, TLS, proxy, and network before retrying.', 'HTTP error: read the status, `error.message`, and `X-Oneapi-Request-Id`; fix 400, 401, or 403 first.', '429: follow `Retry-After`, or use jittered exponential backoff.', '5xx: retry with a maximum attempt count and total deadline.', 'Timeout: set an SDK timeout; a chat request may already have run, so check usage records before retrying.'] }],
+        },
+      ],
+    },
+  },
+}
+
 export function hasLocalizedDocsDocument(id: DocsItemId, locale: AppLocale) {
   return locale === 'zh-CN' || (locale === 'en' && Boolean(englishDocsDocuments[id]))
 }
 
 export function getDocsDocument(id: DocsItemId, locale: AppLocale = 'zh-CN') {
-  const document = locale === 'en' ? (englishDocsDocuments[id] ?? zhCnDocsDocuments[id]) : zhCnDocsDocuments[id]
+  const document = conciseDocsDocuments[locale === 'en' ? 'en' : 'zh-CN'][id]
+    ?? (locale === 'en' ? (englishDocsDocuments[id] ?? zhCnDocsDocuments[id]) : zhCnDocsDocuments[id])
   if (!document) throw new Error(`Missing published documentation: ${locale}/${id}`)
   return document
 }

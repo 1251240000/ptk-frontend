@@ -8,27 +8,28 @@ function translated(locale: AppLocale, key: string) {
   return (resources[locale].translation as Record<string, string>)[key]
 }
 
-test('all seven locales render localized copy on every canonical Console page', async ({ page }) => {
-  await primeUserSession(page)
-  await installMockApi(page)
-  const routes = [
-    ['overview', 'Overview', 'Account readiness, usage, and the next useful action in one view.'],
-    ['analytics', 'Analytics', 'Inspect usage trends, model share, cost, and request routes.'],
-    ['keys', 'API keys', 'Create scoped credentials and control access to the Partokens API.'],
-    ['usage-logs', 'Usage logs', 'Inspect model calls, account events, cost, and request latency.'],
-  ] as const
+const canonicalRoutes = [
+  ['overview', 'Overview', 'Account readiness, usage, and the next useful action in one view.'],
+  ['analytics', 'Analytics', 'Inspect usage trends, model share, cost, and request routes.'],
+  ['keys', 'API keys', 'Create scoped credentials and control access to the Partokens API.'],
+  ['usage-logs', 'Usage logs', 'Inspect model calls, account events, cost, and request latency.'],
+] as const
 
-  for (const locale of locales) {
-    for (const [route, heading, description] of routes) {
-      await page.goto(`/${locale}/console/${route}`)
+for (const locale of locales) {
+  test(`${locale} renders localized copy on every canonical Console page`, async ({ page }) => {
+    await primeUserSession(page)
+    await installMockApi(page)
+
+    for (const [route, heading, description] of canonicalRoutes) {
+      await page.goto(`/${locale}/console/${route}`, { waitUntil: 'domcontentloaded' })
       await expect(page.getByRole('heading', { name: translated(locale, heading), exact: true })).toBeVisible()
       await expect(page.getByText(translated(locale, description), { exact: true })).toBeVisible()
       await expect(page.getByRole('main', { name: translated(locale, 'Console content') })).toBeVisible()
       await expect(page.locator('html')).toHaveAttribute('lang', locale)
       if (locale !== 'en') await expect(page.getByText(description, { exact: true })).toHaveCount(0)
     }
-  }
-})
+  })
+}
 
 test('deep links and browser history restore locale, route, and search', async ({ page }) => {
   await primeUserSession(page)
@@ -131,19 +132,26 @@ test('lazy route failure retry preserves locale and search then restores main fo
   await primeUserSession(page)
   await installMockApi(page)
   let failedChunk = false
+  let markChunkRequested: () => void = () => undefined
+  let releaseChunk: () => void = () => undefined
+  const chunkRequested = new Promise<void>((resolve) => { markChunkRequested = resolve })
+  const chunkHeld = new Promise<void>((resolve) => { releaseChunk = resolve })
   await page.route('**/*', async (route) => {
     const url = route.request().url()
     if (!failedChunk && url.includes('console-analytics') && /\.js(?:\?|$)/.test(url)) {
       failedChunk = true
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      markChunkRequested()
+      await chunkHeld
       await route.abort('failed')
       return
     }
     await route.fallback()
   })
 
-  await page.goto('/fr/console/analytics?r59=lazy-retry')
+  await page.goto('/fr/console/analytics?r59=lazy-retry', { waitUntil: 'domcontentloaded' })
+  await chunkRequested
   await expect(page.getByRole('status', { name: translated('fr', 'Loading Console page') })).toBeVisible()
+  releaseChunk()
   await expect(page.getByRole('heading', { name: translated('fr', 'Console page could not be loaded') })).toBeVisible()
   expect(failedChunk).toBe(true)
   await page.getByRole('button', { name: translated('fr', 'Try again') }).click()

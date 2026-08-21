@@ -3,14 +3,16 @@ import { useLocation, useNavigate, useParams } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 
 import { getPricingCatalog, getStatusWithSignal } from '@partokens/api-client'
-import { loadPublicContent, type PublicContentSnapshot } from '@partokens/content/public-config'
-import { isAppLocale, type AppLocale } from '@partokens/i18n'
+import { homePageCopy } from '@partokens/content/public-home-copy'
+import { getCurrentNotice, getLegalDocument, getLocaleContent, loadPublicContent, type PublicContentSnapshot } from '@partokens/content/public-config'
+import { isAppLocale, resources, type AppLocale } from '@partokens/i18n'
 
 import { useAppBootPending } from '@/components/app-loading'
+import { usePageMetadata, type PageMetadata } from '@/lib/page-metadata'
 import { canonicalConsolePath } from '@/lib/routes'
 import { usePreferenceStore } from '@/stores/preferences'
 import { useSessionStore } from '@/stores/session'
-import { PublicPrototype, type PublicPrototypeScreen, type PublicTarget } from './public-pages'
+import { PublicPrototype, statusPageCopy, type PublicPrototypeScreen, type PublicTarget } from './public-pages'
 
 function resolvedDocumentTheme(): 'light' | 'dark' {
   return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
@@ -24,6 +26,30 @@ const publicContentStateCopy: Record<AppLocale, { error: string; retry: string }
   ru: { error: 'Публичные материалы временно недоступны.', retry: 'Повторить' },
   fr: { error: 'Le contenu public est temporairement indisponible.', retry: 'Réessayer' },
   vi: { error: 'Nội dung công khai tạm thời không khả dụng.', retry: 'Thử lại' },
+}
+
+function translated(locale: AppLocale, key: string) {
+  return (resources[locale].translation as Record<string, string>)[key] ?? key
+}
+
+function publicPageMetadata(screen: PublicPrototypeScreen, locale: AppLocale, pathname: string, content: PublicContentSnapshot): PageMetadata {
+  const base = { locale, pathname }
+  if (screen === 'home') return { ...base, title: 'Partokens', description: homePageCopy[locale].hero.body }
+  if (screen === 'docs') {
+    const title = translated(locale, 'Docs')
+    const description = homePageCopy[locale].useCases.items.find((item) => item.target === 'docs')?.body ?? title
+    return { ...base, title, description }
+  }
+  if (screen === 'notices') return { ...base, title: translated(locale, 'Notices'), description: getCurrentNotice(locale, content).title }
+  if (screen === 'status') return { ...base, title: statusPageCopy[locale].title, description: statusPageCopy[locale].description }
+  if (screen === 'about') {
+    const about = getLocaleContent(locale, content)
+    return { ...base, title: about.aboutTitle, description: about.aboutLead }
+  }
+  if (screen === 'models') return { ...base, title: translated(locale, 'Models'), description: translated(locale, 'Compare available model routes, capabilities, and billing modes.') }
+  const legalKind = screen === 'legal-user' ? 'user-agreement' : screen === 'legal-privacy' ? 'privacy-policy' : 'service-agreement'
+  const legal = getLegalDocument(locale, legalKind, content)
+  return { ...base, title: legal.title, description: legal.summary }
 }
 
 export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
@@ -58,6 +84,7 @@ export function PublicRoute(props: { screen: PublicPrototypeScreen }) {
     staleTime: 60_000,
     retry: false,
   })
+  usePageMetadata(publicContent.data ? publicPageMetadata(props.screen, locale, pathname, publicContent.data) : null)
   useAppBootPending(!publicContent.data && !publicContent.isError)
 
   useEffect(() => {

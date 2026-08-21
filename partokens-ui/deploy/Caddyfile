@@ -75,7 +75,7 @@
 		reverse_proxy {$PARTOKENS_DOCS_ORIGIN:http://127.0.0.1:3001}
 	}
 
-	@localizedUI path_regexp localizedUI ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(/.*)?$
+	@localizedUI path_regexp localizedUI ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(?:/?|/(?:notices|status)/?|/legal/(?:user-agreement|service-agreement|privacy-policy)/?|/auth/(?:sign-in|sign-up|verify-email|forgot-password|reset|otp)/?|/console(?:/?|/(?:overview|analytics|keys|usage-logs|wallet|profile|security|connections|notifications)/?|/(?:playground|studio)(?:/[^/]+)?/?)|/console-foundation(?:/?|/(?:overview|analytics|keys|logs)/?)|/console-(?:security|connections|notifications)/?)$
 	handle @localizedUI {
 		header {
 			Cache-Control "no-store"
@@ -84,6 +84,11 @@
 		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
 		try_files {path} /index.html
 		file_server
+	}
+
+	@localizedNotFound path_regexp localizedNotFound ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(/.*)?$
+	handle @localizedNotFound {
+		error 404
 	}
 
 	# New API reset emails use /user/reset; the Web router canonicalizes it to /{locale}/auth/reset.
@@ -100,5 +105,21 @@
 
 	handle {
 		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+	}
+
+	handle_errors {
+		@localizedError {
+			expression {err.status_code} == 404
+			path_regexp localizedErrorPath ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(/.*)?$
+		}
+		handle @localizedError {
+			header {
+				Cache-Control "no-store"
+				Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
+			}
+			root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+			rewrite * /index.html
+			file_server
+		}
 	}
 }

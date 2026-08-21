@@ -30,6 +30,7 @@ import { isAppLocale, resolvePreferredLocale, type AppLocale } from '@partokens/
 
 import { InterfaceLanguageMenu, InterfaceThemeMenu } from '@/features/public/interface-tool-menus'
 import { i18n } from '@/lib/i18n'
+import { usePageMetadata } from '@/lib/page-metadata'
 import { usePreferenceStore } from '@/stores/preferences'
 
 import { localizedAuthError, startOAuthAuthorization } from './auth-flow'
@@ -54,6 +55,17 @@ function AuthBrand() {
   return <span className="r32-auth-brand"><span><PartokensAvatar size={28} alt="" /></span><strong>Partokens</strong></span>
 }
 
+function authPageMetadata(screen: string, t: Translate) {
+  if (screen === 'sign-up-unavailable') return { title: t('Sign up'), description: t('Registration is currently unavailable.') }
+  if (screen === 'sign-up') return { title: t('Create account'), description: t('Create an account and verify your email when the service requires it.') }
+  if (screen === 'verify-email') return { title: t('Verify your email'), description: t('Enter the code sent to your email to verify the contact address for registration.') }
+  if (screen === 'forgot-password') return { title: t('Forgot password'), description: t('Enter the registered email to receive a one-time password reset link.') }
+  if (screen === 'two-factor') return { title: t('Two-factor verification'), description: t('Enter an authenticator code or backup code to finish signing in.') }
+  if (screen === 'reset-password') return { title: t('Reset password'), description: t('After the reset link is confirmed, the service will issue a new account password.') }
+  if (screen === 'oauth-callback') return { title: t('Completing sign in'), description: t('The provider response is being verified before the account role is resolved.') }
+  return { title: t('Sign in'), description: t('Continue with your account password. Email codes are only for registration and account binding.') }
+}
+
 function AuthRail(props: { locale: AppLocale; onHome: () => void; theme: 'light' | 'dark' }) {
   const { t } = useTranslation()
   const status = useAuthStatus()
@@ -64,7 +76,7 @@ function AuthRail(props: { locale: AppLocale; onHome: () => void; theme: 'light'
     <div className="r32-auth-rail-art" aria-hidden="true" />
     <footer>
       <div className="r32-auth-rail-story">
-        <span>MODEL GATEWAY</span>
+        <span>{t('Model gateway').toUpperCase()}</span>
         <h2>{t('One entry point for every model request.')}</h2>
         <p>{t('Partokens gives developers one entry point for model access, with pricing, status, quota, and request history in the same operational interface.')}</p>
         <div className="r32-auth-rail-status" role="status" aria-live="polite">
@@ -85,6 +97,8 @@ export function AuthFrame(props: { children: ReactNode; screen: string; locale?:
   const setTheme = usePreferenceStore((state) => state.setTheme)
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
   const theme = preferenceTheme === 'system' ? (systemDark ? 'dark' : 'light') : preferenceTheme
+  const metadata = authPageMetadata(props.screen, t)
+  usePageMetadata({ locale, title: metadata.title, description: metadata.description })
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -125,7 +139,7 @@ export function AuthFrame(props: { children: ReactNode; screen: string; locale?:
         <div className="r32-auth-form-shell">{props.children}</div>
       </section>
     </main>
-    <Toaster theme={theme} position="top-right" richColors closeButton />
+    <Toaster theme={theme} position="top-right" richColors closeButton containerAriaLabel={t('Notifications')} />
   </div>
 }
 

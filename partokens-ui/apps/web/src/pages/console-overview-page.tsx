@@ -16,7 +16,7 @@ import {
   Route,
   Server,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -420,6 +420,21 @@ function usageStatusLabel(type: number) {
   return 'Recorded'
 }
 
+function UsageKeyValue(props: { record: SafeLogRecord; locale: AppLocale; align?: 'start' | 'end' }) {
+  const { t } = useTranslation()
+  const label = props.record.tokenName ?? '—'
+  const ratio = props.record.groupRatio == null
+    ? undefined
+    : new Intl.NumberFormat(props.locale, { maximumFractionDigits: 4 }).format(props.record.groupRatio)
+
+  return (
+    <span className={`flex min-w-0 flex-wrap items-center gap-1.5 ${props.align === 'end' ? 'justify-end' : ''}`}>
+      <span className="min-w-0 break-words">{label}</span>
+      {ratio != null ? <Badge variant="outline" className="shrink-0 font-mono font-normal text-muted-foreground">{ratio}x {t('Ratio')}</Badge> : null}
+    </span>
+  )
+}
+
 function UsageStatus(props: { record: SafeLogRecord }) {
   const { t } = useTranslation()
   const label = usageStatusLabel(props.record.type)
@@ -429,11 +444,11 @@ function UsageStatus(props: { record: SafeLogRecord }) {
 
 function UsageDetails(props: { record: SafeLogRecord; locale: AppLocale }) {
   const { t } = useTranslation()
-  const fields = [
+  const fields: Array<[string, ReactNode]> = [
     [t('Request ID'), props.record.requestId ?? '—'],
     [t('Time'), logTime(props.record, props.locale)],
     [t('Model'), props.record.modelName ?? '—'],
-    [t('API key'), props.record.tokenName ?? '—'],
+    [t('API key'), <UsageKeyValue record={props.record} locale={props.locale} align="end" />],
     [t('Endpoint'), t('Not exposed')],
     [t('Tokens'), formatInteger(logTokens(props.record), props.locale)],
     [t('Cost'), formatQuota(props.record.quota, props.locale)],
@@ -527,7 +542,7 @@ function RecentUsage(props: {
                   <TableRow key={record.rowId}>
                     <TableCell className="whitespace-nowrap ps-4 text-muted-foreground">{logTime(record, props.locale)}</TableCell>
                     <TableCell className="font-medium">{record.modelName ?? '—'}</TableCell>
-                    <TableCell>{record.tokenName ?? '—'}</TableCell>
+                    <TableCell><UsageKeyValue record={record} locale={props.locale} /></TableCell>
                     <TableCell><UsageStatus record={record} /></TableCell>
                     <TableCell className="font-mono text-xs">{formatInteger(logTokens(record), props.locale)}</TableCell>
                     <TableCell className="font-mono text-xs">{formatQuota(record.quota, props.locale)}</TableCell>
@@ -542,7 +557,7 @@ function RecentUsage(props: {
             {records.map((record) => (
               <article key={record.rowId} className="p-4">
                 <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{record.modelName ?? '—'}</p><code className="mt-1 block truncate font-mono text-xs text-muted-foreground">{record.requestId ?? `log-${record.rowId}`}</code></div><UsageStatus record={record} /></div>
-                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Time')}</dt><dd className="mt-1 break-words">{logTime(record, props.locale)}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('API key')}</dt><dd className="mt-1 break-words">{record.tokenName ?? '—'}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Tokens')}</dt><dd className="mt-1 font-mono text-xs">{formatInteger(logTokens(record), props.locale)}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Cost / latency')}</dt><dd className="mt-1 font-mono text-xs">{formatQuota(record.quota, props.locale)} / {record.useTime == null ? '—' : `${record.useTime.toFixed(2)} s`}</dd></div></dl>
+                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm"><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Time')}</dt><dd className="mt-1 break-words">{logTime(record, props.locale)}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('API key')}</dt><dd className="mt-1 break-words"><UsageKeyValue record={record} locale={props.locale} /></dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Tokens')}</dt><dd className="mt-1 font-mono text-xs">{formatInteger(logTokens(record), props.locale)}</dd></div><div className="min-w-0"><dt className="text-xs text-muted-foreground">{t('Cost / latency')}</dt><dd className="mt-1 font-mono text-xs">{formatQuota(record.quota, props.locale)} / {record.useTime == null ? '—' : `${record.useTime.toFixed(2)} s`}</dd></div></dl>
                 <Button variant="outline" size="sm" className="mt-4 w-full" onClick={(event) => openDetails(record, event)}><Eye />{t('View details')}</Button>
               </article>
             ))}

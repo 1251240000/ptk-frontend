@@ -134,7 +134,7 @@ function BrandMenu() {
           <span className="truncate font-semibold">Partokens</span>
           <span className="truncate text-xs">{t('Developer console')}</span>
         </div>
-        <SidebarTrigger className="ms-auto size-8 shrink-0" data-console-sidebar-trigger />
+        <SidebarTrigger className="ms-auto size-8 shrink-0" data-console-sidebar-trigger label={t('Toggle sidebar')} />
       </SidebarMenuItem>
     </SidebarMenu>
   )
@@ -374,7 +374,7 @@ function ConsoleHeader({ activePage }: { activePage: ConsolePage }) {
   return (
     <header className="sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-full items-center gap-3 p-4 sm:gap-4">
-        <SidebarTrigger ref={triggerRef} variant="outline" className="max-md:scale-110 md:hidden" data-console-sidebar-trigger />
+        <SidebarTrigger ref={triggerRef} variant="outline" className="max-md:scale-110 md:hidden" data-console-sidebar-trigger label={t('Toggle sidebar')} />
         <Separator orientation="vertical" className="h-6 md:hidden" />
         <div data-console-breadcrumb className="min-w-0 text-sm max-[340px]:hidden">
           <span className="hidden text-muted-foreground sm:inline">{t(pageSections[activePage])} / </span>
@@ -428,11 +428,11 @@ export function ConsoleShell() {
           })
         }}
       >
-        <Sidebar variant="inset" collapsible="icon">
+        <Sidebar variant="inset" collapsible="icon" mobileTitle={t('Console navigation')} mobileDescription={t('Displays console navigation on mobile.')}>
           <SidebarHeader><BrandMenu /></SidebarHeader>
           <SidebarContent><ConsoleNavigation activePage={activePage} /></SidebarContent>
           <SidebarFooter><UserMenu /></SidebarFooter>
-          <SidebarRail />
+          <SidebarRail label={t('Toggle sidebar')} />
         </Sidebar>
 
         <div className="@container/content relative flex min-w-0 w-full flex-1 flex-col bg-background">
@@ -442,7 +442,7 @@ export function ConsoleShell() {
           </main>
         </div>
       </SidebarProvider>
-      <Toaster theme={theme} position="top-right" richColors closeButton />
+      <Toaster theme={theme} position="top-right" richColors closeButton containerAriaLabel={t('Notifications')} />
     </div>
   )
 }
