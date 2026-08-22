@@ -12,7 +12,7 @@
     "dev": "bun --filter @partokens/web dev",
     "build": "bun --filter @partokens/web build",
     "typecheck": "bun --filter @partokens/web typecheck",
-    "test": "bun test scripts/release-contract.test.ts && bun --filter @partokens/web test",
+    "test": "bun test scripts/release-contract.test.ts scripts/deploy-config.test.ts && bun --filter @partokens/web test",
     "test:e2e": "bun --filter @partokens/web test:e2e",
     "compatibility:upstream": "bun scripts/check-new-api.ts",
     "compatibility:upstream:candidate": "bun scripts/check-new-api.ts --candidate",

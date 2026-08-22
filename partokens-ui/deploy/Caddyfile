@@ -1,10 +1,11 @@
-# PARTOKENS_SITE_ADDRESS is the public hostname (or :80 for local HTTP).
-# PARTOKENS_API_ORIGIN is the reachable upstream from Caddy's network. In the
-# Docker Compose stack this is http://new-api:<NEW_API_CONTAINER_PORT>.
-# PARTOKENS_UI_ROOT points to the static path baked into the Docker image (or a
-# read-only mounted release when using the host/symlink deployment workflow).
-{$PARTOKENS_SITE_ADDRESS:http://127.0.0.1:8080} {
+# This container serves only the Partokens SPA. API and unprefixed administrator
+# routes are forwarded to the separately operated PARTOKENS_API_ORIGIN.
+{$PARTOKENS_SITE_ADDRESS} {
 	encode zstd gzip
+	log {
+		output stdout
+		format json
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
@@ -26,23 +27,23 @@
 
 	@backend path /api/* /v1/* /v1beta/* /pg/* /mj/* /*/mj/* /suno/* /kling/* /jimeng /jimeng/* /dashboard/billing/*
 	handle @backend {
-		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+		reverse_proxy {$PARTOKENS_API_ORIGIN}
 	}
 
 	@officialAssets path /assets/*
 	handle @officialAssets {
-		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+		reverse_proxy {$PARTOKENS_API_ORIGIN}
 	}
 
 	@officialAdmin path /channels /channels/* /models /models/* /users /users/* /redemption-codes /redemption-codes/* /subscriptions /subscriptions/* /system-info /system-info/* /system-settings /system-settings/*
 	handle @officialAdmin {
-		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+		reverse_proxy {$PARTOKENS_API_ORIGIN}
 	}
 
 	@uiRelease path /_ui/release.json
 	handle @uiRelease {
 		header Cache-Control "no-store"
-		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/web}
 		file_server
 	}
 
@@ -50,21 +51,21 @@
 	handle @publicContent {
 		header Cache-Control "no-store"
 		header Content-Type "application/json; charset=utf-8"
-		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/web}
 		file_server
 	}
 
 	@uiAssets path /_ui/*
 	handle @uiAssets {
 		header Cache-Control "public, max-age=31536000, immutable"
-		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/web}
 		file_server
 	}
 
 	@webMedia path /brand/* /auth/* /home/*
 	handle @webMedia {
 		header Cache-Control "public, max-age=3600"
-		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/web}
 		file_server
 	}
 
@@ -74,7 +75,7 @@
 			Cache-Control "no-store"
 			Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
 		}
-		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/web}
 		try_files {path} /index.html
 		file_server
 	}
@@ -84,20 +85,20 @@
 		error 404
 	}
 
-	# New API reset emails use /user/reset; the Web router canonicalizes it to /{locale}/auth/reset.
+	# Backend reset emails use /user/reset; the Web router canonicalizes it to /{locale}/auth/reset.
 	@technicalUI path / /oauth /oauth/* /user/reset
 	handle @technicalUI {
 		header {
 			Cache-Control "no-store"
 			Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
 		}
-		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/web}
 		try_files {path} /index.html
 		file_server
 	}
 
 	handle {
-		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
+		reverse_proxy {$PARTOKENS_API_ORIGIN}
 	}
 
 	handle_errors {
@@ -109,8 +110,18 @@
 			header {
 				Cache-Control "no-store"
 				Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
+				Strict-Transport-Security "max-age=31536000"
+				X-Content-Type-Options "nosniff"
+				Referrer-Policy "strict-origin-when-cross-origin"
+				Permissions-Policy "camera=(), geolocation=(), microphone=()"
+				X-Frame-Options "DENY"
+				Cross-Origin-Opener-Policy "same-origin"
+				Cross-Origin-Resource-Policy "same-origin"
+				X-Permitted-Cross-Domain-Policies "none"
+				X-Robots-Tag "{$PARTOKENS_ROBOTS_HEADER:all}"
+				-Server
 			}
-			root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+			root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/web}
 			rewrite * /index.html
 			file_server
 		}

@@ -160,7 +160,28 @@ export function validateStagingEnvironment(env: NodeJS.ProcessEnv, sourceCommit:
   }
 }
 
-export function readGitMetadata(projectRoot: string) {
+export function readGitMetadata(projectRoot: string, env: NodeJS.ProcessEnv = process.env) {
+  const metadataMode = env.PARTOKENS_BUILD_METADATA_MODE?.trim()
+  if (metadataMode && metadataMode !== 'external') {
+    throw new Error('PARTOKENS_BUILD_METADATA_MODE must be external when set')
+  }
+  if (metadataMode === 'external') {
+    const suppliedCommit = env.PARTOKENS_SOURCE_COMMIT?.trim()
+    if (!suppliedCommit) throw new Error('PARTOKENS_SOURCE_COMMIT is required for external build metadata')
+    if (!/^[0-9a-f]{40}$/.test(suppliedCommit)) {
+      throw new Error('PARTOKENS_SOURCE_COMMIT must be a full lowercase Git commit')
+    }
+    const suppliedState = env.PARTOKENS_SOURCE_TREE_STATE?.trim()
+    if (suppliedState !== 'clean' && suppliedState !== 'dirty') {
+      throw new Error('PARTOKENS_SOURCE_TREE_STATE must be clean or dirty')
+    }
+    return {
+      sourceCommit: suppliedCommit,
+      sourceTreeState: suppliedState,
+      status: suppliedState === 'dirty' ? 'Source state supplied by the build environment' : '',
+    } as const
+  }
+
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8' }).trim()
   const status = execFileSync('git', [
     'status',

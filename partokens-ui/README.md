@@ -53,9 +53,9 @@ caddy run --config Caddyfile.dev
 
 Open `http://127.0.0.1:8080/`. All locale-prefixed public, documentation, authentication, and Console routes are owned by the Web SPA. API, relay, official assets, and native administrator routes remain proxied to the unchanged New API instance.
 
-For a built deployment, publish the corresponding source, set `PUBLIC_PARTOKENS_SOURCE_URL` to an anonymously readable HTTPS URL pinned to `git rev-parse HEAD`, and run `bun run release`. The release command validates the source URL, executes the quality gate, and assembles one static Web artifact plus deployment files under `release/`. Follow `deploy/README.md` to configure Caddy, run route smoke checks, and roll back. User routes stay locale-prefixed; native administrator routes stay unprefixed.
+For a built deployment, publish the corresponding source, set `PUBLIC_PARTOKENS_SOURCE_URL` to an anonymously readable HTTPS URL pinned to `git rev-parse HEAD`, and run `bun run release`. The release command validates the source URL, executes the quality gate, and assembles one static Web artifact plus deployment files under `release/`.
 
-For an optional full Docker deployment, use [`deploy/docker-compose.yml`](deploy/docker-compose.yml) with [`deploy/docker-compose.env.example`](deploy/docker-compose.env.example). It builds or pulls the UI/Caddy image directly and runs it with New API, PostgreSQL, and Redis; no `release/` directory is required. The Compose guide in [`deploy/README.md`](deploy/README.md#docker-compose-production-stack) documents host and container port settings, certificate requirements, backups, and rollback.
+Production deployment uses [`deploy/docker-compose.yml`](deploy/docker-compose.yml) with [`deploy/.env.example`](deploy/.env.example). It builds and runs one immutable UI/Caddy container. The existing API is supplied only as `PARTOKENS_API_ORIGIN`; the UI deployment does not create or manage API, database, or cache services. Follow [`deploy/README.md`](deploy/README.md) for build provenance, HTTPS, smoke checks, upgrades, and rollback.
 
 ## Documentation Updates
 

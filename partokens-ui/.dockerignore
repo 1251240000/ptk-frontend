@@ -2,11 +2,16 @@
 .gitignore
 node_modules
 **/node_modules
+**/dist
+**/.rsbuild-cache
 release
 release.tmp
 dogfood-output
 output
 coverage
+**/coverage
+**/playwright-report
+**/test-results
 *.log
 .env
 .env.*

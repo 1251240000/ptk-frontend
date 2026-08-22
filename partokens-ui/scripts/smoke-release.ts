@@ -130,31 +130,6 @@ await check('unknown docs 404 ownership', async () => {
   return '404 unified Web shell'
 })
 
-await check('backend status', async () => {
-  const response = await request('/api/status')
-  const body = await response.json() as { success?: boolean; data?: { version?: string } }
-  assert(response.status === 200 && body.success && body.data?.version, 'Backend status response is invalid')
-  assert(response.headers.get('content-type')?.includes('application/json'), 'Backend status did not remain JSON')
-  return `200 JSON ${body.data.version}`
-})
-
-await check('backend 404 ownership', async () => {
-  const response = await request('/api/partokens-r60-not-found')
-  const body = await response.text()
-  assert(response.status === 404, `Expected 404, received ${response.status}`)
-  assert(response.headers.get('content-type')?.includes('application/json'), 'Backend 404 was captured by an HTML application')
-  assert(!body.includes('id="root"'), 'Backend 404 returned the standalone SPA')
-  return '404 JSON'
-})
-
-await check('native administrator ownership', async () => {
-  const response = await request('/channels')
-  assert(response.status === 200, `Expected 200, received ${response.status}`)
-  assert(response.headers.get('content-type')?.includes('text/html'), 'Administrator route did not return HTML')
-  assert(response.headers.get('x-new-api-version'), 'Administrator route was not served by New API')
-  return `200 native ${response.headers.get('x-new-api-version')}`
-})
-
 const webShell = await (await request('/zh-CN/')).text()
 const assetPath = webShell.match(/(?:src|href)="(\/_ui\/[^\"]+)"/)?.[1]
 assert(assetPath, 'Unable to find a standalone Web asset')

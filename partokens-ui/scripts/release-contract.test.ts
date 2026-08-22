@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { isProductionHostname, validateStagingEnvironment } from './release-contract'
+import { isProductionHostname, readGitMetadata, validateStagingEnvironment } from './release-contract'
 
 const commit = 'd0c84e70c7a6105e2c96a1b6336ad6f48774e043'
 
@@ -49,5 +49,34 @@ describe('staging release contract', () => {
     expect(isProductionHostname('partokens.com')).toBe(true)
     expect(isProductionHostname('www.partokens.com')).toBe(true)
     expect(isProductionHostname('staging.partokens.com')).toBe(false)
+  })
+})
+
+describe('container release metadata', () => {
+  test('accepts build-provided Git metadata without a repository checkout', () => {
+    expect(readGitMetadata('/not-used', {
+      PARTOKENS_BUILD_METADATA_MODE: 'external',
+      PARTOKENS_SOURCE_COMMIT: commit,
+      PARTOKENS_SOURCE_TREE_STATE: 'clean',
+    })).toEqual({
+      sourceCommit: commit,
+      sourceTreeState: 'clean',
+      status: '',
+    })
+  })
+
+  test('rejects invalid build-provided Git metadata', () => {
+    expect(() => readGitMetadata('/not-used', {
+      PARTOKENS_BUILD_METADATA_MODE: 'external',
+      PARTOKENS_SOURCE_COMMIT: 'short',
+    })).toThrow('full lowercase Git commit')
+    expect(() => readGitMetadata('/not-used', {
+      PARTOKENS_BUILD_METADATA_MODE: 'external',
+      PARTOKENS_SOURCE_COMMIT: commit,
+      PARTOKENS_SOURCE_TREE_STATE: 'unknown',
+    })).toThrow('must be clean or dirty')
+    expect(() => readGitMetadata('/not-used', {
+      PARTOKENS_BUILD_METADATA_MODE: 'unexpected',
+    })).toThrow('must be external when set')
   })
 })

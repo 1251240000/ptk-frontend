@@ -1,104 +1,133 @@
-# Partokens UI Deployment
+# Partokens UI Production Deployment
 
-This directory deploys one static Web SPA beside an unchanged New API service. All locale-prefixed user and documentation routes belong to Partokens UI; native, unprefixed administrator routes remain owned by New API.
+This deployment owns one service: the Partokens Web SPA served by Caddy. It does
+not create, configure, health-check, upgrade, or persist an API, database, cache,
+or any other backend service.
 
-Production and staging must use different public origins, API environments, deploy hosts, test accounts, and release directories. A staging command must never point at `partokens.com` or its API.
+Caddy forwards same-origin API and unprefixed administrator requests to the
+required `PARTOKENS_API_ORIGIN`. That endpoint must already exist and must be
+reachable from the Web container.
 
-## Staging Release Candidate
+## Requirements
 
-1. Copy `staging.environment.example` to a secret-managed location outside the repository and replace every placeholder. The corresponding-source URL must be HTTPS, available to reviewers, and pinned to the full current Git commit.
-2. Keep the source tree clean, then load the environment and run:
+- A clean, committed Partokens UI checkout.
+- Docker Engine with the Docker Compose plugin.
+- An existing API endpoint reachable from Docker.
+- A public DNS record pointing at this host.
+- Public TCP ports 80 and 443; UDP 443 is optional but enables HTTP/3.
+- An anonymously readable HTTPS source URL pinned to the deployed Git commit.
 
-```bash
-bun run release:staging
-```
+## Configure
 
-The staging preflight rejects production origins, a production API, an unversioned install directory, an indexable staging response policy, an unpinned source URL, and a dirty source tree. The release command runs typecheck, unit tests, Chromium E2E, the Web build, upstream compatibility checks, package generation, and package verification.
-
-The generated `release/release-manifest.json` and `release/web/_ui/release.json` identify the RC, UI commit, source state, R59 Console contract, upstream versions, artifact hashes, lazy chunks, and source map policy. Public Web source maps and `sourceMappingURL` references are rejected.
-
-The release also contains `web/public-content/`. Caddy serves these JSON files from `/public-content/*` with `Cache-Control: no-store`; the web app loads the manifest first and shows a retryable localized error instead of stale legal content if runtime loading fails. Validate content with `python3 scripts/manage_content.py --validate` before packaging. To publish content without rebuilding JavaScript, update the complete `public-content` directory in a versioned release candidate and deploy it through the same atomic release/rollback flow. Do not replace individual files in the active `current` directory.
-
-## Staging Install
-
-Upload `release/` to the exact `PARTOKENS_RELEASE_ROOT` on `PARTOKENS_DEPLOY_HOST`. Do not overwrite `current` and do not reuse a production host or API. Record the previous symlink target before making changes. The artifact contains only `web/`, `deploy/`, and `release-manifest.json`; no Node frontend process is started.
-
-Validate the candidate Caddy configuration with the staging environment, then atomically point `/srv/partokens-ui/current` at the versioned candidate. Reload Caddy only after validation succeeds. Caddy serves the Web SPA and its static assets directly from `PARTOKENS_UI_ROOT`.
-
-Run the HTTP smoke gate against staging:
+Create the untracked production environment file:
 
 ```bash
-bun run release:staging:smoke
+cp deploy/.env.example deploy/.env
+chmod 600 deploy/.env
 ```
 
-The smoke gate checks deployed RC identity, 28 canonical Console locale/deep-link combinations, all seven Web docs entries, legacy docs deep links, security and no-index headers, health routes, route ownership, immutable assets, lazy chunk availability, and the absence of public source map references.
-
-## Authenticated Staging Matrix
-
-Use three dedicated staging identities with independent browser sessions. Do not reuse production cookies or accounts.
-
-| Identity | Required checks |
-| --- | --- |
-| Ordinary user A | Sign-in restoration, all four canonical pages, self analytics/logs, own API Key list and lifecycle |
-| Ordinary user B | Cannot read, reveal, mutate, filter by, or infer user A resources; feature-local 403 preserves the session |
-| Administrator | Native admin handoff works; ordinary-user owner/self scope does not widen; no credential material appears in browser storage or diagnostics |
-
-Also verify anonymous 401 handling, authenticated 403 handling without refresh loops, locale switching across all seven locales, direct deep links, full refresh, back/forward, lazy chunk loads, console errors, failed requests, Web Vitals, and responsive layouts. Create only clearly prefixed test API Keys; revoke/delete them and confirm zero residue before closing sessions.
-
-## Staging Rollback
-
-1. Stop new validation actions and record the failing RC plus the previous `current` target.
-2. Atomically repoint `/srv/partokens-ui/current` to the previous versioned release.
-3. Validate Caddy, reload it, and run `bun run release:staging:smoke` with the previous candidate ID.
-4. Confirm the release metadata endpoint reports the previous RC, then retain the failed candidate for investigation. Do not roll back or mutate New API as part of a frontend rollback.
-
-## Production
-
-Host/symlink production uses `environment.example` and the existing `bun run release` flow. Docker Compose production is described below and does not require `release/`. Production deployment requires separate approval and is intentionally not implied by successful staging validation.
-
-## Docker Compose Production Stack
-
-The existing release/symlink workflow remains frontend-only and can continue to use a separately managed New API. The optional `docker-compose.yml` full-stack mode runs the UI/Caddy image, the pinned New API image, PostgreSQL, and Redis together. Caddy is the only service published on a public interface. New API is published on the loopback address by default so operators can use its host port for local administration without bypassing Caddy.
-
-Create the environment file and replace every placeholder with a secret-managed value:
+Get the exact source commit, then put the same 40-character value in
+`PARTOKENS_SOURCE_COMMIT`, `PUBLIC_PARTOKENS_SOURCE_URL`, and the immutable image
+tag in `deploy/.env`:
 
 ```bash
-cp deploy/docker-compose.env.example deploy/.env
-${EDITOR:-vi} deploy/.env
+git status --short
+git rev-parse HEAD
 ```
 
-The Compose path does not require `release/`. It builds the UI directly into an immutable Caddy image from the checkout:
+Do not build when `git status --short` reports application or deployment changes.
+The Docker build rejects malformed or mismatched source metadata and embeds the
+verified release identity at `/_ui/release.json`.
 
-```bash
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml build caddy
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml config
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --no-build
-```
+The required runtime values are:
 
-For a production host that has no repository checkout, publish the image from CI, set `PARTOKENS_UI_IMAGE` to that immutable tag or digest, and deploy only the Compose file, environment file, and Caddyfile:
-
-```bash
-docker compose --env-file .env -f docker-compose.yml pull caddy
-docker compose --env-file .env -f docker-compose.yml up -d --no-build
-```
-
-Keep `PARTOKENS_SITE_ADDRESS` equal to the public DNS name. Caddy provisions HTTPS automatically when that name resolves to the host and the configured host ports are reachable. If `CADDY_HTTP_HOST_PORT` or `CADDY_HTTPS_HOST_PORT` is changed, provide certificates through a separate TLS automation workflow or use a DNS challenge; an arbitrary host port cannot satisfy the normal HTTP-01 challenge.
-
-The New API port settings have three separate meanings:
-
-| Variable | Meaning | Default |
+| Variable | Purpose | Example |
 | --- | --- | --- |
-| `NEW_API_CONTAINER_PORT` | New API's listen port inside Docker and the port Caddy targets | `3000` |
-| `NEW_API_HOST_PORT` | Optional host-side administrative port | `3000` |
-| `NEW_API_BIND_ADDRESS` | Host interface for the administrative port | `127.0.0.1` |
+| `PARTOKENS_SITE_ADDRESS` | Public hostname handled by Caddy | `partokens.com` |
+| `PARTOKENS_API_ORIGIN` | Existing API origin reachable from the container | `http://host.docker.internal:3000` |
+| `PARTOKENS_UI_IMAGE` | Immutable image tag for this release | `partokens-ui:2026-08-22.1` |
+| `PARTOKENS_SOURCE_COMMIT` | Full commit built into the image | 40-character Git SHA |
+| `PUBLIC_PARTOKENS_SOURCE_URL` | Public source URL containing that SHA | Repository tree URL |
 
-When changing `NEW_API_CONTAINER_PORT`, leave `PARTOKENS_API_ORIGIN` unset so Compose derives `http://new-api:<container-port>`. Set `PARTOKENS_API_ORIGIN` explicitly only for an external New API endpoint. `TRUSTED_PROXIES` must include the complete `EDGE_NETWORK_SUBNET`; update both when changing the default subnet.
+For an API published on the same Docker host, use
+`http://host.docker.internal:<port>`. Compose maps that hostname to the Linux host
+gateway. For an API on another host, use its internal HTTP or HTTPS origin. Do
+not use `127.0.0.1` for a host service because that address points back to the Web
+container itself.
 
-Inspect service state and logs after startup:
+## Validate And Deploy
+
+Run these commands from the repository root:
+
+```bash
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml config --quiet
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml build --pull web
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --no-build --remove-orphans web
+```
+
+Only the `web` container and the two Caddy certificate/configuration volumes are
+created. Caddy obtains and renews the public certificate automatically when the
+DNS record and public ports are correct.
+
+Inspect the result:
 
 ```bash
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
-docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs --tail=200 caddy new-api
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs --tail=200 web
+curl -fsSI https://partokens.com/_ui/healthz
+curl -fsS https://partokens.com/_ui/release.json
+curl -fsSI https://partokens.com/zh-CN/
 ```
 
-Back up the named `postgres_data`, `redis_data`, and `new_api_data` volumes before upgrades. To roll back the UI image, set `PARTOKENS_UI_IMAGE` to the previous immutable tag or digest, pull it, and run `docker compose ... up -d --no-build caddy`. Do not delete volumes as part of a UI rollback.
+`/_ui/healthz` must return 204. The release metadata must report the configured
+production commit and a clean source state.
+
+Run the frontend-only production smoke gate from the checkout:
+
+```bash
+PARTOKENS_SMOKE_ORIGIN=https://partokens.com \
+PARTOKENS_SMOKE_ENVIRONMENT=production \
+bun run release:smoke
+```
+
+This gate verifies the release identity, localized deep links, static assets,
+lazy chunks, caching rules, and security headers. It deliberately does not test
+or identify the separately operated API.
+
+## Update
+
+1. Keep the current image tag available for rollback.
+2. Check out the next clean, reviewed commit.
+3. Change `PARTOKENS_UI_IMAGE`, `PARTOKENS_SOURCE_COMMIT`, and
+   `PUBLIC_PARTOKENS_SOURCE_URL` together.
+4. Build the new image and rerun `up` with the commands above.
+5. Run the production smoke gate before removing any old image.
+
+Caddy certificate state stays in `caddy_data` across image replacements. A Web
+update never restarts or mutates the API.
+
+## Roll Back
+
+Set `PARTOKENS_UI_IMAGE` in `deploy/.env` back to the previous immutable image
+tag, then recreate only the Web container:
+
+```bash
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --no-build web
+```
+
+Run the smoke gate again and confirm `/_ui/release.json` reports the previous
+commit. Do not use `docker compose down -v`; deleting the Caddy volumes discards
+locally stored certificate and account state and is not part of a rollback.
+
+## Deploy A Registry Image
+
+CI may build and push the same image under an immutable tag or digest. A
+production host then needs only `docker-compose.yml`, `.env`, and registry access:
+
+```bash
+docker compose --env-file .env -f docker-compose.yml pull web
+docker compose --env-file .env -f docker-compose.yml up -d --no-build --remove-orphans web
+```
+
+Pin `PARTOKENS_UI_IMAGE` to an immutable tag or digest. Never use `latest` for a
+production release.

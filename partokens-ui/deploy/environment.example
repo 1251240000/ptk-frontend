@@ -1,7 +1,0 @@
-PARTOKENS_RELEASE_CHANNEL=production
-PUBLIC_PARTOKENS_SOURCE_URL=https://<public-source-host>/<repository>/tree/<full-git-sha>
-PARTOKENS_SITE_ADDRESS=partokens.com
-PARTOKENS_DEPLOY_ENVIRONMENT=production
-PARTOKENS_UI_ROOT=/srv/partokens-ui/current/web
-PARTOKENS_API_ORIGIN=http://127.0.0.1:3000
-PARTOKENS_ROBOTS_HEADER=all
