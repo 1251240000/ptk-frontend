@@ -54,4 +54,51 @@ Also verify anonymous 401 handling, authenticated 403 handling without refresh l
 
 ## Production
 
-Production uses `environment.example` and the existing `bun run release` flow. Production deployment requires separate approval and is intentionally not implied by successful staging validation.
+Host/symlink production uses `environment.example` and the existing `bun run release` flow. Docker Compose production is described below and does not require `release/`. Production deployment requires separate approval and is intentionally not implied by successful staging validation.
+
+## Docker Compose Production Stack
+
+The existing release/symlink workflow remains frontend-only and can continue to use a separately managed New API. The optional `docker-compose.yml` full-stack mode runs the UI/Caddy image, the pinned New API image, PostgreSQL, and Redis together. Caddy is the only service published on a public interface. New API is published on the loopback address by default so operators can use its host port for local administration without bypassing Caddy.
+
+Create the environment file and replace every placeholder with a secret-managed value:
+
+```bash
+cp deploy/docker-compose.env.example deploy/.env
+${EDITOR:-vi} deploy/.env
+```
+
+The Compose path does not require `release/`. It builds the UI directly into an immutable Caddy image from the checkout:
+
+```bash
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml build caddy
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml config
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --no-build
+```
+
+For a production host that has no repository checkout, publish the image from CI, set `PARTOKENS_UI_IMAGE` to that immutable tag or digest, and deploy only the Compose file, environment file, and Caddyfile:
+
+```bash
+docker compose --env-file .env -f docker-compose.yml pull caddy
+docker compose --env-file .env -f docker-compose.yml up -d --no-build
+```
+
+Keep `PARTOKENS_SITE_ADDRESS` equal to the public DNS name. Caddy provisions HTTPS automatically when that name resolves to the host and the configured host ports are reachable. If `CADDY_HTTP_HOST_PORT` or `CADDY_HTTPS_HOST_PORT` is changed, provide certificates through a separate TLS automation workflow or use a DNS challenge; an arbitrary host port cannot satisfy the normal HTTP-01 challenge.
+
+The New API port settings have three separate meanings:
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `NEW_API_CONTAINER_PORT` | New API's listen port inside Docker and the port Caddy targets | `3000` |
+| `NEW_API_HOST_PORT` | Optional host-side administrative port | `3000` |
+| `NEW_API_BIND_ADDRESS` | Host interface for the administrative port | `127.0.0.1` |
+
+When changing `NEW_API_CONTAINER_PORT`, leave `PARTOKENS_API_ORIGIN` unset so Compose derives `http://new-api:<container-port>`. Set `PARTOKENS_API_ORIGIN` explicitly only for an external New API endpoint. `TRUSTED_PROXIES` must include the complete `EDGE_NETWORK_SUBNET`; update both when changing the default subnet.
+
+Inspect service state and logs after startup:
+
+```bash
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
+docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs --tail=200 caddy new-api
+```
+
+Back up the named `postgres_data`, `redis_data`, and `new_api_data` volumes before upgrades. To roll back the UI image, set `PARTOKENS_UI_IMAGE` to the previous immutable tag or digest, pull it, and run `docker compose ... up -d --no-build caddy`. Do not delete volumes as part of a UI rollback.

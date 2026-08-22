@@ -1,3 +1,8 @@
+# PARTOKENS_SITE_ADDRESS is the public hostname (or :80 for local HTTP).
+# PARTOKENS_API_ORIGIN is the reachable upstream from Caddy's network. In the
+# Docker Compose stack this is http://new-api:<NEW_API_CONTAINER_PORT>.
+# PARTOKENS_UI_ROOT points to the static path baked into the Docker image (or a
+# read-only mounted release when using the host/symlink deployment workflow).
 {$PARTOKENS_SITE_ADDRESS:http://127.0.0.1:8080} {
 	encode zstd gzip
 	header {
