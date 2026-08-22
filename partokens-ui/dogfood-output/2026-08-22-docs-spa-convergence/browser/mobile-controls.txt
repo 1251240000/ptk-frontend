@@ -1,0 +1,46 @@
+{
+  "pageOverflow": false,
+  "tableScrollContainer": false,
+  "tableScrolls": false,
+  "tables": 0,
+  "url": "http://127.0.0.1:8080/en/docs#docs/api-basics"
+}
+{
+  "pageOverflow": false,
+  "tableScrollContainer": false,
+  "tableScrolls": false,
+  "tables": 0,
+  "url": "http://127.0.0.1:8080/en/docs#docs/models-api"
+}
+{
+  "headers": [],
+  "pageOverflow": false,
+  "rows": 0,
+  "tableScrolls": false,
+  "tables": 0,
+  "url": "http://127.0.0.1:8080/en/docs#docs/models-api"
+}
+{
+  "headers": [],
+  "pageOverflow": false,
+  "rows": 0,
+  "tableScrolls": false,
+  "tables": 0,
+  "url": "http://127.0.0.1:8080/en/docs#docs/models-api"
+}
+{
+  "headers": [
+    "Field",
+    "Meaning"
+  ],
+  "pageOverflow": false,
+  "rows": 3,
+  "scripts": [
+    "http://127.0.0.1:8080/_ui/theme-init.v2.js",
+    "http://127.0.0.1:8080/_ui/js/lib-react.3f1b50092a.js",
+    "http://127.0.0.1:8080/_ui/js/689.c9dd77b953.js",
+    "http://127.0.0.1:8080/_ui/js/index.5711c0fd98.js"
+  ],
+  "tableScrolls": true,
+  "tables": 1
+}

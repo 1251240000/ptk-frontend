@@ -6,7 +6,7 @@
 
 - 配置目录是 `config/public-content/`。
 - 前端已接入这些 JSON。开发服务从 `/public-content/` 读取源配置；构建产物和发布包也会携带完整配置目录。
-- 普通内容维护任务不要修改 `apps/web/src/**`、`packages/content/src/**`、`apps/docs/**`、`deploy/**` 或 `../new-api/**`。接入机制变更应作为独立开发任务处理。
+- 普通内容维护任务不要修改 `apps/web/src/**`、`packages/content/src/**`、`deploy/**` 或 `../new-api/**`。接入机制变更应作为独立开发任务处理。
 - 不要把密码、Token、SMTP 凭据、数据库地址、API Key 或其他秘密写入配置。
 - 不要让 Codex 擅自润色用户提供的译文。协议机器译文只能保持 `reviewState: "draft"`，除非内容负责人明确确认已经审核。
 
@@ -370,4 +370,4 @@ git status --short
 
 ## 当前阶段的发布提醒
 
-本地开发服务会直接读取 `config/public-content/`。生产发布时，构建会生成 `apps/web/dist/public-content/`，发布打包会复制到 `release/web/public-content/`，Caddy 以 `Cache-Control: no-store` 提供这些文件。内容变更应通过完整的版本化发布候选原子部署，不要只覆盖线上 `current` 目录中的单个 JSON；回滚时也必须回滚整套配置。
+本地唯一的 Web 开发服务会直接读取 `config/public-content/`。生产发布时，构建会生成 `apps/web/dist/public-content/`，单一 Web 发布包会复制到 `release/web/public-content/`，Caddy 以 `Cache-Control: no-store` 提供这些文件。文档页面同样由这个 Web SPA 提供，不需要独立 Node 文档服务或额外端口。内容变更应通过完整的版本化发布候选原子部署，不要只覆盖线上 `current` 目录中的单个 JSON；回滚时也必须回滚整套配置。

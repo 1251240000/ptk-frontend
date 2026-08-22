@@ -1,6 +1,6 @@
 # Partokens UI Deployment
 
-This directory deploys the standalone user interface beside an unchanged New API service. Locale-prefixed user routes belong to Partokens UI; native, unprefixed administrator routes remain owned by New API.
+This directory deploys one static Web SPA beside an unchanged New API service. All locale-prefixed user and documentation routes belong to Partokens UI; native, unprefixed administrator routes remain owned by New API.
 
 Production and staging must use different public origins, API environments, deploy hosts, test accounts, and release directories. A staging command must never point at `partokens.com` or its API.
 
@@ -13,7 +13,7 @@ Production and staging must use different public origins, API environments, depl
 bun run release:staging
 ```
 
-The staging preflight rejects production origins, a production API, an unversioned install directory, an indexable staging response policy, an unpinned source URL, and a dirty source tree. The release command runs typecheck, unit tests, complete Chromium E2E, both builds, upstream compatibility checks, package generation, and package verification.
+The staging preflight rejects production origins, a production API, an unversioned install directory, an indexable staging response policy, an unpinned source URL, and a dirty source tree. The release command runs typecheck, unit tests, Chromium E2E, the Web build, upstream compatibility checks, package generation, and package verification.
 
 The generated `release/release-manifest.json` and `release/web/_ui/release.json` identify the RC, UI commit, source state, R59 Console contract, upstream versions, artifact hashes, lazy chunks, and source map policy. Public Web source maps and `sourceMappingURL` references are rejected.
 
@@ -21,15 +21,9 @@ The release also contains `web/public-content/`. Caddy serves these JSON files f
 
 ## Staging Install
 
-Upload `release/` to the exact `PARTOKENS_RELEASE_ROOT` on `PARTOKENS_DEPLOY_HOST`. Do not overwrite `current` and do not reuse a production host or API. Record the previous symlink target before making changes.
+Upload `release/` to the exact `PARTOKENS_RELEASE_ROOT` on `PARTOKENS_DEPLOY_HOST`. Do not overwrite `current` and do not reuse a production host or API. Record the previous symlink target before making changes. The artifact contains only `web/`, `deploy/`, and `release-manifest.json`; no Node frontend process is started.
 
-Start the candidate docs process from its versioned release root:
-
-```bash
-NODE_ENV=production HOSTNAME=127.0.0.1 PORT=3001 node apps/docs/server.js
-```
-
-Wait for `http://127.0.0.1:3001/healthz`, validate the candidate Caddy configuration with the staging environment, then atomically point `/srv/partokens-ui/current` at the versioned candidate. Reload Caddy only after validation succeeds.
+Validate the candidate Caddy configuration with the staging environment, then atomically point `/srv/partokens-ui/current` at the versioned candidate. Reload Caddy only after validation succeeds. Caddy serves the Web SPA and its static assets directly from `PARTOKENS_UI_ROOT`.
 
 Run the HTTP smoke gate against staging:
 
@@ -37,7 +31,7 @@ Run the HTTP smoke gate against staging:
 bun run release:staging:smoke
 ```
 
-The smoke gate checks deployed RC identity, 28 canonical Console locale/deep-link combinations, security and no-index headers, health routes, route ownership, immutable assets, lazy chunk availability, and the absence of public source map references.
+The smoke gate checks deployed RC identity, 28 canonical Console locale/deep-link combinations, all seven Web docs entries, legacy docs deep links, security and no-index headers, health routes, route ownership, immutable assets, lazy chunk availability, and the absence of public source map references.
 
 ## Authenticated Staging Matrix
 
@@ -55,9 +49,8 @@ Also verify anonymous 401 handling, authenticated 403 handling without refresh l
 
 1. Stop new validation actions and record the failing RC plus the previous `current` target.
 2. Atomically repoint `/srv/partokens-ui/current` to the previous versioned release.
-3. Restore/restart the previous docs process definition.
-4. Validate Caddy, reload it, and run `bun run release:staging:smoke` with the previous candidate ID.
-5. Confirm the release metadata endpoint reports the previous RC, then retain the failed candidate for investigation. Do not roll back or mutate New API as part of a frontend rollback.
+3. Validate Caddy, reload it, and run `bun run release:staging:smoke` with the previous candidate ID.
+4. Confirm the release metadata endpoint reports the previous RC, then retain the failed candidate for investigation. Do not roll back or mutate New API as part of a frontend rollback.
 
 ## Production
 

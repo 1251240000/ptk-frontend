@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "upstreamCommit": "f7d8f97338f8db84c61c54da84b0b967e5ea179b",
+  "upstreamCommit": "cb6ee07375e03ac7556b29ece10f165807497a48",
   "trackedRoots": [
     "content/docs/zh/api/ai-model",
     "content/docs/zh/guide/feature-guide/user",

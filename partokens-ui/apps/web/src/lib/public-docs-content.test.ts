@@ -1,30 +1,156 @@
 import { describe, expect, it } from 'vitest'
+import { locales } from '@partokens/i18n'
 
 import {
   docsCatalog,
-  getDocsDocument,
-  getDocsSearchText,
-  hasLocalizedDocsDocument,
+  getDocsDocument as loadDocsDocument,
+  getDocsSearchText as collectDocsSearchText,
+  hasLocalizedDocsDocument as hasLoadedDocsDocument,
+  loadDocsLocale,
   publicDocsCopy,
+  type DocsDocuments,
+  type DocsItemId,
 } from '@partokens/content/public'
 
 const documentIds = docsCatalog.flatMap((group) => group.items.map((item) => item.id))
+const documentsByLocale = Object.fromEntries(await Promise.all(locales.map(async (locale) => [locale, await loadDocsLocale(locale)]))) as Record<(typeof locales)[number], DocsDocuments>
+const getDocsDocument = (id: DocsItemId, locale: (typeof locales)[number]) => {
+  const document = documentsByLocale[locale][id]
+  if (!document) throw new Error(`Missing test document: ${locale}/${id}`)
+  return document
+}
+const getDocsSearchText = (id: DocsItemId, locale: (typeof locales)[number]) => collectDocsSearchText(getDocsDocument(id, locale))
 const apiDocumentIds = ['api-basics', 'chat-completions', 'image-api', 'models-api'] as const
 const integrationDocumentIds = ['first-request', 'clients', 'api-keys', 'sdk'] as const
 const launchDocumentIds = ['billing', 'models-pricing', 'codex', 'image-studio'] as const
 const supportDocumentIds = ['welcome', 'overview', 'faq', 'troubleshooting', 'usage-logs', 'contact-support'] as const
 
 describe('published documentation', () => {
-  it('publishes every catalog page in Chinese and English', () => {
-    for (const locale of ['zh-CN', 'en'] as const) {
+  it('publishes every catalog page in all seven locales without fallback', async () => {
+    for (const locale of locales) {
       for (const id of documentIds) {
         const document = getDocsDocument(id, locale)
-        expect(hasLocalizedDocsDocument(id, locale)).toBe(true)
+        expect(await hasLoadedDocsDocument(id, locale)).toBe(true)
         expect(document.id).toBe(id)
         expect(document.summary.trim()).not.toBe('')
         expect(document.sections.length).toBeGreaterThan(0)
         expect(new Set(document.sections.map((section) => section.id)).size).toBe(document.sections.length)
       }
+    }
+  })
+
+  it('returns a locale-owned object and locale search text for every published document', async () => {
+    for (const id of documentIds) {
+      const english = getDocsDocument(id, 'en')
+      for (const locale of locales) {
+        const document = await loadDocsDocument(id, locale)
+        expect(document).toBe(documentsByLocale[locale][id])
+        if (locale !== 'en') {
+          expect(document).not.toBe(english)
+          expect(document.summary).not.toBe(english.summary)
+          expect(collectDocsSearchText(document)).not.toBe(collectDocsSearchText(english))
+        }
+      }
+    }
+  })
+
+  it('indexes unique phrases from each requested locale', () => {
+    const localizedSearchPhrases = {
+      'zh-CN': '轮换',
+      'zh-TW': '輪替',
+      en: 'rotate',
+      ja: 'ローテーション',
+      ru: 'чередуйте',
+      fr: 'révoquez',
+      vi: 'xoay',
+    } as const
+
+    for (const locale of locales) {
+      expect(getDocsSearchText('api-keys', locale).toLocaleLowerCase(locale)).toContain(localizedSearchPhrases[locale].toLocaleLowerCase(locale))
+    }
+  })
+
+  it('keeps section ids, block shapes, endpoints, links, sample languages, and code aligned with English', () => {
+    const codeContract = (code: string) => ({
+      skeleton: code
+        .replace(/("(?:content|prompt)"\s*:\s*)"[^"]*"/g, '$1"<text>"')
+        .replace(/((?:content|prompt)\s*[=:]\s*)"[^"]*"/g, '$1"<text>"')
+        .replace(/((?:Error|RuntimeError)\()"[^"]*"/g, '$1"<text>"'),
+      literals: code.match(/https?:\/\/[^\s"']+|<[^>]+>|PARTOKENS_[A-Z_]+|Authorization|Content-Type|Bearer|baseURL|base_url|apiKey|api_key|model_provider|wire_api|error\.message|X-Oneapi-Request-Id|choices\[0\]\.message\.content|b64_json|data\[0\]\.url|chat\.completions\.create|images\.generate|models\.list/g) ?? [],
+    })
+    const protectedLiterals = (values: string[]) => values.flatMap((value) => [
+      ...(value.match(/`[^`]+`/g) ?? []).map((literal) => literal.replace(/(`codex exec )"[^"]+"/, '$1"<text>"')),
+      ...(value.match(/https?:\/\/[^\s`]+/g) ?? []),
+    ]).sort()
+    const blockText = (block: ReturnType<typeof getDocsDocument>['sections'][number]['blocks'][number]) => {
+      if (block.type === 'paragraph') return [block.text]
+      if (block.type === 'list') return block.items
+      if (block.type === 'steps') return block.items.flatMap((item) => [item.title, item.body])
+      if (block.type === 'callout') return [block.title, block.body]
+      if (block.type === 'endpoint') return [block.label]
+      if (block.type === 'links') return block.items.map((item) => item.label)
+      if (block.type === 'table') return [...block.columns, ...block.rows.flat()]
+      if (block.type === 'faq') return block.items.flatMap((item) => [item.question, item.answer])
+      return block.samples.map((sample) => sample.label)
+    }
+    const structure = (document: ReturnType<typeof getDocsDocument>) => ({
+      literals: protectedLiterals([
+        document.summary,
+        ...(document.prerequisites ?? []),
+        ...document.sections.flatMap((section) => [section.title, ...section.blocks.flatMap(blockText)]),
+      ]),
+      sections: document.sections.map((section) => ({
+        id: section.id,
+        blocks: section.blocks.map((block) => ({
+          type: block.type,
+          tone: block.type === 'callout' ? block.tone : undefined,
+          ordered: block.type === 'list' ? Boolean(block.ordered) : undefined,
+          method: block.type === 'endpoint' ? block.method : undefined,
+          path: block.type === 'endpoint' ? block.path : undefined,
+          hrefs: block.type === 'links' ? block.items.map((item) => item.href) : undefined,
+          samples: block.type === 'code-samples' ? block.samples.map((sample) => ({ language: sample.language, code: codeContract(sample.code) })) : undefined,
+          rowWidths: block.type === 'table' ? block.rows.map((row) => row.length) : undefined,
+          itemCount: block.type === 'steps' || block.type === 'faq' ? block.items.length : undefined,
+        })),
+      })),
+    })
+
+    for (const id of documentIds) {
+      const english = structure(getDocsDocument(id, 'en'))
+      for (const locale of locales) expect(structure(getDocsDocument(id, locale))).toEqual(english)
+    }
+  })
+
+  it('falls back only to English for a defensive missing-content scenario', async () => {
+    const english = documentsByLocale.en
+    const incompleteFrench = { ...documentsByLocale.fr, welcome: undefined }
+    const loader = async (locale: (typeof locales)[number]) => locale === 'fr' ? incompleteFrench : documentsByLocale[locale]
+
+    expect(await hasLoadedDocsDocument('welcome', 'fr', loader)).toBe(false)
+    expect(await loadDocsDocument('welcome', 'fr', loader)).toBe(english.welcome)
+    expect(await hasLoadedDocsDocument('overview', 'fr', loader)).toBe(true)
+    expect(await loadDocsDocument('overview', 'fr', loader)).toBe(incompleteFrench.overview)
+  })
+
+  it('contains no translation markers in published locale text', () => {
+    for (const locale of locales) {
+      for (const id of documentIds) expect(getDocsSearchText(id, locale)).not.toContain('ZXQ')
+    }
+  })
+
+  it('does not advertise the retired public Models page', () => {
+    const retiredPageMarkers: Record<(typeof locales)[number], RegExp> = {
+      'zh-CN': /模型页面|顶部导航中的[“”「」]?模型|刷新模型页面/,
+      'zh-TW': /模型頁面|頂部導覽.*模型/,
+      en: /(?:open|view|refresh) Models (?:in|from|page)|Models page/i,
+      ja: /モデル.{0,8}ページ|モデルを開く/,
+      ru: /страниц[ае].{0,12}«?Модел|откройте.{0,8}Модел|из\s+Models/i,
+      fr: /page Modèles|\bouvrez.{0,12}modèles|de\s+Models/i,
+      vi: /trang Mô hình|\bmở Mô hình|từ\s+Model/i,
+    }
+
+    for (const locale of locales) {
+      for (const id of documentIds) expect(getDocsSearchText(id, locale)).not.toMatch(retiredPageMarkers[locale])
     }
   })
 

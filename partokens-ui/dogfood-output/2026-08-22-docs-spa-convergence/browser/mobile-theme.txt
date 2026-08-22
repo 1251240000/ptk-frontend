@@ -1,0 +1,6 @@
+{
+  "mobileMenu": false,
+  "pageOverflow": false,
+  "storedTheme": "dark",
+  "theme": "dark"
+}

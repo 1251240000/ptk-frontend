@@ -5,6 +5,8 @@ http://127.0.0.1:8080 {
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), geolocation=(), microphone=()"
 		X-Frame-Options "DENY"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
 		-Server
 	}
 
@@ -12,12 +14,6 @@ http://127.0.0.1:8080 {
 	handle @uiHealth {
 		header Cache-Control "no-store"
 		respond 204
-	}
-
-	@docsInternal path /_docs/*
-	handle @docsInternal {
-		uri strip_prefix /_docs
-		reverse_proxy 127.0.0.1:3001
 	}
 
 	@backend path /api/* /v1/* /v1beta/* /pg/* /mj/* /*/mj/* /suno/* /kling/* /jimeng /jimeng/* /dashboard/billing/*
@@ -50,7 +46,7 @@ http://127.0.0.1:8080 {
 		}
 	}
 
-	@uiAssets path /_ui/*
+	@uiAssets path /_ui/* /public-content/* /brand/* /auth/* /home/*
 	handle @uiAssets {
 		header Cache-Control "no-store"
 		reverse_proxy 127.0.0.1:5173
@@ -59,11 +55,6 @@ http://127.0.0.1:8080 {
 	@devHmr path /rsbuild-hmr* /_rspack/lazy/* /*.hot-update.json /*.hot-update.js
 	handle @devHmr {
 		reverse_proxy 127.0.0.1:5173
-	}
-
-	@localizedDocs path_regexp localizedDocs ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)/docs(/.*)?$
-	handle @localizedDocs {
-		reverse_proxy 127.0.0.1:3001
 	}
 
 	@standalone path_regexp standalone ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(/.*)?$

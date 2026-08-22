@@ -1,0 +1,12 @@
+Final release browser: http://127.0.0.1:8080
+Viewport: 1280x900
+
+English Models API
+{"url":"http://127.0.0.1:8080/en/docs#docs/models-api","lang":"en","heading":"Models API","summary":"Read the models available to the current API key and reuse an exact returned model ID in other requests.","tables":1,"pageOverflow":false}
+
+Japanese fallback
+{"url":"http://127.0.0.1:8080/ja/docs","lang":"ja","heading":"Partokens へようこそ","summary":"Choose an integration method, prepare the account, API key, and live model ID, then complete one minimal call.","fallback":"この記事は未翻訳のため、現在は英語版を表示しています。","pageOverflow":false}
+
+Anonymous console ownership
+Requested: http://127.0.0.1:8080/en/console/overview
+Resolved: http://127.0.0.1:8080/en/auth/sign-in?redirect=%2Fen%2Fconsole%2Foverview

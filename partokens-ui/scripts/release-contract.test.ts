@@ -12,7 +12,6 @@ function stagingEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEn
     PARTOKENS_SITE_ADDRESS: 'staging.partokens.test',
     PARTOKENS_API_ORIGIN: 'http://127.0.0.1:3000',
     PARTOKENS_API_ENVIRONMENT: 'staging',
-    PARTOKENS_DOCS_ORIGIN: 'http://127.0.0.1:3001',
     PARTOKENS_DEPLOY_HOST: 'partokens-staging',
     PARTOKENS_DEPLOY_ENVIRONMENT: 'staging',
     PARTOKENS_PRODUCTION_DEPLOY_HOST: 'partokens-production',

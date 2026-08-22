@@ -7,7 +7,6 @@ import {
   canonicalConsoleRoutes,
   consoleChunkNames,
   consoleLocales,
-  localizedDocsPaths,
   readGitMetadata,
   sha256,
   type ReleaseChannel,
@@ -20,17 +19,6 @@ const stageRoot = resolve(projectRoot, 'release.tmp')
 
 function requirePath(path: string) {
   if (!existsSync(path)) throw new Error(`Required build artifact is missing: ${path}`)
-}
-
-function assertDocsBuild(root: string) {
-  const manifestPath = join(root, 'prerender-manifest.json')
-  requirePath(manifestPath)
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { routes?: Record<string, unknown> }
-  const routes = manifest.routes ?? {}
-  const missing = localizedDocsPaths.filter((route) => !routes[route])
-  if (missing.length) {
-    throw new Error(`Docs build is missing ${missing.length} localized routes: ${missing.join(', ')}`)
-  }
 }
 
 function walkFiles(root: string): string[] {
@@ -75,35 +63,22 @@ function resetGeneratedDirectory(path: string, expectedName: string) {
 }
 
 const webBuild = join(projectRoot, 'apps/web/dist')
-const docsBuild = join(projectRoot, 'apps/docs/.next')
-const docsStandalone = join(docsBuild, 'standalone')
-const docsStatic = join(docsBuild, 'static')
-const docsPublic = join(projectRoot, 'apps/docs/public')
 
 requirePath(join(webBuild, 'index.html'))
 requirePath(join(webBuild, 'public-content/manifest.json'))
-requirePath(join(docsStandalone, 'apps/docs/server.js'))
-requirePath(docsStatic)
-assertDocsBuild(docsBuild)
+requirePath(join(webBuild, 'brand'))
+requirePath(join(webBuild, 'auth'))
+requirePath(join(webBuild, 'home'))
 
 resetGeneratedDirectory(stageRoot, 'release.tmp')
 mkdirSync(stageRoot, { recursive: true })
-mkdirSync(join(stageRoot, 'web'), { recursive: true })
-cpSync(join(webBuild, 'index.html'), join(stageRoot, 'web/index.html'))
-cpSync(join(webBuild, '_ui'), join(stageRoot, 'web/_ui'), { recursive: true })
-cpSync(join(webBuild, 'public-content'), join(stageRoot, 'web/public-content'), { recursive: true })
-cpSync(docsStandalone, join(stageRoot, 'docs'), { recursive: true })
-cpSync(docsStatic, join(stageRoot, 'docs/apps/docs/.next/static'), { recursive: true })
-if (existsSync(docsPublic)) cpSync(docsPublic, join(stageRoot, 'docs/apps/docs/public'), { recursive: true })
-
-const packagedDocsPackagePath = join(stageRoot, 'docs/apps/docs/package.json')
-if (existsSync(packagedDocsPackagePath)) {
-  const packagedDocsPackage = JSON.parse(readFileSync(packagedDocsPackagePath, 'utf8')) as {
-    scripts?: Record<string, string>
-  }
-  packagedDocsPackage.scripts = { ...packagedDocsPackage.scripts, start: 'node server.js' }
-  writeFileSync(packagedDocsPackagePath, `${JSON.stringify(packagedDocsPackage, null, 2)}\n`)
-}
+cpSync(webBuild, join(stageRoot, 'web'), {
+  recursive: true,
+  filter: (path) => {
+    if (path.split('/').at(-1) === '.DS_Store') return false
+    return !statSync(path).isDirectory() || readdirSync(path).some((entry) => entry !== '.DS_Store')
+  },
+})
 cpSync(join(projectRoot, 'deploy'), join(stageRoot, 'deploy'), { recursive: true })
 
 const compatibility = JSON.parse(readFileSync(join(projectRoot, 'compatibility.json'), 'utf8')) as {
@@ -133,6 +108,13 @@ const consoleChunks = Object.fromEntries(canonicalConsoleRoutes.map((route) => {
   const path = resolveBuildAsset(join(stageRoot, 'web'), asset)
   return [route, { path: `/${relative(join(stageRoot, 'web'), path)}`, bytes: statSync(path).size, sha256: sha256(path) }]
 }))
+const docsChunks = Object.fromEntries(consoleLocales.map((locale) => {
+  const matches = asyncAssets.filter((asset) => asset.includes(`/async/docs-${locale}.`))
+  if (matches.length !== 1) throw new Error(`Unable to identify the ${locale} documentation release chunk`)
+  const asset = matches[0]!
+  const path = resolveBuildAsset(join(stageRoot, 'web'), asset)
+  return [locale, { path: `/${relative(join(stageRoot, 'web'), path)}`, bytes: statSync(path).size, sha256: sha256(path) }]
+}))
 
 const manifest: ReleaseManifest = {
   schemaVersion: 2,
@@ -156,6 +138,7 @@ const manifest: ReleaseManifest = {
     webArtifactSha256: treeSha256(join(stageRoot, 'web')),
     webIndexSha256: sha256(join(stageRoot, 'web/index.html')),
     consoleChunks,
+    docsChunks,
   },
   compatibility: {
     newApiCommit: compatibility.newApi.commit,
@@ -164,7 +147,6 @@ const manifest: ReleaseManifest = {
   },
   entrypoints: {
     web: 'web/index.html',
-    docs: 'docs/apps/docs/server.js',
     caddy: 'deploy/Caddyfile',
     publicReleaseMetadata: 'web/_ui/release.json',
   },

@@ -76,6 +76,7 @@ function LocaleBoundary() {
 const localeRoute = createRoute({ getParentRoute: () => rootRoute, path: '$locale', component: LocaleBoundary, notFoundComponent: LocalizedNotFound })
 const publicHomeComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicHomeRoute')
 const publicDocsComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicDocsRoute')
+const publicAboutComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicAboutRoute')
 const publicNoticesComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicNoticesRoute')
 const publicStatusComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicStatusRoute')
 const publicUserAgreementComponent = lazyRouteComponent(() => import('@/features/public/public-route'), 'PublicUserAgreementRoute')
@@ -90,6 +91,39 @@ const otpComponent = lazyRouteComponent(() => import('@/pages/auth-pages'), 'Otp
 const oauthCallbackComponent = lazyRouteComponent(() => import('@/pages/auth-pages'), 'OAuthCallbackPage')
 const homeRoute = createRoute({ getParentRoute: () => localeRoute, path: '/', component: publicHomeComponent })
 const docsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'docs', component: publicDocsComponent })
+const aboutRoute = createRoute({ getParentRoute: () => localeRoute, path: 'about', component: publicAboutComponent })
+
+const docsCompatibilityTargets = {
+  'getting-started/authentication': 'api-keys',
+  'getting-started/first-request': 'first-request',
+  'guides/models-and-groups': 'models-pricing',
+  'guides/chat': 'chat-completions',
+  'guides/images': 'image-api',
+  'guides/image-studio': 'image-studio',
+  'guides/usage-logs': 'usage-logs',
+  'guides/errors-and-limits': 'troubleshooting',
+  'api/chat-completions': 'chat-completions',
+  'api/responses': 'api-basics',
+  'api/embeddings': 'api-basics',
+  'api/image-generations': 'image-api',
+  'api/image-edits': 'image-api',
+  'api/audio-transcriptions': 'api-basics',
+  'api/models': 'models-api',
+} as const
+
+const docsCompatibilityRoutes = Object.entries(docsCompatibilityTargets).map(([path, document]) => createRoute({
+  getParentRoute: () => localeRoute,
+  path: `docs/${path}`,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/$locale/docs',
+      params: { locale: params.locale },
+      search: true,
+      hash: `docs/${document}`,
+      replace: true,
+    })
+  },
+}))
 const noticesRoute = createRoute({ getParentRoute: () => localeRoute, path: 'notices', component: publicNoticesComponent })
 const statusRoute = createRoute({ getParentRoute: () => localeRoute, path: 'status', component: publicStatusComponent })
 const userAgreementRoute = createRoute({ getParentRoute: () => localeRoute, path: 'legal/user-agreement', component: publicUserAgreementComponent })
@@ -175,7 +209,7 @@ const technicalResetRoute = createRoute({
 
 const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, profileRoute, profileSecurityRoute, profileConnectionsRoute, profileNotificationsRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
 const consoleCompatibilityTree = consoleCompatibilityRoute.addChildren([consoleCompatibilityIndexRoute, consoleCompatibilityOverviewRoute, consoleCompatibilityAnalyticsRoute, consoleCompatibilityKeysRoute, consoleCompatibilityUsageLogsRoute])
-const localeTree = localeRoute.addChildren([homeRoute, docsRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, verifyEmailRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree, legacyProfileSecurityRoute, legacyProfileConnectionsRoute, legacyProfileNotificationsRoute])
+const localeTree = localeRoute.addChildren([homeRoute, docsRoute, ...docsCompatibilityRoutes, aboutRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, verifyEmailRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree, legacyProfileSecurityRoute, legacyProfileConnectionsRoute, legacyProfileNotificationsRoute])
 const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultPendingComponent: GlobalRoutePending, scrollRestoration: true })

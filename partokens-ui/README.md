@@ -1,6 +1,6 @@
 # Partokens UI
 
-Standalone Partokens public and ordinary-user frontend. The sibling `new-api/` and `new-api-docs-v1/` repositories are read-only compatibility inputs and are never imported as application packages.
+Single-service Partokens public and ordinary-user frontend. The sibling `new-api/` and `new-api-docs-v1/` repositories are read-only compatibility inputs and are never imported as application packages.
 
 ## Capabilities
 
@@ -16,9 +16,9 @@ Standalone Partokens public and ordinary-user frontend. The sibling `new-api/` a
 - Native New API management route handoff for administrators.
 - Local-first Image Studio with project import/export, pan and zoom, draggable and resizable nodes, connections, notes, undo/redo, and local image history.
 - Real `/v1/images/generations` and `/v1/images/edits` adapter boundary with model-aware controls and abort support.
-- Independent Next/Fumadocs documentation runtime with 98 generated pages across seven locales.
+- Documentation rendered inside the Web SPA with the same navigation, theme, assets, and release lifecycle as every other public route.
 - Curated ordinary-user guides and field-level API references for chat, responses, embeddings, images, audio transcription, and model discovery.
-- Read-only upstream documentation inventory that fails checks when the pinned source changes.
+- The retired standalone docs runtime is not part of releases; upstream docs remain an audit-only compatibility input.
 
 ## Security Boundaries
 
@@ -32,7 +32,6 @@ Standalone Partokens public and ordinary-user frontend. The sibling `new-api/` a
 ```bash
 bun install
 bun run dev
-bun run dev:docs
 ```
 
 The development proxy uses `https://partokens.com` by default for same-origin API compatibility. Override it when running a local New API instance:
@@ -45,28 +44,20 @@ Payment actions accept only backend-provided fixed amounts and require explicit 
 
 ## Local Caddy
 
-Run the web and documentation development servers first, then start the validated local proxy:
+Run the single Web development server, then start the validated local proxy:
 
 ```bash
 bun run dev
-bun run dev:docs
 caddy run --config Caddyfile.dev
 ```
 
-Open `http://127.0.0.1:8080/`. Localized documentation routes reach the isolated docs runtime, other localized user routes and technical OAuth/reset entries reach the web UI, and API, relay, asset, and native administrator routes are proxied to the unchanged deployed New API instance.
+Open `http://127.0.0.1:8080/`. All locale-prefixed public, documentation, authentication, and Console routes are owned by the Web SPA. API, relay, official assets, and native administrator routes remain proxied to the unchanged New API instance.
 
-For a built deployment, publish the corresponding source and run `PUBLIC_PARTOKENS_SOURCE_URL=https://your-source.example/partokens-ui bun run release`. The release command validates the source URL, executes the full quality gate, and assembles the web, complete Next standalone runtime, and deployment files under `release/`. Follow `deploy/README.md` to start the docs service, configure Caddy, run route smoke checks, and roll back. User routes stay locale-prefixed; native administrator routes stay unprefixed.
+For a built deployment, publish the corresponding source, set `PUBLIC_PARTOKENS_SOURCE_URL` to an anonymously readable HTTPS URL pinned to `git rev-parse HEAD`, and run `bun run release`. The release command validates the source URL, executes the quality gate, and assembles one static Web artifact plus deployment files under `release/`. Follow `deploy/README.md` to configure Caddy, run route smoke checks, and roll back. User routes stay locale-prefixed; native administrator routes stay unprefixed.
 
 ## Documentation Updates
 
-Partokens documentation is independently authored and translated; `new-api-docs-v1` is a read-only compatibility input. The production documentation source of truth is `apps/docs/src/content/catalog.ts`. Files under `apps/docs/content/docs` are generated from that catalog and must not be edited manually. The legacy SPA content under `packages/content` is not deployed on localized production `/docs` routes. `docs-sync-manifest.json` records the upstream files reviewed for the current version.
-
-```bash
-bun run docs:upstream
-bun run docs:upstream:update
-```
-
-The first command is read-only and fails when the upstream commit or tracked documentation changes. The update command records a new baseline only when `compatibility.json` already pins the reviewed commit. The catalog contains all seven supported locales, and its tests require complete page coverage while blocking pre-release language from published content.
+Partokens documentation uses shared types and lazy locale loading in `packages/content/src/public-docs-content.ts`, one complete article module per locale in `packages/content/src/docs-locales/`, and localized navigation in `packages/content/src/public-docs-copy.ts`. The single Web SPA renders all seven complete bodies on `/{locale}/docs`; English is loaded only as a defensive fallback when a locale module is unexpectedly incomplete. The retired standalone docs runtime is not packaged; `new-api-docs-v1` is audit-only and is never started or copied into a release. Web tests require every catalog article in all seven locale modules, reject normal-path fallback, compare structural and technical literals with English, and verify that every locale chunk is present in the release.
 
 New API compatibility is also checked against the pinned sibling checkout. The check compares every required HTTP method/path pair with New API's registered Go routes and requires direct frontend request literals to be present in the manifest:
 
@@ -86,4 +77,4 @@ When the candidate passes and its behavioral changes have been reviewed, update 
 
 This repository is licensed under `AGPL-3.0-only`. The Image Studio contains a narrow adaptation informed by `basketikun/infinite-canvas`; the reviewed commit and included/excluded scope are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `compatibility.json`.
 
-Before a public network deployment, publish this repository's complete corresponding source and expose a stable, prominent source-code link in the deployed interface. The final public repository URL is an operator-owned release input and is intentionally not invented in this development checkout.
+Before a public network deployment, publish this repository's complete corresponding source at the packaged commit on an anonymously readable host and keep the source-code link available in the deployed interface.

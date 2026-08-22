@@ -11,10 +11,12 @@ import {
   House,
   Info,
   Languages,
+  LoaderCircle,
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
   Route,
+  RotateCw,
   Search,
   X,
 } from 'lucide-react'
@@ -23,12 +25,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   completedDocsOrder,
   docsCatalog,
-  getDocsDocument,
   getDocsSearchText,
-  hasLocalizedDocsDocument,
+  loadDocsLocale,
   publicDocsCopy,
   type DocsCodeSample,
   type DocsContentBlock,
+  type DocsDocuments,
   type DocsItemId,
   type DocsItemTarget,
 } from '@partokens/content/public-ui'
@@ -46,16 +48,19 @@ type DocsDetailLabels = {
   codeLanguage: string
   directory: string
   fallback: string
+  loading: string
+  loadError: string
+  retry: string
 }
 
 const docsDetailLabels: Record<AppLocale, DocsDetailLabels> = {
-  'zh-CN': { prerequisites: '前置条件', onThisPage: '本页内容', previous: '上一篇', next: '下一篇', copyCode: '复制代码', copied: '已复制', codeLanguage: '代码语言', directory: '文档目录', fallback: '本页正文暂未翻译，当前显示简体中文版本。' },
-  'zh-TW': { prerequisites: '前置條件', onThisPage: '本頁內容', previous: '上一篇', next: '下一篇', copyCode: '複製程式碼', copied: '已複製', codeLanguage: '程式語言', directory: '文件目錄', fallback: '本頁正文暫未翻譯，目前顯示簡體中文版本。' },
-  en: { prerequisites: 'Prerequisites', onThisPage: 'On this page', previous: 'Previous', next: 'Next', copyCode: 'Copy code', copied: 'Copied', codeLanguage: 'Code language', directory: 'Documentation index', fallback: 'This article is not translated yet. The Simplified Chinese source is shown below.' },
-  ja: { prerequisites: '前提条件', onThisPage: 'このページ', previous: '前へ', next: '次へ', copyCode: 'コードをコピー', copied: 'コピーしました', codeLanguage: 'コード言語', directory: 'ドキュメント一覧', fallback: 'この記事は未翻訳のため、簡体字中国語の原文を表示しています。' },
-  ru: { prerequisites: 'Предварительные условия', onThisPage: 'На этой странице', previous: 'Назад', next: 'Далее', copyCode: 'Копировать код', copied: 'Скопировано', codeLanguage: 'Язык кода', directory: 'Содержание документации', fallback: 'Перевод пока недоступен. Ниже показана версия на упрощенном китайском.' },
-  fr: { prerequisites: 'Prérequis', onThisPage: 'Sur cette page', previous: 'Précédent', next: 'Suivant', copyCode: 'Copier le code', copied: 'Copié', codeLanguage: 'Langage du code', directory: 'Sommaire', fallback: 'Cet article n’est pas encore traduit. La version source en chinois simplifié est affichée.' },
-  vi: { prerequisites: 'Điều kiện tiên quyết', onThisPage: 'Trong trang này', previous: 'Trước', next: 'Tiếp', copyCode: 'Sao chép mã', copied: 'Đã sao chép', codeLanguage: 'Ngôn ngữ mã', directory: 'Mục lục tài liệu', fallback: 'Bài viết chưa được dịch. Phiên bản tiếng Trung giản thể được hiển thị bên dưới.' },
+  'zh-CN': { prerequisites: '前置条件', onThisPage: '本页内容', previous: '上一篇', next: '下一篇', copyCode: '复制代码', copied: '已复制', codeLanguage: '代码语言', directory: '文档目录', fallback: '本页正文暂未翻译，当前显示英文版本。', loading: '正在加载文档正文', loadError: '暂时无法加载文档正文。', retry: '重试' },
+  'zh-TW': { prerequisites: '前置條件', onThisPage: '本頁內容', previous: '上一篇', next: '下一篇', copyCode: '複製程式碼', copied: '已複製', codeLanguage: '程式語言', directory: '文件目錄', fallback: '本頁正文暫未翻譯，目前顯示英文版本。', loading: '正在載入文件正文', loadError: '暫時無法載入文件正文。', retry: '重試' },
+  en: { prerequisites: 'Prerequisites', onThisPage: 'On this page', previous: 'Previous', next: 'Next', copyCode: 'Copy code', copied: 'Copied', codeLanguage: 'Code language', directory: 'Documentation index', fallback: 'This article is not translated yet. The English version is shown below.', loading: 'Loading documentation', loadError: 'Documentation is temporarily unavailable.', retry: 'Try again' },
+  ja: { prerequisites: '前提条件', onThisPage: 'このページ', previous: '前へ', next: '次へ', copyCode: 'コードをコピー', copied: 'コピーしました', codeLanguage: 'コード言語', directory: 'ドキュメント一覧', fallback: 'この記事は未翻訳のため、現在は英語版を表示しています。', loading: 'ドキュメントを読み込んでいます', loadError: 'ドキュメントを一時的に読み込めません。', retry: '再試行' },
+  ru: { prerequisites: 'Предварительные условия', onThisPage: 'На этой странице', previous: 'Назад', next: 'Далее', copyCode: 'Копировать код', copied: 'Скопировано', codeLanguage: 'Язык кода', directory: 'Содержание документации', fallback: 'Перевод пока недоступен. Сейчас показана английская версия.', loading: 'Загрузка документации', loadError: 'Документация временно недоступна.', retry: 'Повторить' },
+  fr: { prerequisites: 'Prérequis', onThisPage: 'Sur cette page', previous: 'Précédent', next: 'Suivant', copyCode: 'Copier le code', copied: 'Copié', codeLanguage: 'Langage du code', directory: 'Sommaire', fallback: 'Cet article n’est pas encore traduit. La version anglaise est affichée.', loading: 'Chargement de la documentation', loadError: 'La documentation est temporairement indisponible.', retry: 'Réessayer' },
+  vi: { prerequisites: 'Điều kiện tiên quyết', onThisPage: 'Trong trang này', previous: 'Trước', next: 'Tiếp', copyCode: 'Sao chép mã', copied: 'Đã sao chép', codeLanguage: 'Ngôn ngữ mã', directory: 'Mục lục tài liệu', fallback: 'Bài viết chưa được dịch. Phiên bản tiếng Anh hiện đang được hiển thị.', loading: 'Đang tải tài liệu', loadError: 'Tài liệu tạm thời không khả dụng.', retry: 'Thử lại' },
 }
 
 const docsItems = docsCatalog.flatMap((group) => group.items)
@@ -73,18 +78,20 @@ function DocsInlineText({ text }: { text: string }) {
 
 function CodeBlock({ code, label, copyLabel, copiedLabel }: { code: string; label: string; copyLabel: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false)
+  const copyWithSelection = () => {
+    const textarea = document.createElement('textarea')
+    textarea.value = code
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    textarea.remove()
+  }
   const copy = async () => {
-    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(code)
-    else {
-      const textarea = document.createElement('textarea')
-      textarea.value = code
-      textarea.style.position = 'fixed'
-      textarea.style.opacity = '0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      textarea.remove()
-    }
+    if (navigator.clipboard?.writeText) {
+      try { await navigator.clipboard.writeText(code) } catch { copyWithSelection() }
+    } else copyWithSelection()
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1400)
   }
@@ -129,8 +136,16 @@ export default function PublicDocsPage({ locale, go }: { locale: AppLocale; go: 
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [activeItem, setActiveItem] = useState<DocsItemId>(docsItemFromHash)
   const [activeSection, setActiveSection] = useState('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [contentState, setContentState] = useState<{
+    locale: AppLocale
+    status: 'loading' | 'ready' | 'error'
+    documents?: DocsDocuments
+    localized?: Set<DocsItemId>
+  }>({ locale, status: 'loading' })
   const searchRef = useRef<HTMLInputElement>(null)
-  const documentContent = getDocsDocument(activeItem, locale)
+  const localeContent = contentState.locale === locale && contentState.status === 'ready' ? contentState : undefined
+  const documentContent = localeContent?.documents?.[activeItem]
   const activeGroup = docsCatalog.find((group) => group.items.some((item) => item.id === activeItem))
   const navigationOrder = completedDocsOrder.includes(activeItem) ? completedDocsOrder : docsItemIds
   const navigationIndex = navigationOrder.indexOf(activeItem)
@@ -139,12 +154,30 @@ export default function PublicDocsPage({ locale, go }: { locale: AppLocale; go: 
 
   const filteredCatalog = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase(locale)
-    if (!normalized) return docsCatalog
+    if (!normalized || !localeContent?.documents) return docsCatalog
     return docsCatalog.map((group) => ({
       ...group,
-      items: group.items.filter((item) => `${copy.items[item.id]} ${getDocsSearchText(item.id, locale)}`.toLocaleLowerCase(locale).includes(normalized)),
+      items: group.items.filter((item) => {
+        const document = localeContent.documents?.[item.id]
+        return `${copy.items[item.id]} ${document ? getDocsSearchText(document) : ''}`.toLocaleLowerCase(locale).includes(normalized)
+      }),
     })).filter((group) => group.items.length > 0 || copy.groups[group.id].title.toLocaleLowerCase(locale).includes(normalized))
-  }, [copy, locale, query])
+  }, [copy, locale, localeContent, query])
+
+  useEffect(() => {
+    let current = true
+    setContentState({ locale, status: 'loading' })
+    void loadDocsLocale(locale).then(async (localizedDocuments) => {
+      const localized = new Set(docsItemIds.filter((id) => Boolean(localizedDocuments[id])))
+      const missing = docsItemIds.filter((id) => !localized.has(id))
+      const fallbackDocuments = missing.length > 0 && locale !== 'en' ? await loadDocsLocale('en') : {}
+      if (!current) return
+      setContentState({ locale, status: 'ready', documents: { ...fallbackDocuments, ...localizedDocuments }, localized })
+    }).catch(() => {
+      if (current) setContentState({ locale, status: 'error' })
+    })
+    return () => { current = false }
+  }, [loadAttempt, locale])
 
   const scrollToSection = (section: string) => {
     document.getElementById(`docs-section-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -174,6 +207,7 @@ export default function PublicDocsPage({ locale, go }: { locale: AppLocale; go: 
   }, [])
 
   useEffect(() => {
+    if (!documentContent) return
     const firstSection = documentContent.sections[0]?.id ?? ''
     setActiveSection(firstSection)
     const sections = documentContent.sections
@@ -201,6 +235,12 @@ export default function PublicDocsPage({ locale, go }: { locale: AppLocale; go: 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [])
+
+  if (!documentContent) return <main className="r3-page r3-docs-page r3-docs-state-page">
+    <section className="r3-docs-load-state" role={contentState.status === 'error' ? 'alert' : 'status'} aria-live="polite">
+      {contentState.status === 'error' ? <><AlertTriangle size={22} /><p>{labels.loadError}</p><button type="button" className="pt-button" data-variant="secondary" onClick={() => setLoadAttempt((value) => value + 1)}><RotateCw size={16} />{labels.retry}</button></> : <><LoaderCircle className="r3-spin" size={22} /><p>{labels.loading}</p></>}
+    </section>
+  </main>
 
   return <main className="r3-page r3-docs-page">
     <button type="button" className="r3-docs-mobile-trigger" aria-label={mobileNavOpen ? copy.closeNavigation : copy.mobileNavigation} title={mobileNavOpen ? copy.closeNavigation : copy.mobileNavigation} aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}>{mobileNavOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}<span>{labels.directory}</span></button>
@@ -230,7 +270,7 @@ export default function PublicDocsPage({ locale, go }: { locale: AppLocale; go: 
         {documentContent.prerequisites?.length ? <div className="r3-docs-prerequisites"><strong><FileCheck2 size={16} />{labels.prerequisites}</strong><ul>{documentContent.prerequisites.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}
       </header>
 
-      {!hasLocalizedDocsDocument(activeItem, locale) ? <aside className="r3-docs-language-fallback"><Languages size={17} /><p>{labels.fallback}</p></aside> : null}
+      {!localeContent.localized?.has(activeItem) ? <aside className="r3-docs-language-fallback"><Languages size={17} /><p>{labels.fallback}</p></aside> : null}
 
       <div className="r3-docs-detail-body">{documentContent.sections.map((section) => <section id={`docs-section-${section.id}`} key={section.id} data-doc-section><h2>{section.title}</h2><div>{section.blocks.map((block, index) => <DocsContent key={`${section.id}-${block.type}-${index}`} block={block} labels={labels} />)}</div></section>)}</div>
 

@@ -1,10 +1,10 @@
 {
   "newApi": {
-    "commit": "5a6c53d4966b2e34690ab49f3dd19be01c88fdbe",
+    "commit": "2d8e50bf36e94200b809dfb39e73624ec48b1e23",
     "productionVersion": "v1.0.0-rc.21"
   },
   "docs": {
-    "commit": "f7d8f97338f8db84c61c54da84b0b967e5ea179b",
+    "commit": "cb6ee07375e03ac7556b29ece10f165807497a48",
     "syncManifest": "docs-sync-manifest.json",
     "trackedSourceFiles": 102,
     "localeRoutes": ["zh-CN", "zh-TW", "en", "ja", "ru", "fr", "vi"]
@@ -19,12 +19,13 @@
     { "path": "/api/status", "methods": ["GET"] },
     { "path": "/api/user/login", "methods": ["POST"] },
     { "path": "/api/user/login/2fa", "methods": ["POST"] },
-    { "path": "/api/user/logout", "methods": ["GET"] },
+    { "path": "/api/user/auth/refresh", "methods": ["POST"] },
+    { "path": "/api/user/auth/logout", "methods": ["POST"] },
     { "path": "/api/user/register", "methods": ["POST"] },
     { "path": "/api/verification", "methods": ["GET"] },
     { "path": "/api/reset_password", "methods": ["GET"] },
     { "path": "/api/user/reset", "methods": ["POST"] },
-    { "path": "/api/oauth/state", "methods": ["GET"] },
+    { "path": "/api/oauth/state", "methods": ["POST"] },
     { "path": "/api/oauth/{provider}", "methods": ["GET"] },
     { "path": "/api/user/self", "methods": ["GET", "PUT", "DELETE"] },
     { "path": "/api/user/setting", "methods": ["PUT"] },

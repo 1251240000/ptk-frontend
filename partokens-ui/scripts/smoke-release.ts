@@ -95,20 +95,39 @@ await check('web health', async () => {
   return '204 no-store'
 })
 
-await check('docs health', async () => {
-  const response = await request('/_docs/healthz')
-  const body = await response.json() as { service?: string; status?: string }
-  assert(response.status === 200 && body.service === 'partokens-docs' && body.status === 'ok', 'Docs health response is invalid')
-  return '200 JSON'
+await check('localized Web docs', async () => {
+  for (const locale of consoleLocales) {
+    const response = await request(`/${locale}/docs`)
+    const body = await response.text()
+    assert(response.status === 200, `Expected /${locale}/docs 200, received ${response.status}`)
+    assert(response.headers.get('content-type')?.includes('text/html'), `/${locale}/docs did not return HTML`)
+    assert(body.includes('id="root"'), `/${locale}/docs did not return the Web shell`)
+    assert(response.headers.get('content-security-policy'), `/${locale}/docs is missing Content-Security-Policy`)
+    assert((response.headers.get('cache-control') || '').includes('no-store'), `/${locale}/docs is cacheable`)
+    assertBaseSecurityHeaders(response)
+  }
+  return `${consoleLocales.length} locales returned the secured no-store Web shell`
 })
 
-await check('localized docs', async () => {
-  const response = await request('/zh-CN/docs')
+await check('legacy docs deep links', async () => {
+  for (const path of ['/en/docs/guides/image-studio', '/zh-CN/docs/guides/usage-logs']) {
+    const response = await request(path)
+    const body = await response.text()
+    assert(response.status === 200, `${path} did not return the compatibility Web shell`)
+    assert(body.includes('id="root"'), `${path} did not return the Web shell`)
+    assert((response.headers.get('cache-control') || '').includes('no-store'), `${path} is cacheable`)
+    assertBaseSecurityHeaders(response)
+  }
+  return '2 legacy deep links returned the Web shell'
+})
+
+await check('unknown docs 404 ownership', async () => {
+  const response = await request('/en/docs/not-a-real-document')
   const body = await response.text()
-  assert(response.status === 200, `Expected 200, received ${response.status}`)
-  assert(response.headers.get('content-type')?.includes('text/html'), 'Docs did not return HTML')
-  assert(body.includes('Partokens'), 'Docs application marker is missing')
-  return '200 HTML'
+  assert(response.status === 404, `Expected unknown docs path to return 404, received ${response.status}`)
+  assert(body.includes('id="root"'), 'Unknown docs path did not return the unified Web shell')
+  assertBaseSecurityHeaders(response)
+  return '404 unified Web shell'
 })
 
 await check('backend status', async () => {
@@ -126,13 +145,6 @@ await check('backend 404 ownership', async () => {
   assert(response.headers.get('content-type')?.includes('application/json'), 'Backend 404 was captured by an HTML application')
   assert(!body.includes('id="root"'), 'Backend 404 returned the standalone SPA')
   return '404 JSON'
-})
-
-await check('docs 404 ownership', async () => {
-  const response = await request('/zh-CN/docs/partokens-r60-not-found')
-  assert(response.status === 404, `Expected 404, received ${response.status}`)
-  assert(response.headers.get('content-type')?.includes('text/html'), 'Docs 404 did not remain HTML')
-  return '404 HTML'
 })
 
 await check('native administrator ownership', async () => {
@@ -168,6 +180,19 @@ if (deployedManifest) {
       assert(new TextEncoder().encode(body).byteLength === chunk.bytes, `${route} chunk size does not match release metadata`)
     }
     return `${canonicalConsoleRoutes.length} independently versioned chunks are immutable and map-free`
+  })
+  await check('localized documentation chunks', async () => {
+    for (const locale of consoleLocales) {
+      const chunk = deployedManifest!.build.docsChunks[locale]
+      assert(chunk, `Release metadata is missing the ${locale} documentation chunk`)
+      const response = await request(chunk.path)
+      const body = await response.text()
+      assert(response.status === 200, `${locale} documentation chunk returned ${response.status}`)
+      assert((response.headers.get('cache-control') || '').includes('immutable'), `${locale} documentation chunk is not immutable`)
+      assert(!body.includes('sourceMappingURL='), `${locale} documentation chunk exposes a source map reference`)
+      assert(new TextEncoder().encode(body).byteLength === chunk.bytes, `${locale} documentation chunk size does not match release metadata`)
+    }
+    return `${consoleLocales.length} localized documentation chunks are immutable and map-free`
   })
 }
 

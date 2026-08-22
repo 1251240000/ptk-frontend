@@ -7,6 +7,7 @@ type Limit = { maxBytes: number; maxGzipBytes: number }
 type Budgets = {
   entry: Limit & { maxInitialBytes: number; maxInitialGzipBytes: number }
   routes: Record<string, Limit>
+  docsLocales: Limit
 }
 type Manifest = {
   entries?: { index?: { initial?: { js?: string[] }; async?: { js?: string[] } } }
@@ -57,4 +58,13 @@ for (const [route, limit] of Object.entries(budgets.routes)) {
   rows.push(`${route} ${actual.bytes} bytes`)
 }
 
-console.log(`Console bundle budgets passed\n${rows.join('\n')}`)
+for (const locale of ['zh-CN', 'zh-TW', 'en', 'ja', 'ru', 'fr', 'vi']) {
+  const matches = asyncAssets.filter((asset) => asset.includes(`/async/docs-${locale}.`))
+  if (matches.length !== 1) throw new Error(`docs-${locale} must emit exactly one independent async chunk; found ${matches.length}`)
+  if (initial.includes(matches[0]!)) throw new Error(`docs-${locale} was included in the initial bundle`)
+  const actual = size(matches[0]!)
+  assertWithin(`docs-${locale}`, actual, budgets.docsLocales)
+  rows.push(`docs-${locale} ${actual.bytes} bytes`)
+}
+
+console.log(`Web bundle budgets passed\n${rows.join('\n')}`)

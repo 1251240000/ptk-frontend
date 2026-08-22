@@ -1,0 +1,12 @@
+{
+  "fallback": "Cet article n’est pas encore traduit. La version anglaise est affichée.",
+  "heading": "API des modèles",
+  "lang": "fr",
+  "sectionHeading": "Send a request",
+  "storedLocale": "fr",
+  "tableHeaders": [
+    "Field",
+    "Meaning"
+  ],
+  "url": "http://127.0.0.1:8080/fr/docs#docs/models-api"
+}

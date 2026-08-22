@@ -19,20 +19,6 @@
 		respond 204
 	}
 
-	@docsStatic path /_docs/_next/static/*
-	handle @docsStatic {
-		uri strip_prefix /_docs
-		reverse_proxy {$PARTOKENS_DOCS_ORIGIN:http://127.0.0.1:3001} {
-			header_down Cache-Control "public, max-age=31536000, immutable"
-		}
-	}
-
-	@docsInternal path /_docs/*
-	handle @docsInternal {
-		uri strip_prefix /_docs
-		reverse_proxy {$PARTOKENS_DOCS_ORIGIN:http://127.0.0.1:3001}
-	}
-
 	@backend path /api/* /v1/* /v1beta/* /pg/* /mj/* /*/mj/* /suno/* /kling/* /jimeng /jimeng/* /dashboard/billing/*
 	handle @backend {
 		reverse_proxy {$PARTOKENS_API_ORIGIN:http://127.0.0.1:3000}
@@ -70,12 +56,14 @@
 		file_server
 	}
 
-	@localizedDocs path_regexp localizedDocs ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)/docs(/.*)?$
-	handle @localizedDocs {
-		reverse_proxy {$PARTOKENS_DOCS_ORIGIN:http://127.0.0.1:3001}
+	@webMedia path /brand/* /auth/* /home/*
+	handle @webMedia {
+		header Cache-Control "public, max-age=3600"
+		root * {$PARTOKENS_UI_ROOT:/srv/partokens-ui/current/web}
+		file_server
 	}
 
-	@localizedUI path_regexp localizedUI ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(?:/?|/(?:notices|status)/?|/legal/(?:user-agreement|service-agreement|privacy-policy)/?|/auth/(?:sign-in|sign-up|verify-email|forgot-password|reset|otp)/?|/console(?:/?|/(?:overview|analytics|keys|usage-logs|wallet|profile|security|connections|notifications)/?|/(?:playground|studio)(?:/[^/]+)?/?)|/console-foundation(?:/?|/(?:overview|analytics|keys|logs)/?)|/console-(?:security|connections|notifications)/?)$
+	@localizedUI path_regexp localizedUI ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(?:/?|/(?:docs(?:/(?:getting-started/(?:authentication|first-request)|guides/(?:models-and-groups|chat|images|image-studio|usage-logs|errors-and-limits)|api/(?:chat-completions|responses|embeddings|image-generations|image-edits|audio-transcriptions|models)))?|about|notices|status)/?|/legal/(?:user-agreement|service-agreement|privacy-policy)/?|/auth/(?:sign-in|sign-up|verify-email|forgot-password|reset|otp)/?|/console(?:/?|/(?:overview|analytics|keys|usage-logs|wallet|profile|security|connections|notifications)/?|/(?:playground|studio)(?:/[^/]+)?/?)|/console-foundation(?:/?|/(?:overview|analytics|keys|logs)/?)|/console-(?:security|connections|notifications)/?)$
 	handle @localizedUI {
 		header {
 			Cache-Control "no-store"

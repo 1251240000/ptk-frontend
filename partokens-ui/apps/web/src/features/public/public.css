@@ -391,6 +391,11 @@
 
 .r3-docs-language-fallback { display: flex; align-items: flex-start; gap: var(--pt-space-3); margin-top: var(--pt-space-6); padding: var(--pt-space-3) var(--pt-space-4); border-left: 3px solid var(--pt-color-action-primary); background: var(--pt-color-band-blue); color: var(--pt-color-text-secondary); font-size: var(--pt-font-size-12); line-height: var(--pt-line-height-ui); }
 .r3-docs-language-fallback svg { flex: 0 0 auto; color: var(--pt-color-action-primary); }
+.r3-docs-state-page { display: grid; grid-template-columns: 1fr; place-items: center; }
+.r3-docs-load-state { min-height: 240px; display: grid; place-items: center; align-content: center; gap: var(--pt-space-4); color: var(--pt-color-text-secondary); text-align: center; }
+.r3-docs-load-state > svg { color: var(--pt-color-action-primary); }
+.r3-docs-load-state .r3-spin { animation: r3-status-spin .8s linear infinite; }
+.r3-docs-load-state .pt-button { display: inline-flex; align-items: center; gap: var(--pt-space-2); }
 
 .r3-docs-detail-body > section { padding: var(--pt-space-12) 0; border-bottom: 1px solid var(--pt-color-border-default); scroll-margin-top: calc(var(--pt-layout-header) + var(--pt-space-5)); }
 .r3-docs-detail-body > section > h2 { max-width: 700px; font-family: var(--pt-font-display); font-size: var(--pt-font-size-24); line-height: var(--pt-line-height-tight); }

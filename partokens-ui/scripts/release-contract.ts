@@ -11,30 +11,6 @@ export const consoleChunkNames: Record<(typeof canonicalConsoleRoutes)[number], 
   'usage-logs': 'console-usage-logs',
 }
 
-export const docsLocales = ['zh-CN', 'zh-TW', 'en', 'ja', 'ru', 'fr', 'vi'] as const
-export const docsPaths = [
-  '',
-  'getting-started/authentication',
-  'getting-started/first-request',
-  'guides/models-and-groups',
-  'guides/chat',
-  'guides/images',
-  'guides/image-studio',
-  'guides/usage-logs',
-  'guides/errors-and-limits',
-  'api/chat-completions',
-  'api/responses',
-  'api/embeddings',
-  'api/image-generations',
-  'api/image-edits',
-  'api/audio-transcriptions',
-  'api/models',
-] as const
-
-export const localizedDocsPaths = docsLocales.flatMap((locale) =>
-  docsPaths.map((path) => `/${locale}/docs${path ? `/${path}` : ''}`),
-)
-
 export type ReleaseChannel = 'staging' | 'production'
 
 export type ReleaseManifest = {
@@ -59,6 +35,7 @@ export type ReleaseManifest = {
     webArtifactSha256: string
     webIndexSha256: string
     consoleChunks: Record<string, { path: string; bytes: number; sha256: string }>
+    docsChunks: Record<string, { path: string; bytes: number; sha256: string }>
   }
   compatibility: {
     newApiCommit: string
@@ -67,7 +44,6 @@ export type ReleaseManifest = {
   }
   entrypoints: {
     web: string
-    docs: string
     caddy: string
     publicReleaseMetadata: string
   }
@@ -78,7 +54,6 @@ export type StagingEnvironment = {
   stagingOrigin: URL
   siteAddress: string
   apiOrigin: URL
-  docsOrigin: URL
   deployHost: string
   releaseRoot: string
   uiRoot: string
@@ -142,9 +117,6 @@ export function validateStagingEnvironment(env: NodeJS.ProcessEnv, sourceCommit:
     throw new Error('PARTOKENS_API_ENVIRONMENT must be staging')
   }
 
-  const docsOrigin = absoluteUrl('PARTOKENS_DOCS_ORIGIN', required(env, 'PARTOKENS_DOCS_ORIGIN'))
-  if (!['http:', 'https:'].includes(docsOrigin.protocol)) throw new Error('PARTOKENS_DOCS_ORIGIN must use HTTP or HTTPS')
-
   const deployHost = required(env, 'PARTOKENS_DEPLOY_HOST')
   if (isProductionHostname(deployHost, productionOrigin)) throw new Error('PARTOKENS_DEPLOY_HOST must not target production')
   if (required(env, 'PARTOKENS_DEPLOY_ENVIRONMENT') !== 'staging') {
@@ -181,7 +153,6 @@ export function validateStagingEnvironment(env: NodeJS.ProcessEnv, sourceCommit:
     stagingOrigin,
     siteAddress,
     apiOrigin,
-    docsOrigin,
     deployHost,
     releaseRoot,
     uiRoot,
