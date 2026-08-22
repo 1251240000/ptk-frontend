@@ -47,4 +47,4 @@ LABEL org.opencontainers.image.source="${PUBLIC_PARTOKENS_SOURCE_URL}" \
 COPY --from=web-builder /app/release/web /srv/partokens-ui/web
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 
-EXPOSE 80 443 443/udp
+EXPOSE 8080

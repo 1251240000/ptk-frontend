@@ -37,4 +37,17 @@ describe('frontend-only deployment', () => {
       expect(environment).not.toContain(forbidden)
     }
   })
+
+  test('production listener is HTTP-only on port 8080 and cannot auto-upgrade to HTTPS', () => {
+    const compose = deployFile('docker-compose.yml')
+    const caddyfile = deployFile('Caddyfile')
+    const environment = deployFile('.env.example')
+
+    expect(compose).toContain('PARTOKENS_HTTP_PORT:-8080}:8080')
+    expect(compose).not.toContain('PARTOKENS_HTTPS_')
+    expect(environment).toContain('PARTOKENS_SITE_ADDRESS=http://:8080')
+    expect(environment).toContain('PARTOKENS_HTTP_PORT=8080')
+    expect(caddyfile).toContain('explicit http:// scheme')
+    expect(caddyfile).not.toContain('Strict-Transport-Security')
+  })
 })

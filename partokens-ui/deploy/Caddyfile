@@ -1,5 +1,7 @@
-# This container serves only the Partokens SPA. API and unprefixed administrator
-# routes are forwarded to the separately operated PARTOKENS_API_ORIGIN.
+# This container serves only the Partokens SPA over the internal HTTP listener.
+# The explicit http:// scheme is intentional: it disables Caddy automatic HTTPS
+# and its HTTP-to-HTTPS redirect. API and unprefixed administrator routes are
+# forwarded to the separately operated PARTOKENS_API_ORIGIN.
 {$PARTOKENS_SITE_ADDRESS} {
 	encode zstd gzip
 	log {
@@ -7,7 +9,6 @@
 		format json
 	}
 	header {
-		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), geolocation=(), microphone=()"
@@ -110,7 +111,6 @@
 			header {
 				Cache-Control "no-store"
 				Content-Security-Policy "default-src 'self'; base-uri 'self'; connect-src 'self' https://challenges.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src https://challenges.cloudflare.com; img-src 'self' blob: data: https:; object-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:"
-				Strict-Transport-Security "max-age=31536000"
 				X-Content-Type-Options "nosniff"
 				Referrer-Policy "strict-origin-when-cross-origin"
 				Permissions-Policy "camera=(), geolocation=(), microphone=()"

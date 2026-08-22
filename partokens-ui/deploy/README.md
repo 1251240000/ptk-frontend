@@ -13,8 +13,7 @@ reachable from the Web container.
 - A clean, committed Partokens UI checkout.
 - Docker Engine with the Docker Compose plugin.
 - An existing API endpoint reachable from Docker.
-- A public DNS record pointing at this host.
-- Public TCP ports 80 and 443; UDP 443 is optional but enables HTTP/3.
+- An internal network path to TCP port 8080 on this host.
 - An anonymously readable HTTPS source URL pinned to the deployed Git commit.
 
 ## Configure
@@ -25,6 +24,17 @@ Create the untracked production environment file:
 cp deploy/.env.example deploy/.env
 chmod 600 deploy/.env
 ```
+
+If `deploy/.env` already exists, update the listener values explicitly; Compose
+does not replace existing environment values with the example defaults:
+
+```dotenv
+PARTOKENS_SITE_ADDRESS=http://:8080
+PARTOKENS_HTTP_BIND_ADDRESS=0.0.0.0
+PARTOKENS_HTTP_PORT=8080
+```
+
+Remove any `PARTOKENS_HTTPS_*` values from that file.
 
 Get the exact source commit, then put the same 40-character value in
 `PARTOKENS_SOURCE_COMMIT`, `PUBLIC_PARTOKENS_SOURCE_URL`, and the immutable image
@@ -43,7 +53,7 @@ The required runtime values are:
 
 | Variable | Purpose | Example |
 | --- | --- | --- |
-| `PARTOKENS_SITE_ADDRESS` | Public hostname handled by Caddy | `partokens.com` |
+| `PARTOKENS_SITE_ADDRESS` | Explicit HTTP address handled by Caddy | `http://:8080` |
 | `PARTOKENS_API_ORIGIN` | Existing API origin reachable from the container | `http://host.docker.internal:3000` |
 | `PARTOKENS_UI_IMAGE` | Immutable image tag for this release | `partokens-ui:2026-08-22.1` |
 | `PARTOKENS_SOURCE_COMMIT` | Full commit built into the image | 40-character Git SHA |
@@ -65,18 +75,19 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.yml build --pull 
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --no-build --remove-orphans web
 ```
 
-Only the `web` container and the two Caddy certificate/configuration volumes are
-created. Caddy obtains and renews the public certificate automatically when the
-DNS record and public ports are correct.
+Only the `web` container and the Caddy configuration volumes are created. This
+stack intentionally serves plain HTTP on port 8080 and does not obtain
+certificates or redirect HTTP requests to HTTPS. Put TLS termination in a
+separate trusted edge proxy if the service later needs public HTTPS.
 
 Inspect the result:
 
 ```bash
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs --tail=200 web
-curl -fsSI https://partokens.com/_ui/healthz
-curl -fsS https://partokens.com/_ui/release.json
-curl -fsSI https://partokens.com/zh-CN/
+curl -fsSI http://127.0.0.1:8080/_ui/healthz
+curl -fsS http://127.0.0.1:8080/_ui/release.json
+curl -fsSI http://127.0.0.1:8080/zh-CN/
 ```
 
 `/_ui/healthz` must return 204. The release metadata must report the configured
@@ -85,7 +96,7 @@ production commit and a clean source state.
 Run the frontend-only production smoke gate from the checkout:
 
 ```bash
-PARTOKENS_SMOKE_ORIGIN=https://partokens.com \
+PARTOKENS_SMOKE_ORIGIN=http://127.0.0.1:8080 \
 PARTOKENS_SMOKE_ENVIRONMENT=production \
 bun run release:smoke
 ```
@@ -103,8 +114,7 @@ or identify the separately operated API.
 4. Build the new image and rerun `up` with the commands above.
 5. Run the production smoke gate before removing any old image.
 
-Caddy certificate state stays in `caddy_data` across image replacements. A Web
-update never restarts or mutates the API.
+A Web update never restarts or mutates the API.
 
 ## Roll Back
 

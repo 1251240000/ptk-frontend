@@ -10,11 +10,9 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "${PARTOKENS_HTTP_BIND_ADDRESS:-0.0.0.0}:${PARTOKENS_HTTP_PORT:-80}:80"
-      - "${PARTOKENS_HTTPS_BIND_ADDRESS:-0.0.0.0}:${PARTOKENS_HTTPS_PORT:-443}:443"
-      - "${PARTOKENS_HTTPS_BIND_ADDRESS:-0.0.0.0}:${PARTOKENS_HTTPS_PORT:-443}:443/udp"
+      - "${PARTOKENS_HTTP_BIND_ADDRESS:-0.0.0.0}:${PARTOKENS_HTTP_PORT:-8080}:8080"
     environment:
-      PARTOKENS_SITE_ADDRESS: ${PARTOKENS_SITE_ADDRESS:?Set the public hostname, for example partokens.com}
+      PARTOKENS_SITE_ADDRESS: ${PARTOKENS_SITE_ADDRESS:-http://:8080}
       PARTOKENS_API_ORIGIN: ${PARTOKENS_API_ORIGIN:?Set the existing API origin reachable from this container}
       PARTOKENS_ROBOTS_HEADER: ${PARTOKENS_ROBOTS_HEADER:-all}
     extra_hosts:
@@ -29,8 +27,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - NET_BIND_SERVICE
     logging:
       driver: json-file
       options:

@@ -5,14 +5,17 @@ const environment = process.env.PARTOKENS_SMOKE_ENVIRONMENT?.trim() || 'developm
 const requireProduction = process.env.PARTOKENS_SMOKE_REQUIRE_PRODUCTION === 'true'
 const expectedCandidate = process.env.PARTOKENS_SMOKE_RELEASE_CANDIDATE?.trim()
 const requireDeployedRelease = environment === 'staging' || environment === 'production' || Boolean(expectedCandidate)
-const requireSecureHeaders = requireProduction || environment === 'staging' || environment === 'production'
+const parsedOrigin = new URL(origin)
+// HTTP-only production deployments are supported for private/internal use. An
+// HTTPS origin still requires HSTS; staging remains HTTPS-only above.
+const requireSecureHeaders = parsedOrigin.protocol === 'https:' && (requireProduction || environment === 'staging' || environment === 'production')
+const requireImmutableAssets = requireProduction || requireDeployedRelease
 const allowDirtyLocal = process.env.PARTOKENS_SMOKE_ALLOW_DIRTY_LOCAL === 'true'
 
 if (!['development', 'staging', 'production'].includes(environment)) {
   throw new Error('PARTOKENS_SMOKE_ENVIRONMENT must be development, staging, or production')
 }
 
-const parsedOrigin = new URL(origin)
 if (allowDirtyLocal && !['localhost', '127.0.0.1', '::1'].includes(parsedOrigin.hostname)) {
   throw new Error('PARTOKENS_SMOKE_ALLOW_DIRTY_LOCAL is restricted to loopback origins')
 }
@@ -137,7 +140,7 @@ await check('web asset ownership', async () => {
   const response = await request(assetPath)
   assert(response.status === 200, `Expected 200, received ${response.status}`)
   const cache = response.headers.get('cache-control') || ''
-  if (requireSecureHeaders) assert(cache.includes('immutable'), 'Deployed Web asset is not immutable')
+  if (requireImmutableAssets) assert(cache.includes('immutable'), 'Deployed Web asset is not immutable')
   else assert(cache.includes('no-store'), 'Development Web asset is not marked no-store')
   return `${response.status} ${cache}`
 })

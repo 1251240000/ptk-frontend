@@ -55,7 +55,7 @@ Open `http://127.0.0.1:8080/`. All locale-prefixed public, documentation, authen
 
 For a built deployment, publish the corresponding source, set `PUBLIC_PARTOKENS_SOURCE_URL` to an anonymously readable HTTPS URL pinned to `git rev-parse HEAD`, and run `bun run release`. The release command validates the source URL, executes the quality gate, and assembles one static Web artifact plus deployment files under `release/`.
 
-Production deployment uses [`deploy/docker-compose.yml`](deploy/docker-compose.yml) with [`deploy/.env.example`](deploy/.env.example). It builds and runs one immutable UI/Caddy container. The existing API is supplied only as `PARTOKENS_API_ORIGIN`; the UI deployment does not create or manage API, database, or cache services. Follow [`deploy/README.md`](deploy/README.md) for build provenance, HTTPS, smoke checks, upgrades, and rollback.
+Production deployment uses [`deploy/docker-compose.yml`](deploy/docker-compose.yml) with [`deploy/.env.example`](deploy/.env.example). It builds and runs one immutable UI/Caddy container on the internal HTTP port 8080. The existing API is supplied only as `PARTOKENS_API_ORIGIN`; the UI deployment does not create or manage API, database, or cache services. Follow [`deploy/README.md`](deploy/README.md) for build provenance, HTTP-only operation, optional edge TLS, smoke checks, upgrades, and rollback.
 
 ## Documentation Updates
 
