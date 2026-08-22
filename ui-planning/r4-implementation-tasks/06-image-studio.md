@@ -57,6 +57,7 @@ There is no session-authenticated `/pg/images/*` contract. Do not imply that the
 5. Materialize retained remote URLs into local Blobs promptly because upstream URLs may expire.
 6. Treat pricing endpoint type metadata as advisory when it conflicts with authenticated model availability; show the uncertainty instead of hiding a valid configured model.
 7. Surface upstream validation/capability errors on the relevant generation surface without exposing credentials or raw transport payloads.
+8. For `gpt-image-2`, support `auto` and custom `WIDTHxHEIGHT` image sizes that match official OpenAI Image API constraints: each edge is a multiple of 16 px, each edge is no more than 3840 px, the long edge to short edge ratio is no more than 3:1, and total pixels are between 655,360 and 8,294,400 inclusive. Use these as model-specific capability defaults, not universal rules for older image models.
 
 ## 5. Local repository and migration
 
@@ -95,11 +96,13 @@ There is no session-authenticated `/pg/images/*` contract. Do not imply that the
 ### 6.4 Generation and editing
 
 1. Validate prompt, selected model, count, size/aspect, model-specific settings, reference input, and credential before the request.
-2. Disable duplicate generation and provide cancel via `AbortController`.
-3. Map text-only requests to generations and eligible reference workflows to multipart edits.
-4. Preserve design-lab idle, credential-required, validation, loading, progressive result, success, partial result, cancelled, error, and retry states.
-5. Add result nodes deterministically and persist retained assets only after successful materialization.
-6. Do not charge-estimate from unverified client assumptions; show server/pricing hints as estimates with clear unavailable states.
+2. Image size controls for custom dimensions must use separate localized width and height inputs with `step=16`, `min=480`, and `max=3840`. The inputs must snap or reject non-16-multiple values before request assembly.
+3. Pair-level size validation must reject dimensions that violate `gpt-image-2` pixel-area limits, the 3:1 aspect-ratio limit, the 3840 px edge limit, or model-specific fixed-size allowlists. Show localized, actionable field feedback and keep the last valid selection available.
+4. Disable duplicate generation and provide cancel via `AbortController`.
+5. Map text-only requests to generations and eligible reference workflows to multipart edits.
+6. Preserve design-lab idle, credential-required, validation, loading, progressive result, success, partial result, cancelled, error, and retry states.
+7. Add result nodes deterministically and persist retained assets only after successful materialization.
+8. Do not charge-estimate from unverified client assumptions; show server/pricing hints as estimates with clear unavailable states.
 
 ## 7. i18n, accessibility, and performance
 
@@ -133,6 +136,7 @@ After migration, remove replaced Studio presentation, duplicate graph stores, sa
 - Existing local projects migrate without cross-user leakage or asset loss in supported cases.
 - Credential reveal is explicit, memory-only, single-key, and fully cleared at all session boundaries.
 - Generation/edit support real URL/base64 responses, cancellation, partial/failure states, model capability variation, and retained local assets.
+- Custom image dimensions use 16 px steps, enforce `gpt-image-2` width/height, aspect-ratio, and total-pixel constraints before network requests, and fall back to fixed model allowlists where custom sizes are unsupported.
 - Invalid or oversized imports/assets fail safely and do not corrupt the active project.
 - Seven locales, keyboard/focus, screen-reader naming, touch/pointer, reduced motion, and no page-level overflow pass.
 - No key, bearer header, raw upstream payload, or sensitive image metadata enters persistence, logs, screenshots, or URLs.

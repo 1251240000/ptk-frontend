@@ -41,5 +41,6 @@
 - R4.3：`03-console-data.md`
 - R4.4：`04-account.md`
 - R4.5：`05-playground.md`
-- R4.6：`06-image-studio.md`
+- R4.6：`06-image-studio.md`。实现生图尺寸控件时，按任务文档执行模型能力约束；`gpt-image-2` 自定义宽高输入使用 16 px step，并在请求前校验 OpenAI 官方宽高、总像素和比例限制。
 - R4.7：`07-cross-page-i18n-and-api-qa.md`
+- R4.8：`08-seven-locale-docs-and-i18n-acceptance.md`
