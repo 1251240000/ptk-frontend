@@ -20,7 +20,7 @@ COPY packages packages
 COPY config config
 COPY deploy deploy
 COPY scripts scripts
-COPY compatibility.json ./
+COPY compatibility.json tsconfig.base.json ./
 
 ARG PUBLIC_PARTOKENS_SOURCE_URL
 ARG PARTOKENS_SOURCE_COMMIT

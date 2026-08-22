@@ -22,6 +22,7 @@ describe('frontend-only deployment', () => {
 
     expect(dockerfile).toContain('bun run release:package')
     expect(dockerfile).toContain('bun run release:verify')
+    expect(dockerfile).toContain('COPY compatibility.json tsconfig.base.json ./')
     expect(dockerfile).toContain('COPY --from=web-builder /app/release/web')
   })
 
