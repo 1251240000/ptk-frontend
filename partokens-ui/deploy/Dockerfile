@@ -44,6 +44,11 @@ ARG PARTOKENS_SOURCE_COMMIT
 LABEL org.opencontainers.image.source="${PUBLIC_PARTOKENS_SOURCE_URL}" \
       org.opencontainers.image.revision="${PARTOKENS_SOURCE_COMMIT}"
 
+# The official image marks Caddy with CAP_NET_BIND_SERVICE so it can bind 80/443.
+# This deployment only binds 8080 and drops all container capabilities; leaving
+# that file capability would make the kernel reject Caddy at exec time with EPERM.
+RUN setcap -r /usr/bin/caddy
+
 COPY --from=web-builder /app/release/web /srv/partokens-ui/web
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 

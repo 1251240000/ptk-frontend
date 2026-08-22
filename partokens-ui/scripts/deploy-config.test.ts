@@ -24,6 +24,7 @@ describe('frontend-only deployment', () => {
     expect(dockerfile).toContain('bun run release:verify')
     expect(dockerfile).toContain('COPY compatibility.json tsconfig.base.json ./')
     expect(dockerfile).toContain('COPY --from=web-builder /app/release/web')
+    expect(dockerfile).toContain('setcap -r /usr/bin/caddy')
   })
 
   test('the runtime requires an external API origin and stores no backend credentials', () => {
