@@ -114,6 +114,7 @@ test('email verification is limited to registration and the submitted code is pr
   await page.getByLabel('Email', { exact: true }).fill('new@example.test')
   await page.getByRole('button', { name: 'Send code' }).click()
   await expect(page.getByText('Verification code sent')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Verify', exact: true })).toHaveCount(0)
   expect(verificationEmail).toBe('new@example.test')
 
   await page.getByLabel('Verification code').fill('123456')

@@ -138,7 +138,6 @@ export function SignInPage() {
 export function SignUpPage() {
   const { t } = useTranslation()
   const locale = useAuthLocale()
-  const navigate = useNavigate()
   const status = useAuthStatus()
   const fields = useAuthFlowStore((state) => state.registration)
   const updateFields = useAuthFlowStore((state) => state.updateRegistration)
@@ -186,7 +185,6 @@ export function SignUpPage() {
       writeRegistrationContext({ email: fields.email.trim(), sentAt: Date.now() })
       toast.success(t('Verification code sent. Check your inbox.'), {
         duration: 6000,
-        action: { label: t('Verify'), onClick: () => void navigate({ to: '/$locale/auth/verify-email', params: { locale } }) },
       })
       setCooldown(60)
       if (turnstileRequired) {
