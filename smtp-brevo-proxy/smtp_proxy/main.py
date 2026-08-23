@@ -12,6 +12,7 @@ from .config import ConfigError, Settings
 from .handler import SMTPProxyHandler
 from .templating import (
     PasswordResetTemplateRenderer,
+    QuotaWarningTemplateRenderer,
     VerificationTemplateRenderer,
 )
 
@@ -40,6 +41,9 @@ def run() -> int:
         password_reset_renderer = PasswordResetTemplateRenderer(
             settings.template_dir
         )
+        quota_warning_renderer = QuotaWarningTemplateRenderer(
+            settings.template_dir
+        )
     except (OSError, TemplateError, ValueError) as exc:
         logger.error("Could not load transactional email templates: %s", exc)
         return 2
@@ -49,6 +53,7 @@ def run() -> int:
         renderer,
         password_reset_renderer,
         BrevoClient(settings),
+        quota_warning_renderer,
     )
     controller = Controller(
         handler,

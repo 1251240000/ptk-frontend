@@ -1,6 +1,6 @@
 # Partokens SMTP Brevo Proxy
 
-该服务在本地提供一个受限 SMTP 入口，接收 New API 生成的邮箱验证与密码重置邮件，从 MIME 正文中解析 6 位十六进制验证码或受信任的重置链接，渲染 Partokens 英文邮件模板，再通过 Brevo Transactional Email API 发送。
+该服务在本地提供一个受限 SMTP 入口，接收 New API 生成的邮箱验证、密码重置和额度预警邮件，从 MIME 正文中解析所需参数，渲染 Partokens 英文邮件模板，再通过 Brevo Transactional Email API 发送。
 
 示例输入正文：
 
@@ -21,6 +21,8 @@ ffa926 is your Partokens verification code
 验证码位于主题开头，用户无需打开邮件即可看到。
 
 密码重置邮件支持 New API 当前生成的 `/user/reset?email=...&token=...` 格式。代理会保留完整链接并生成主题 `Reset your Partokens password`，但仅接受 `http/https`、32 位十六进制 token、固定路径和已配置主机的链接。
+
+额度预警邮件支持 New API 当前生成的“剩余额度 + 充值链接”HTML 格式，代理会提取两个值并生成英文主题 `Your Partokens quota is running low`。原始通知正文不会直接透传到最终邮件。
 
 ## 部署
 
@@ -77,13 +79,14 @@ docker network connect smtp-proxy <new-api-container>
 | `SMTP_MAX_RECIPIENTS` | `1` | 单封邮件最大 envelope 收件人数 |
 | `SMTP_MAX_MESSAGE_BYTES` | `1048576` | 最大 SMTP DATA 字节数 |
 | `PASSWORD_RESET_ALLOWED_HOSTS` | `partokens.com` | 允许出现在密码重置链接中的精确主机名，逗号分隔；预发布环境需加入其独立主机名 |
+| `QUOTA_WARNING_ALLOWED_HOSTS` | `partokens.com` | 允许出现在额度预警充值链接中的精确主机名，逗号分隔 |
 | `EMAIL_SUBJECT_TEMPLATE` | `{code} is your Partokens verification code` | 英文主题，必须包含 `{code}` |
 | `BREVO_TIMEOUT_SECONDS` | `10` | Brevo API 超时 |
 | `LOG_LEVEL` | `INFO` | 日志级别 |
 
 ## SMTP 响应语义
 
-- 无法解析验证码/受信任的重置链接、非法发件域名或收件人数超限：返回永久错误 `550`。
+- 无法识别受支持邮件或提取受信任链接、非法发件域名或收件人数超限：返回永久错误 `550`。
 - Brevo 网络错误、限流或 5xx：返回临时错误 `451`，上游 SMTP 客户端可重试。
 - Brevo 成功接受：返回 `250`。
 
@@ -114,6 +117,12 @@ python3 scripts/send_sample.py --kind password-reset --to you@example.com
 ```
 
 该命令同样会触发真实 Brevo 发送。样例链接使用 `partokens.com` 和固定的非生产 token，仅用于验证代理重写流程。
+
+发送与 New API 当前格式一致的额度预警样例：
+
+```bash
+python3 scripts/send_sample.py --kind quota-warning --to you@example.com
+```
 
 ## 客服通知邮件
 

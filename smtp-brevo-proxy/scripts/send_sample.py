@@ -15,7 +15,7 @@ def main() -> int:
     parser.add_argument("--to", required=True, help="Envelope recipient")
     parser.add_argument(
         "--kind",
-        choices=("verification", "password-reset"),
+        choices=("verification", "password-reset", "quota-warning"),
         default="verification",
         help="Source email shape to send",
     )
@@ -50,6 +50,17 @@ def main() -> int:
             "<p>如果链接无法点击，请尝试点击下面的链接或将其复制到浏览器中打开："
             f"<br> {reset_link} </p>"
             "<p>重置链接 10 分钟内有效，如果不是本人操作，请忽略。</p>"
+        )
+    elif args.kind == "quota-warning":
+        top_up_link = "https://partokens.com/wallet"
+        subject = "您的额度即将用尽"
+        text = (
+            "您的额度即将用尽，当前剩余额度为 $0.42，为了不影响您的使用，请及时充值。\n"
+            f"充值链接：{top_up_link}"
+        )
+        html = (
+            "<p>您的额度即将用尽，当前剩余额度为 $0.42，为了不影响您的使用，请及时充值。"
+            f"<br/>充值链接：<a href='{top_up_link}'>{top_up_link}</a></p>"
         )
     else:
         subject = "Partokens邮箱验证邮件"

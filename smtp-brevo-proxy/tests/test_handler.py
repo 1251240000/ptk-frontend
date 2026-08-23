@@ -175,6 +175,31 @@ class SMTPProxyHandlerTests(unittest.TestCase):
         self.assertNotIn(reset_link, logs.output[0])
         self.assertNotIn("user@example.com", logs.output[0])
 
+    def test_rewrites_new_api_quota_warning_message(self) -> None:
+        top_up_link = "https://partokens.com/wallet"
+        brevo = FakeBrevoClient()
+        handler = self.handler(brevo)
+        envelope = FakeEnvelope(
+            mail_from="no-reply@partokens.com",
+            rcpt_tos=["user@example.com"],
+            content=raw_message(
+                "<p>您的额度即将用尽，当前剩余额度为 $0.42，为了不影响您的使用，请及时充值。"
+                f"<br/>充值链接：<a href='{top_up_link}'>{top_up_link}</a></p>"
+            ),
+        )
+
+        with self.assertLogs("smtp_proxy.handler", level="INFO") as logs:
+            response = asyncio.run(handler.handle_DATA(None, None, envelope))
+
+        self.assertTrue(response.startswith("250"))
+        self.assertEqual(len(brevo.calls), 1)
+        _, subject, rendered, tags = brevo.calls[0]
+        self.assertEqual(subject, "Your Partokens quota is running low")
+        self.assertIn("$0.42", rendered.html)
+        self.assertIn(top_up_link, rendered.text)
+        self.assertEqual(tags, ("quota-warning",))
+        self.assertIn("Delivered quota warning email", logs.output[0])
+
 
 if __name__ == "__main__":
     unittest.main()

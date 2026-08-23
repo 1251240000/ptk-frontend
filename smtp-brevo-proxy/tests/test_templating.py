@@ -6,6 +6,7 @@ from pathlib import Path
 from smtp_proxy.templating import (
     CustomerServiceTemplateRenderer,
     PasswordResetTemplateRenderer,
+    QuotaWarningTemplateRenderer,
     VerificationTemplateRenderer,
 )
 
@@ -54,6 +55,22 @@ class PasswordResetTemplateTests(unittest.TestCase):
         self.assertIn(reset_link.replace("&", "&amp;"), rendered.html)
         self.assertIn(reset_link, rendered.text)
         self.assertNotIn("{{ params.reset_link }}", rendered.html)
+        self.assertIn("support@partokens.com", rendered.html)
+
+
+class QuotaWarningTemplateTests(unittest.TestCase):
+    def test_renders_remaining_quota_and_top_up_link(self) -> None:
+        top_up_link = "https://partokens.com/wallet"
+        rendered = QuotaWarningTemplateRenderer(TEMPLATE_DIR).render(
+            remaining_quota="$0.42",
+            top_up_link=top_up_link,
+        )
+
+        for content in (rendered.html, rendered.text):
+            self.assertIn("$0.42", content)
+            self.assertIn(top_up_link, content)
+            self.assertNotIn("{{ params.", content)
+        self.assertIn("Your quota is running low", rendered.html)
         self.assertIn("support@partokens.com", rendered.html)
 
 

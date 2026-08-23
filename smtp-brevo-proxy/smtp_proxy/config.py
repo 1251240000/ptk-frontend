@@ -68,6 +68,7 @@ class Settings:
     smtp_max_recipients: int = 1
     smtp_max_message_bytes: int = 1_048_576
     password_reset_allowed_hosts: tuple[str, ...] = ("partokens.com",)
+    quota_warning_allowed_hosts: tuple[str, ...] = ("partokens.com",)
     subject_template: str = "{code} is your Partokens verification code"
     template_dir: Path = PROJECT_ROOT / "templates"
     log_level: str = "INFO"
@@ -106,6 +107,17 @@ class Settings:
         if not reset_hosts:
             raise ConfigError("PASSWORD_RESET_ALLOWED_HOSTS must not be empty")
 
+        raw_quota_hosts = env.get(
+            "QUOTA_WARNING_ALLOWED_HOSTS", "partokens.com"
+        )
+        quota_hosts = tuple(
+            host.strip().lower().rstrip(".")
+            for host in raw_quota_hosts.split(",")
+            if host.strip()
+        )
+        if not quota_hosts:
+            raise ConfigError("QUOTA_WARNING_ALLOWED_HOSTS must not be empty")
+
         subject_template = env.get(
             "EMAIL_SUBJECT_TEMPLATE", "{code} is your Partokens verification code"
         ).strip()
@@ -140,6 +152,7 @@ class Settings:
                 env, "SMTP_MAX_MESSAGE_BYTES", 1_048_576
             ),
             password_reset_allowed_hosts=reset_hosts,
+            quota_warning_allowed_hosts=quota_hosts,
             subject_template=subject_template,
             template_dir=template_dir,
             log_level=log_level,

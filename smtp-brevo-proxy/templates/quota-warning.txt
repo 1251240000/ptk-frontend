@@ -1,0 +1,13 @@
+PARTOKENS / ACCOUNT USAGE
+
+Your quota is running low
+
+Your remaining quota is {{ params.remaining_quota }}.
+
+Add funds now to keep your API requests running without interruption:
+{{ params.top_up_link }}
+
+This alert is based on your configured quota warning threshold.
+
+Automated email from Partokens (https://partokens.com/).
+Need help? support@partokens.com

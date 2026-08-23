@@ -5,9 +5,11 @@ from email.message import EmailMessage
 
 from smtp_proxy.parsing import (
     PasswordResetLinkNotFound,
+    QuotaWarningNotFound,
     VerificationCodeNotFound,
     extract_code_from_text,
     extract_password_reset_link,
+    extract_quota_warning,
     extract_verification_code,
 )
 
@@ -127,6 +129,49 @@ class PasswordResetLinkParsingTests(unittest.TestCase):
                 message.set_content(link)
                 with self.assertRaises(PasswordResetLinkNotFound):
                     extract_password_reset_link(message.as_bytes())
+
+
+class QuotaWarningParsingTests(unittest.TestCase):
+    def test_extracts_values_from_new_api_html_shape(self) -> None:
+        top_up_link = "https://partokens.com/wallet"
+        message = EmailMessage()
+        message["Subject"] = "您的额度即将用尽"
+        message.set_content(
+            "<p>您的额度即将用尽，当前剩余额度为 $0.42，为了不影响您的使用，请及时充值。"
+            f"<br/>充值链接：<a href='{top_up_link}'>{top_up_link}</a></p>",
+            subtype="html",
+        )
+
+        details = extract_quota_warning(message.as_bytes())
+
+        self.assertEqual(details.remaining_quota, "$0.42")
+        self.assertEqual(details.top_up_link, top_up_link)
+
+    def test_rejects_unrelated_message_with_amount_and_link(self) -> None:
+        message = EmailMessage()
+        message["Subject"] = "Your receipt"
+        message.set_content(
+            "Current remaining quota: $0.42\nhttps://partokens.com/wallet"
+        )
+
+        with self.assertRaises(QuotaWarningNotFound):
+            extract_quota_warning(message.as_bytes())
+
+    def test_rejects_untrusted_or_wrong_path_top_up_link(self) -> None:
+        invalid_links = (
+            "https://example.net/wallet",
+            "https://partokens.com/sign-in",
+        )
+        for link in invalid_links:
+            with self.subTest(link=link):
+                message = EmailMessage()
+                message["Subject"] = "您的额度即将用尽"
+                message.set_content(
+                    "您的额度即将用尽，当前剩余额度为 $0.42。\n"
+                    f"充值链接：{link}"
+                )
+                with self.assertRaises(QuotaWarningNotFound):
+                    extract_quota_warning(message.as_bytes())
 
 
 if __name__ == "__main__":

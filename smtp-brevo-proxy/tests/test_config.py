@@ -49,6 +49,20 @@ class SettingsTests(unittest.TestCase):
             ("partokens.com", "accounts.example.com"),
         )
 
+    def test_parses_quota_warning_allowed_hosts(self) -> None:
+        settings = Settings.from_mapping(
+            {
+                "BREVO_API_KEY": "test-key",
+                "BREVO_SENDER_EMAIL": "no-reply@partokens.com",
+                "QUOTA_WARNING_ALLOWED_HOSTS": "partokens.com, App.EXAMPLE.com.",
+            }
+        )
+
+        self.assertEqual(
+            settings.quota_warning_allowed_hosts,
+            ("partokens.com", "app.example.com"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
