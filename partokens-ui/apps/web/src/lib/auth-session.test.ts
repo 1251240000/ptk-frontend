@@ -175,6 +175,49 @@ describe('authentication lifecycle', () => {
     expect(requests[0]?.headers.get('X-Auth-Session')).toBeUndefined()
   })
 
+  it('refreshes an already resolved user from the self endpoint and coalesces concurrent requests', async () => {
+    installAuthentication(bundle('resolved-access', {
+      user: { ...bundle().user, quota: 100, used_quota: 20 },
+    }))
+    let releaseSelf: ((value: AxiosResponse) => void) | undefined
+    let selfRequests = 0
+    api.defaults.adapter = async (config) => {
+      selfRequests += 1
+      return new Promise<AxiosResponse>((resolve) => { releaseSelf = resolve })
+    }
+
+    const first = useSessionStore.getState().refreshUser()
+    const second = useSessionStore.getState().refreshUser()
+    await vi.waitFor(() => expect(releaseSelf).toBeTypeOf('function'))
+    expect(first).toBe(second)
+    expect(selfRequests).toBe(1)
+
+    releaseSelf?.(response({} as InternalAxiosRequestConfig, {
+      success: true,
+      data: { ...bundle().user, quota: 250, used_quota: 40 },
+    }))
+    await Promise.all([first, second])
+
+    expect(useSessionStore.getState().user).toMatchObject({ quota: 250, used_quota: 40 })
+  })
+
+  it('does not restore a signed-out user from a late account refresh', async () => {
+    installAuthentication(bundle('resolved-access'))
+    let releaseSelf: ((value: AxiosResponse) => void) | undefined
+    api.defaults.adapter = async () => new Promise<AxiosResponse>((resolve) => { releaseSelf = resolve })
+
+    const refreshing = useSessionStore.getState().refreshUser()
+    await vi.waitFor(() => expect(releaseSelf).toBeTypeOf('function'))
+    clearAuthentication(false)
+    releaseSelf?.(response({} as InternalAxiosRequestConfig, {
+      success: true,
+      data: { ...bundle().user, quota: 250 },
+    }))
+    await refreshing
+
+    expect(useSessionStore.getState().user).toBeNull()
+  })
+
   it('rotates access credentials while preserving SID and user identity', async () => {
     installAuthentication(bundle('old-access'))
     let refreshSession = ''

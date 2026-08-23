@@ -50,6 +50,32 @@ test('Studio reference upload uses the edit endpoint and remains replaceable', a
   await expect(page.getByRole('button', { name: 'Upload reference' })).toBeVisible()
 })
 
+test('Studio restores the latest generated result after leaving the page', async ({ page }) => {
+  await primeUserSession(page)
+  await installMockApi(page)
+  await page.goto('/en/console/studio')
+
+  const generate = async (prompt: string, unlock = false) => {
+    await page.getByLabel('Prompt', { exact: true }).fill(prompt)
+    await page.getByRole('button', { name: 'Generate' }).click()
+    if (unlock) {
+      const dialog = page.getByRole('dialog', { name: 'API key required' })
+      await dialog.getByRole('combobox', { name: 'API key' }).click()
+      await page.getByRole('option', { name: 'Studio fixture' }).click()
+      await dialog.getByRole('button', { name: 'Continue generating' }).click()
+    }
+    await expect(page.getByRole('img', { name: `${prompt}, Variation 1` })).toBeVisible()
+  }
+
+  await generate('First persisted result', true)
+  await generate('Latest persisted result')
+  await page.getByRole('link', { name: 'Overview' }).click()
+  await page.getByRole('link', { name: 'Image studio' }).click()
+
+  await expect(page.getByRole('img', { name: 'Latest persisted result, Variation 1' })).toBeVisible()
+  await expect(page.getByRole('img', { name: 'First persisted result, Variation 1' })).toHaveCount(0)
+})
+
 test('Studio uses existing user-created keys from the Image group only', async ({ page }) => {
   let requestedModelGroup: string | null = null
   let tokenListRequests = 0

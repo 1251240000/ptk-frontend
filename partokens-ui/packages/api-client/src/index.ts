@@ -521,6 +521,17 @@ const authBundleSchema = z.object({
   }
 })
 
+const sessionRotationSchema = z.object({
+  access_token: z.string().min(1),
+  token_type: z.literal('Bearer'),
+  access_expires_at: z.number().int().positive(),
+  session: loginSessionSchema,
+}).strip().superRefine((bundle, context) => {
+  if (bundle.access_expires_at <= Math.floor(Date.now() / 1000)) {
+    context.addIssue({ code: 'custom', message: 'Expired access token' })
+  }
+})
+
 const twoFactorChallengeSchema = z.object({
   require_2fa: z.literal(true),
   flow_token: z.string().min(1),
@@ -582,6 +593,14 @@ export function installAuthentication(input: unknown): AuthBundle {
   authRuntime.install(bundle)
   scheduleProactiveRefresh(bundle)
   return bundle
+}
+
+function installSessionRotation(input: unknown): AuthBundle {
+  const snapshot = authRuntime?.getSnapshot()
+  if (!snapshot?.user || !snapshot.session) throw new AuthContractError()
+  const parsed = sessionRotationSchema.safeParse(input)
+  if (!parsed.success || parsed.data.session.sid !== snapshot.session.sid) throw new AuthContractError()
+  return installAuthentication({ ...parsed.data, user: snapshot.user })
 }
 
 export function clearAuthentication(resolved = true): void {
@@ -1204,6 +1223,13 @@ export async function updateProfile(input: Record<string, unknown>): Promise<Api
   return parseEnvelope(response.data)
 }
 
+export async function updatePassword(input: { original_password: string; password: string }): Promise<AuthApiEnvelope<AuthBundle>> {
+  const response = await api.put('/api/user/self', input)
+  const envelope = parseAuthEnvelope(response.data)
+  if (!envelope.success) return authFailure(envelope)
+  return { success: true, message: envelope.message, data: installSessionRotation(envelope.data) }
+}
+
 export async function updateUserSettings(input: UserSettingsInput): Promise<ApiEnvelope<unknown>> {
   const response = await api.put('/api/user/setting', input)
   return parseEnvelope(response.data)
@@ -1242,7 +1268,10 @@ export async function requestTopupPayment(input: {
   } as const
   const { provider, ...body } = input
   const response = await api.post(paths[provider], body)
-  const envelope = parseEnvelope<CheckoutData | string>(response.data) as CheckoutEnvelope
+  // Waffo payment endpoints return `{ data, message: "success" }` without
+  // the standard boolean success field. Normalize that response shape while
+  // retaining strict validation for all other envelope fields.
+  const envelope = parseMessageEnvelope<CheckoutData | string>(response.data) as CheckoutEnvelope
   const raw = response.data as { url?: unknown }
   if (typeof raw.url === 'string') envelope.url = raw.url
   return envelope
@@ -1304,7 +1333,7 @@ export async function requestSubscriptionPayment(input: {
   } as const
   const { provider, ...body } = input
   const response = await api.post(paths[provider], body)
-  const envelope = parseEnvelope<CheckoutData | string>(response.data) as CheckoutEnvelope
+  const envelope = parseMessageEnvelope<CheckoutData | string>(response.data) as CheckoutEnvelope
   const raw = response.data as { url?: unknown }
   if (typeof raw.url === 'string') envelope.url = raw.url
   return envelope

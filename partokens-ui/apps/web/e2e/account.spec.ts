@@ -231,8 +231,16 @@ test('stored notification secrets stay out of the form and survive unrelated pre
 })
 
 test('Account security overlays complete the protected credential workflows', async ({ page }) => {
+  const passwordUpdates: Record<string, unknown>[] = []
+  let securityAuthorization = ''
   await primeUserSession(page)
-  await installMockApi(page)
+  await installMockApi(page, {
+    onRequest: (request) => {
+      const path = new URL(request.url()).pathname
+      if (path === '/api/user/self' && request.method() === 'PUT') passwordUpdates.push(requestBody(request))
+      if (path === '/api/user/2fa/setup') securityAuthorization = request.headers().authorization || ''
+    },
+  })
   await page.goto('/en/console/profile?tab=security')
 
   await expect(page.getByLabel('Current password')).toHaveCount(0)
@@ -240,10 +248,23 @@ test('Account security overlays complete the protected credential workflows', as
   const passwordDialog = page.getByRole('dialog', { name: 'Change password' })
   await expect(passwordDialog.getByLabel('Current password')).toBeVisible()
   await expect(passwordDialog.getByLabel('New password')).toBeVisible()
-  await expect(passwordDialog.getByLabel('Confirm password')).toHaveCount(0)
-  await passwordDialog.getByRole('button', { name: 'Cancel' }).click()
+  const confirmPassword = passwordDialog.getByLabel('Confirm password')
+  await expect(confirmPassword).toBeVisible()
+  await passwordDialog.getByLabel('Current password').fill('current-password')
+  await passwordDialog.getByLabel('New password').fill('new-password')
+  await confirmPassword.fill('different-password')
+  await expect(confirmPassword).toHaveAttribute('aria-invalid', 'true')
+  await expect(passwordDialog.getByText('Passwords do not match')).toBeVisible()
+  await expect(passwordDialog.getByRole('button', { name: 'Update password' })).toBeDisabled()
+  expect(passwordUpdates).toHaveLength(0)
+  await confirmPassword.fill('new-password')
+  await passwordDialog.getByRole('button', { name: 'Update password' }).click()
+  await expect(page.getByText('Password updated')).toBeVisible()
+  await expect(page).toHaveURL(/\/en\/console\/profile\?tab=security/)
+  expect(passwordUpdates).toEqual([{ original_password: 'current-password', password: 'new-password' }])
 
   await page.getByRole('button', { name: 'Set up 2FA' }).click()
+  expect(securityAuthorization).toBe('Bearer fixture-access-2')
   const setupDialog = page.getByRole('dialog', { name: 'Set up 2FA' })
   await expect(setupDialog).toBeVisible()
   await expect(setupDialog.getByText('Manual setup key')).toBeVisible()
@@ -297,6 +318,38 @@ test('Account security overlays complete the protected credential workflows', as
   await deleteDialog.getByLabel(/Type username to confirm/).fill('fixture-user')
   await expect(deleteDialog.getByRole('button', { name: 'Permanently delete' })).toBeEnabled()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('Password confirmation dialog follows light and dark theme tokens', async ({ page }) => {
+  await primeUserSession(page)
+  await page.addInitScript(() => window.localStorage.setItem('partokens-theme', 'light'))
+  await installMockApi(page)
+  await page.goto('/en/console/profile?tab=security')
+
+  await page.getByRole('button', { name: 'Change password' }).click()
+  const lightDialog = page.getByRole('dialog', { name: 'Change password' })
+  await expect(lightDialog.getByLabel('Confirm password')).toBeVisible()
+  const lightColors = await lightDialog.evaluate((element) => {
+    const styles = getComputedStyle(element)
+    return { background: styles.backgroundColor, foreground: styles.color }
+  })
+  await lightDialog.getByRole('button', { name: 'Cancel' }).click()
+
+  await page.evaluate(() => {
+    window.localStorage.setItem('partokens-theme', 'dark')
+    document.documentElement.dataset.theme = 'dark'
+  })
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.getByRole('button', { name: 'Change password' }).click()
+  const darkDialog = page.getByRole('dialog', { name: 'Change password' })
+  await expect(darkDialog.getByLabel('Confirm password')).toBeVisible()
+  const darkColors = await darkDialog.evaluate((element) => {
+    const styles = getComputedStyle(element)
+    return { background: styles.backgroundColor, foreground: styles.color }
+  })
+
+  expect(darkColors.background).not.toBe(lightColors.background)
+  expect(darkColors.foreground).not.toBe(lightColors.foreground)
 })
 
 test('Account pages remain free of horizontal overflow at supported narrow viewports', async ({ page }) => {

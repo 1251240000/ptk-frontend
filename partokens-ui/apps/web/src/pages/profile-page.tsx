@@ -24,6 +24,7 @@ import {
   sendEmailVerification,
   setupTwoFactor,
   unbindOAuth,
+  updatePassword,
   updateProfile,
   updateUserLanguage,
   updateUserSettings,
@@ -147,6 +148,7 @@ export function ProfilePage() {
   const [deletePassword, setDeletePassword] = useState('')
   const [originalPassword, setOriginalPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [language, setLanguage] = useState<AppLocale>(isAppLocale(settings.language) ? settings.language : locale)
   const [notifyType, setNotifyType] = useState(settings.notify_type || 'email')
   const [warningQuota, setWarningQuota] = useState(quotaUnitsToDollars(settings.quota_warning_threshold || 500_000))
@@ -208,6 +210,7 @@ export function ProfilePage() {
     setPasswordDialog(false)
     setOriginalPassword('')
     setNewPassword('')
+    setConfirmPassword('')
     setDeleteConfirmation(false)
     setDeletePhrase('')
     setDeletePassword('')
@@ -345,10 +348,11 @@ export function ProfilePage() {
   const savePassword = useMutation({
     mutationFn: async () => {
       if (newPassword.length < 8) throw new Error(t('Password must contain at least 8 characters'))
-      const response = await updateProfile({ original_password: originalPassword, password: newPassword })
+      if (newPassword !== confirmPassword) throw new Error(t('Passwords do not match'))
+      const response = await updatePassword({ original_password: originalPassword, password: newPassword })
       if (!response.success) throw new Error(response.message || t('Unable to change password'))
     },
-    onSuccess: () => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword(''); success(t('Password updated')) },
+    onSuccess: () => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword(''); setConfirmPassword(''); success(t('Password updated')) },
     onError: (cause) => failure(cause, t('Unable to change password')),
   })
 
@@ -631,15 +635,16 @@ export function ProfilePage() {
         </Modal>
       ) : null}
       {passwordDialog ? (
-        <Modal className="relative max-h-[90svh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border bg-background p-5 text-foreground shadow-xl" backdropClassName="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4" label={t('Change password')} onClose={savePassword.isPending ? undefined : () => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword('') }}>
-          <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} disabled={savePassword.isPending} onClick={() => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword('') }}><X /></Button>
+        <Modal className="relative max-h-[90svh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-lg border bg-background p-5 text-foreground shadow-xl" backdropClassName="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4" label={t('Change password')} onClose={savePassword.isPending ? undefined : () => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword(''); setConfirmPassword('') }}>
+          <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3" aria-label={t('Close')} disabled={savePassword.isPending} onClick={() => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword(''); setConfirmPassword('') }}><X /></Button>
           <p className="pe-10 text-xs font-medium text-muted-foreground">{t('Account security').toUpperCase()}</p>
           <h2 className="mt-1 pe-10 text-lg font-semibold">{t('Change password')}</h2>
           <p className="mt-2 text-sm text-muted-foreground">{t('Use the current password before choosing a new one.')}</p>
           <form onSubmit={(event) => { event.preventDefault(); savePassword.mutate() }}>
             <div className="mt-4 space-y-2"><Label htmlFor="current-password">{t('Current password')}</Label><Input id="current-password" data-modal-initial-focus type="password" autoComplete="current-password" value={originalPassword} disabled={savePassword.isPending} onChange={(event) => setOriginalPassword(event.target.value)} required /></div>
             <div className="mt-4 space-y-2"><Label htmlFor="new-password">{t('New password')}</Label><Input id="new-password" type="password" autoComplete="new-password" value={newPassword} disabled={savePassword.isPending} onChange={(event) => setNewPassword(event.target.value)} required /></div>
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={savePassword.isPending} onClick={() => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword('') }}>{t('Cancel')}</Button><Button type="submit" disabled={savePassword.isPending || !originalPassword || !newPassword}><KeyRound /><PendingLabel pending={savePassword.isPending} pendingText={t('Saving')}>{t('Update password')}</PendingLabel></Button></div>
+            <div className="mt-4 space-y-2"><Label htmlFor="confirm-password">{t('Confirm password')}</Label><Input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} aria-invalid={Boolean(confirmPassword && confirmPassword !== newPassword)} aria-describedby={confirmPassword && confirmPassword !== newPassword ? 'confirm-password-error' : undefined} disabled={savePassword.isPending} onChange={(event) => setConfirmPassword(event.target.value)} required />{confirmPassword && confirmPassword !== newPassword ? <p id="confirm-password-error" className="text-sm text-destructive" role="alert">{t('Passwords do not match')}</p> : null}</div>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="outline" disabled={savePassword.isPending} onClick={() => { setPasswordDialog(false); setOriginalPassword(''); setNewPassword(''); setConfirmPassword('') }}>{t('Cancel')}</Button><Button type="submit" disabled={savePassword.isPending || !originalPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}><KeyRound /><PendingLabel pending={savePassword.isPending} pendingText={t('Saving')}>{t('Update password')}</PendingLabel></Button></div>
           </form>
         </Modal>
       ) : null}

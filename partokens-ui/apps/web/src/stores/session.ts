@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import {
   clearAuthentication,
   configureAuthRuntime,
+  getSelf,
   installAuthentication,
   logout,
   refreshAuthentication,
@@ -27,8 +28,11 @@ type SessionState = {
   setPendingTwoFactor: (challenge: TwoFactorChallenge | null) => void
   setUser: (user: CurrentUser | null) => void
   resolve: () => Promise<CurrentUser | null>
+  refreshUser: () => Promise<CurrentUser | null>
   signOut: () => Promise<void>
 }
+
+let userRefreshPromise: Promise<CurrentUser | null> | null = null
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   user: null,
@@ -61,6 +65,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const user = outcome.kind === 'authenticated' ? outcome.bundle.user : get().user
     set({ loading: false, resolved: true })
     return user
+  },
+  refreshUser: () => {
+    if (userRefreshPromise) return userRefreshPromise
+    const revision = get().revision
+    userRefreshPromise = getSelf()
+      .then((response) => {
+        if (!response.success) throw new Error(response.message || 'Unable to refresh account')
+        if (get().revision !== revision || !get().user) return get().user
+        set({ user: response.data, resolved: true })
+        return response.data
+      })
+      .finally(() => { userRefreshPromise = null })
+    return userRefreshPromise
   },
   signOut: async () => {
     try {

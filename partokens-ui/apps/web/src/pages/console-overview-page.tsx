@@ -574,6 +574,7 @@ export function ConsoleOverviewPage() {
   const queryClient = useQueryClient()
   const locale = usePageLocale()
   const user = useSessionStore((state) => state.user)
+  const refreshUser = useSessionStore((state) => state.refreshUser)
   const range = useMemo(lastThirtyDays, [])
   const [refreshing, setRefreshing] = useState(false)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
@@ -609,7 +610,10 @@ export function ConsoleOverviewPage() {
     const toastId = toast.loading(t('Refreshing overview...'), { duration: Infinity })
     setRefreshing(true)
     try {
-      await refreshConsoleQueries(queryClient, consoleQueryKeys.overview.all)
+      await Promise.all([
+        refreshConsoleQueries(queryClient, consoleQueryKeys.overview.all),
+        refreshUser(),
+      ])
       setUpdatedAt(new Date())
       toast.success(t('Overview refreshed'), { id: toastId, description: t('Account usage and service data are up to date.'), duration: 6000 })
     } catch {

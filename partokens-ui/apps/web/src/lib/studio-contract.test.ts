@@ -107,6 +107,64 @@ describe('studio image transport', () => {
     const request = fetcherMock.mock.calls[0]?.[1] as RequestInit
     expect(JSON.parse(String(request.body))).toMatchObject({ size: '1600x1024', n: 10 })
   })
+
+  it('generates GPT Image 2 batches as one request per image without n', async () => {
+    setStudioCredential({ tokenId: 11, tokenName: 'GPT Image 2', key: 'sk-image-2-only' })
+    let callCount = 0
+    const fetcherMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) !== '/v1/images/generations') throw new Error(`unexpected request: ${String(input)}`)
+      callCount += 1
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>
+      expect(body).not.toHaveProperty('n')
+      return new Response(JSON.stringify({ data: [{ b64_json: callCount === 1 ? 'AQID' : 'BAUG' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    const fetcher = fetcherMock as unknown as typeof fetch
+
+    const result = await generateStudioImages({
+      model: 'gpt-image-2',
+      prompt: 'Two different cats',
+      size: '1024x1024',
+      quality: 'high',
+      background: 'auto',
+      count: 2,
+    }, undefined, fetcher)
+
+    expect(callCount).toBe(2)
+    expect(result).toHaveLength(2)
+  })
+
+  it('falls back to the Responses image tool when the image endpoint rejects n', async () => {
+    setStudioCredential({ tokenId: 12, tokenName: 'GPT Image 2 fallback', key: 'sk-image-2-fallback' })
+    const fetcherMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/v1/images/generations') {
+        return new Response(JSON.stringify({ error: { message: "Unknown parameter: 'tools[0].n'." } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      if (String(input) !== '/v1/responses') throw new Error(`unexpected request: ${String(input)}`)
+      const body = JSON.parse(String(init?.body)) as { tools?: Array<Record<string, unknown>> }
+      expect(body.tools).toEqual([{ type: 'image_generation', size: '1024x1024', quality: 'high' }])
+      return new Response(JSON.stringify({
+        output: [{ type: 'image_generation_call', result: 'AQID' }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    })
+
+    const result = await generateStudioImages({
+      model: 'gpt-image-2',
+      prompt: 'A small cat',
+      size: '1024x1024',
+      quality: 'high',
+      background: 'auto',
+      count: 1,
+    }, undefined, fetcherMock as unknown as typeof fetch)
+
+    expect(result).toHaveLength(1)
+    expect(fetcherMock).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('studio model capabilities', () => {

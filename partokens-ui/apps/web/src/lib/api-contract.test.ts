@@ -322,6 +322,30 @@ describe('New API adapter contracts', () => {
     })
   })
 
+  it('normalizes message-only Waffo checkout responses for top-ups and subscriptions', async () => {
+    api.defaults.adapter = async (config) => ({
+      config,
+      data: {
+        data: { checkout_url: 'https://pancake.waffo.ai/checkout/session' },
+        message: 'success',
+      },
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    })
+
+    await expect(requestTopupPayment({ provider: 'waffo-pancake', amount: 20 })).resolves.toEqual({
+      success: true,
+      message: 'success',
+      data: { checkout_url: 'https://pancake.waffo.ai/checkout/session' },
+    })
+    await expect(requestSubscriptionPayment({ provider: 'waffo-pancake', plan_id: 4 })).resolves.toEqual({
+      success: true,
+      message: 'success',
+      data: { checkout_url: 'https://pancake.waffo.ai/checkout/session' },
+    })
+  })
+
   it('keeps fixed top-up and subscription actions on their user routes', async () => {
     await calculateTopupAmount(20, 'stripe')
     await requestTopupPayment({ provider: 'waffo', amount: 20, pay_method_index: 1 })

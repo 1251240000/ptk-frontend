@@ -305,6 +305,12 @@ function appendOptional(form: FormData, key: string, value: string): void {
   if (value && value !== 'auto') form.append(key, value)
 }
 
+// GPT Image 2 is exposed by some providers through the Responses image tool.
+// That tool accepts one image per call and rejects the Images API `n` field.
+function supportsImageBatch(model: string): boolean {
+  return !model.trim().toLowerCase().startsWith('gpt-image-2')
+}
+
 function imageErrorMessage(status: number, payload: unknown): string {
   if (payload && typeof payload === 'object') {
     const input = payload as { error?: { message?: unknown }; message?: unknown }
@@ -314,6 +320,10 @@ function imageErrorMessage(status: number, payload: unknown): string {
   if (status === 401 || status === 403) return 'The selected API key cannot use this model'
   if (status === 429) return 'The request was rate limited or the key quota is insufficient'
   return 'The image service could not complete this request.'
+}
+
+function isImageToolCountError(error: unknown): boolean {
+  return error instanceof Error && /tools\[\d+\]\.n/i.test(error.message)
 }
 
 function base64Blob(value: string): Blob {
@@ -344,6 +354,18 @@ async function parseImageResponse(response: Response, fetcher: typeof fetch): Pr
   }))
 }
 
+async function parseResponsesImageResponse(response: Response): Promise<StudioImageResult[]> {
+  const payload = await response.json() as {
+    output?: Array<{ type?: string; result?: string; revised_prompt?: string }>
+    error?: { message?: string }
+    message?: string
+  }
+  if (!response.ok) throw new Error(imageErrorMessage(response.status, payload))
+  const items = (payload.output || []).filter((item) => item.type === 'image_generation_call' && item.result)
+  if (!items.length) throw new Error('The image endpoint returned no results')
+  return items.map((item) => ({ blob: base64Blob(item.result!), revisedPrompt: item.revised_prompt }))
+}
+
 export async function generateStudioImages(
   input: StudioImageInput,
   signal?: AbortSignal,
@@ -360,35 +382,62 @@ export async function generateStudioImages(
   const count = Math.max(1, Math.min(Math.trunc(input.count), capabilities.maxCount))
   const headers = { Authorization: `Bearer ${credential.key}` }
 
-  let response: Response
-  if (input.sourceImages?.length) {
-    if (!capabilities.supportsEdit) throw new Error('The selected model does not support image editing')
-    const body = new FormData()
-    body.append('model', input.model)
-    body.append('prompt', input.prompt.trim())
-    body.append('n', String(count))
-    appendOptional(body, 'size', input.size)
-    appendOptional(body, 'quality', input.quality)
-    appendOptional(body, 'background', input.background)
-    body.append('response_format', 'b64_json')
-    input.sourceImages.forEach((blob, index) => body.append('image', blob, `source-${index + 1}.${blob.type.split('/')[1] || 'png'}`))
-    response = await fetcher('/v1/images/edits', { method: 'POST', headers, body, signal })
-  } else {
-    const body: Record<string, unknown> = {
-      model: input.model,
-      prompt: input.prompt.trim(),
-      n: count,
-      response_format: 'b64_json',
-    }
-    if (input.size !== 'auto') body.size = input.size
-    if (input.quality !== 'auto') body.quality = input.quality
-    if (input.background !== 'auto') body.background = input.background
-    response = await fetcher('/v1/images/generations', {
+  const requestResponsesImage = async (): Promise<StudioImageResult[]> => {
+    const tool: Record<string, string> = { type: 'image_generation' }
+    if (input.size !== 'auto') tool.size = input.size
+    if (input.quality !== 'auto') tool.quality = input.quality
+    if (input.background !== 'auto') tool.background = input.background
+    const response = await fetcher('/v1/responses', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ model: input.model, input: input.prompt.trim(), tools: [tool] }),
       signal,
     })
+    return parseResponsesImageResponse(response)
   }
-  return parseImageResponse(response, fetcher)
+
+  const request = async (): Promise<StudioImageResult[]> => {
+    let response: Response
+    if (input.sourceImages?.length) {
+      if (!capabilities.supportsEdit) throw new Error('The selected model does not support image editing')
+      const body = new FormData()
+      body.append('model', input.model)
+      body.append('prompt', input.prompt.trim())
+      if (supportsImageBatch(input.model)) body.append('n', String(count))
+      appendOptional(body, 'size', input.size)
+      appendOptional(body, 'quality', input.quality)
+      appendOptional(body, 'background', input.background)
+      body.append('response_format', 'b64_json')
+      input.sourceImages.forEach((blob, index) => body.append('image', blob, `source-${index + 1}.${blob.type.split('/')[1] || 'png'}`))
+      response = await fetcher('/v1/images/edits', { method: 'POST', headers, body, signal })
+    } else {
+      const body: Record<string, unknown> = {
+        model: input.model,
+        prompt: input.prompt.trim(),
+        response_format: 'b64_json',
+      }
+      if (supportsImageBatch(input.model)) body.n = count
+      if (input.size !== 'auto') body.size = input.size
+      if (input.quality !== 'auto') body.quality = input.quality
+      if (input.background !== 'auto') body.background = input.background
+      response = await fetcher('/v1/images/generations', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      })
+      try {
+        return await parseImageResponse(response, fetcher)
+      } catch (error) {
+        if (supportsImageBatch(input.model) || !isImageToolCountError(error)) throw error
+        return requestResponsesImage()
+      }
+    }
+    return parseImageResponse(response, fetcher)
+  }
+
+  if (supportsImageBatch(input.model) || count === 1) return request()
+  const results: StudioImageResult[] = []
+  for (let index = 0; index < count; index += 1) results.push(...await request())
+  return results.slice(0, count)
 }

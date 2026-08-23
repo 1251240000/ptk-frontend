@@ -138,9 +138,23 @@ const otpRoute = createRoute({ getParentRoute: () => localeRoute, path: 'auth/ot
 
 function AuthenticatedUserBoundary({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
-  const { user, resolved, resolve } = useSessionStore()
+  const { user, resolved, resolve, refreshUser } = useSessionStore()
   const params = useParams({ strict: false }) as { locale?: string }
   useEffect(() => { void resolve() }, [resolve])
+  useEffect(() => {
+    if (!resolved || !user) return
+    const refreshWhenActive = () => {
+      if (document.visibilityState === 'visible') void refreshUser().catch(() => undefined)
+    }
+    const interval = window.setInterval(refreshWhenActive, 60_000)
+    window.addEventListener('focus', refreshWhenActive)
+    document.addEventListener('visibilitychange', refreshWhenActive)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshWhenActive)
+      document.removeEventListener('visibilitychange', refreshWhenActive)
+    }
+  }, [refreshUser, resolved, user])
   useEffect(() => {
     if (!resolved) return
     if (!user) {

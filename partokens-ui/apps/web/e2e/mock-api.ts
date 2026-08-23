@@ -212,7 +212,11 @@ export async function installMockApi(page: Page, options: MockApiOptions = {}) {
       return
     }
     if (path === '/api/user/self' && method === 'PUT') {
-      await json(route, envelope(null))
+      const input = request.postDataJSON() as Record<string, unknown>
+      await json(route, envelope(input.password ? (() => {
+        const { user: _user, ...rotation } = authBundle(user, authVersion++)
+        return rotation
+      })() : null))
       return
     }
     if (path === '/api/user/setting' && method === 'PUT') {

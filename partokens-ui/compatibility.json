@@ -79,6 +79,7 @@
     { "path": "/api/verify", "methods": ["POST"] },
     { "path": "/api/user/checkin", "methods": ["GET", "POST"] },
     { "path": "/pg/chat/completions", "methods": ["POST"] },
+    { "path": "/v1/responses", "methods": ["POST"] },
     { "path": "/v1/images/generations", "methods": ["POST"] },
     { "path": "/v1/images/edits", "methods": ["POST"] }
   ]

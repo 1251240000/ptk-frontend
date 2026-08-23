@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
 import { ArrowRightLeft, Check, CheckCircle2, CircleDollarSign, Copy, CreditCard, Gift, LoaderCircle, ReceiptText, RefreshCw, Share2, Star, WalletCards } from 'lucide-react'
@@ -9,7 +9,6 @@ import {
   calculateTopupAmount,
   getAffiliateCode,
   getBillingHistory,
-  getSelf,
   getSelfSubscriptions,
   getSubscriptionPlans,
   getTopupInfo,
@@ -539,8 +538,7 @@ export function WalletPage() {
   const { t } = useTranslation()
   const params = useParams({ strict: false }) as { locale?: string }
   const locale = getLocale(params.locale)
-  const client = useQueryClient()
-  const { user, resolve, setUser } = useSessionStore()
+  const { user, refreshUser, setUser } = useSessionStore()
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null)
   const [intent, setIntent] = useState<PurchaseIntent | null>(null)
   const [subscriptionsOpen, setSubscriptionsOpen] = useState(false)
@@ -548,6 +546,7 @@ export function WalletPage() {
   const [redemption, setRedemption] = useState('')
   const [billingPage, setBillingPage] = useState(1)
   const [billingSearch, setBillingSearch] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
   const compactOverlay = useCompactOverlay()
   const purchaseTriggerRef = useRef<HTMLElement | null>(null)
   const subscriptionsTriggerRef = useRef<HTMLElement | null>(null)
@@ -631,7 +630,7 @@ export function WalletPage() {
       setIntent(null)
       if (balance) {
         toast.success(t('Subscription purchased'), { duration: 6000 })
-        void Promise.all([subscriptions.refetch(), resolve()])
+        void Promise.all([subscriptions.refetch(), refreshUser()]).catch(() => undefined)
         return
       }
       if (!continueCheckout(response)) toast.error(t('Payment destination unavailable'), { duration: 6000 })
@@ -651,7 +650,7 @@ export function WalletPage() {
     onSuccess: (response) => {
       setRedemption('')
       toast.success(`${t('Redemption successful')}: ${formatWalletQuota(response.data, locale)}`, { duration: 6000 })
-      void Promise.all([billing.refetch(), resolve()])
+      void Promise.all([billing.refetch(), refreshUser()]).catch(() => undefined)
     },
     onError: (cause) => toast.error(responseMessage(cause, t('Redemption failed')), { duration: 6000 }),
   })
@@ -669,7 +668,7 @@ export function WalletPage() {
       if (user) setUser({ ...user, quota: (user.quota || 0) + amount, aff_quota: Math.max(0, (user.aff_quota || 0) - amount) })
       toast.success(t('Rewards transferred'), { duration: 6000 })
       void affiliate.refetch()
-      void getSelf().then((response) => { if (response.success) setUser(response.data) }).catch(() => undefined)
+      void refreshUser().catch(() => undefined)
     },
     onError: (cause) => toast.error(responseMessage(cause, t('Transfer failed')), { duration: 6000 }),
   })
@@ -726,6 +725,17 @@ export function WalletPage() {
       if (current.kind === 'topup') return { ...current, method: option.method as TopupMethod }
       return { ...current, method: option.method as SubscriptionMethod }
     })
+  }
+
+  const refreshWallet = async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([refreshUser(), subscriptions.refetch(), billing.refetch()])
+    } catch {
+      toast.error(t('Interface data unavailable'), { duration: 6000 })
+    } finally {
+      setRefreshing(false)
+    }
   }
 
   return (
@@ -903,7 +913,7 @@ export function WalletPage() {
       </div>
 
       <section className="overflow-hidden rounded-lg border">
-        <AccountSectionHeading eyebrow={t('History').toUpperCase()} title={t('Billing history')} icon={ReceiptText} action={<Button type="button" variant="outline" size="icon" aria-label={t('Refresh')} disabled={billing.isFetching} onClick={() => void billing.refetch()}><RefreshCw className={billing.isFetching ? 'animate-spin' : ''} /></Button>} />
+        <AccountSectionHeading eyebrow={t('History').toUpperCase()} title={t('Billing history')} icon={ReceiptText} action={<Button type="button" variant="outline" size="icon" aria-label={t('Refresh')} disabled={refreshing || billing.isFetching} onClick={() => void refreshWallet()}><RefreshCw className={refreshing || billing.isFetching ? 'animate-spin' : ''} /></Button>} />
         <div className="border-b p-4"><Label htmlFor="billing-search" className="sr-only">{t('Search order number')}</Label><Input id="billing-search" className="max-w-sm" value={billingSearch} onChange={(event) => { setBillingSearch(event.target.value); setBillingPage(1) }} placeholder={t('Search order number')} /></div>
         <AccountDataState loading={billing.isLoading} error={billing.isError && !billing.data ? t('Interface data unavailable') : null} empty={!billing.isLoading && billingRecords.length === 0} emptyTitle={t('No billing history')} emptyDescription={t('Completed top-ups and payments will appear here.')} retryLabel={t('Retry')} onRetry={() => void billing.refetch()}>
           <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>{t('Order')}</TableHead><TableHead>{t('Time')}</TableHead><TableHead>{t('Payment method')}</TableHead><TableHead>{t('Amount')}</TableHead><TableHead>{t('Paid')}</TableHead><TableHead>{t('Status')}</TableHead></TableRow></TableHeader><TableBody>{billingRecords.map((record) => <TableRow key={record.id}><TableCell><code className="break-all text-xs">{record.trade_no}</code></TableCell><TableCell className="whitespace-nowrap">{formatDate(record.create_time, locale)}</TableCell><TableCell>{record.payment_method || '—'}</TableCell><TableCell className="font-mono font-semibold tabular-nums">{formatMoney(Number(record.amount || 0), locale)}</TableCell><TableCell className="font-mono font-semibold tabular-nums">{formatMoney(Number(record.money || 0), locale)}</TableCell><TableCell><Badge variant="outline">{record.status === 'success' ? <Check className="text-success" /> : null}{t(record.status)}</Badge></TableCell></TableRow>)}</TableBody></Table></div>

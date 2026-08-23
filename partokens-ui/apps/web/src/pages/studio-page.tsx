@@ -104,9 +104,7 @@ function promptNode(project: StudioProject): StudioNode | undefined {
 }
 
 function currentResultNodes(project: StudioProject): StudioNode[] {
-  const latest = project.history.find((record) => record.status === 'completed' && record.nodeIds.length)
-  const ids = new Set(latest?.nodeIds || project.nodes.filter((node) => node.type === 'result').map((node) => node.id))
-  return project.nodes.filter((node) => node.type === 'result' && ids.has(node.id))
+  return project.nodes.filter((node) => node.type === 'result')
 }
 
 function selectedSourceNode(project: StudioProject): StudioNode | undefined {
