@@ -160,7 +160,8 @@ class SMTPIntegrationTests(unittest.TestCase):
         self.assertEqual(recipient, "user@example.com")
         self.assertEqual(subject, "Your Partokens quota is running low")
         self.assertIn("$0.42", rendered.html)
-        self.assertIn(top_up_link, rendered.text)
+        self.assertNotIn(top_up_link, rendered.html)
+        self.assertNotIn(top_up_link, rendered.text)
         self.assertNotIn("额度", rendered.html)
         self.assertEqual(tags, ("quota-warning",))
 

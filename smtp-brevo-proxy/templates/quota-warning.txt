@@ -4,8 +4,7 @@ Your quota is running low
 
 Your remaining quota is {{ params.remaining_quota }}.
 
-Add funds now to keep your API requests running without interruption:
-{{ params.top_up_link }}
+Your API requests may be interrupted when the remaining quota is exhausted.
 
 This alert is based on your configured quota warning threshold.
 

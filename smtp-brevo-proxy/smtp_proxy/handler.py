@@ -109,8 +109,7 @@ class SMTPProxyHandler:
                         self._settings.quota_warning_allowed_hosts,
                     )
                     rendered = self._quota_warning_renderer.render(
-                        warning.remaining_quota,
-                        warning.top_up_link,
+                        warning.remaining_quota
                     )
                     subject = "Your Partokens quota is running low"
                     message_kind = "quota warning"

@@ -59,19 +59,18 @@ class PasswordResetTemplateTests(unittest.TestCase):
 
 
 class QuotaWarningTemplateTests(unittest.TestCase):
-    def test_renders_remaining_quota_and_top_up_link(self) -> None:
-        top_up_link = "https://partokens.com/wallet"
+    def test_renders_remaining_quota_without_recharge_action(self) -> None:
         rendered = QuotaWarningTemplateRenderer(TEMPLATE_DIR).render(
-            remaining_quota="$0.42",
-            top_up_link=top_up_link,
+            remaining_quota="$0.42"
         )
 
         for content in (rendered.html, rendered.text):
             self.assertIn("$0.42", content)
-            self.assertIn(top_up_link, content)
             self.assertNotIn("{{ params.", content)
+            self.assertNotIn("partokens.com/wallet", content)
         self.assertIn("Your quota is running low", rendered.html)
         self.assertIn("support@partokens.com", rendered.html)
+        self.assertNotIn(">Add funds<", rendered.html)
 
 
 if __name__ == "__main__":

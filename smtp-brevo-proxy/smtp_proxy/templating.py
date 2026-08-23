@@ -61,11 +61,8 @@ class QuotaWarningTemplateRenderer:
         self._html_template = self._environment.get_template("quota-warning.html")
         self._text_template = self._environment.get_template("quota-warning.txt")
 
-    def render(self, remaining_quota: str, top_up_link: str) -> RenderedEmail:
-        params = {
-            "remaining_quota": remaining_quota,
-            "top_up_link": top_up_link,
-        }
+    def render(self, remaining_quota: str) -> RenderedEmail:
+        params = {"remaining_quota": remaining_quota}
         return RenderedEmail(
             html=self._html_template.render(params=params),
             text=self._text_template.render(params=params),

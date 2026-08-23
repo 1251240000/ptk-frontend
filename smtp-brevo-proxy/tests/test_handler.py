@@ -196,7 +196,8 @@ class SMTPProxyHandlerTests(unittest.TestCase):
         _, subject, rendered, tags = brevo.calls[0]
         self.assertEqual(subject, "Your Partokens quota is running low")
         self.assertIn("$0.42", rendered.html)
-        self.assertIn(top_up_link, rendered.text)
+        self.assertNotIn(top_up_link, rendered.html)
+        self.assertNotIn(top_up_link, rendered.text)
         self.assertEqual(tags, ("quota-warning",))
         self.assertIn("Delivered quota warning email", logs.output[0])
 
