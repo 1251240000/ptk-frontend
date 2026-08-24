@@ -66,7 +66,7 @@ http://127.0.0.1:8080 {
 		reverse_proxy 127.0.0.1:5173
 	}
 
-	@technical path / /oauth /oauth/* /user/reset
+	@technical path / /oauth /oauth/* /user/reset /payment/return /wallet /usage-logs
 	handle @technical {
 		header {
 			Cache-Control "no-store"

@@ -15,9 +15,8 @@ const viewports = [
 const themes = ['light', 'dark'] as const
 
 async function settled(page: Page) {
-  await page.waitForLoadState('networkidle')
-  await page.evaluate(() => document.fonts.ready)
   await expect(page.locator('.r32-auth-form-shell')).toBeVisible()
+  await page.evaluate(() => document.fonts.ready)
 }
 
 async function box(locator: Locator) {

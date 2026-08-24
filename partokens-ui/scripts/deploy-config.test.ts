@@ -39,6 +39,14 @@ describe('frontend-only deployment', () => {
     }
   })
 
+  test('payment return routes remain owned by the Web SPA', () => {
+    const caddyfile = deployFile('Caddyfile')
+
+    expect(caddyfile).toContain('/wallet/return/?')
+    expect(caddyfile).toContain('|topup)')
+    expect(caddyfile).toContain('/payment/return /wallet /usage-logs')
+  })
+
   test('production listener is HTTP-only on port 8080 and cannot auto-upgrade to HTTPS', () => {
     const compose = deployFile('docker-compose.yml')
     const caddyfile = deployFile('Caddyfile')

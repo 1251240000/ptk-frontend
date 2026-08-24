@@ -57,6 +57,102 @@ test('compatibility entries redirect to locale-preserving canonical routes and k
   }
 })
 
+test('payment returns resolve locale and trust the server-side order status', async ({ page }) => {
+  await primeUserSession(page)
+  await installMockApi(page)
+
+  await page.goto('/payment/return?status=failed&order_id=FIXTURE-ORDER-19&provider=waffo')
+
+  await expect(page).toHaveURL(/\/en\/console\/wallet\/return\?status=failed&order_id=FIXTURE-ORDER-19&provider=waffo$/)
+  await expect(page.getByRole('heading', { name: 'Recharge successful' })).toBeVisible()
+  await expect(page.getByText('FIXTURE-ORDER-19', { exact: true }).first()).toBeVisible()
+  const paymentActions = page.getByRole('group', { name: 'Payment status' })
+  for (const name of ['Return to wallet', 'View billing history', 'Continue topping up']) {
+    const action = paymentActions.getByRole('link', { name })
+    await expect(action).toHaveCount(1)
+    await expect(action.locator('button')).toHaveCount(0)
+  }
+})
+
+test('payment returns keep polling until the server reaches a terminal state', async ({ page }) => {
+  let billingRequests = 0
+  await primeUserSession(page)
+  await installMockApi(page)
+  await page.route('**/api/user/topup/self**', async (route) => {
+    billingRequests += 1
+    const status = billingRequests >= 3 ? 'success' : 'pending'
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        message: '',
+        data: { items: [{ id: 20, amount: 50, money: 45, trade_no: 'POLL-ORDER-20', payment_method: 'waffo', create_time: 1_721_520_000, complete_time: status === 'success' ? 1_721_520_030 : 0, status }], total: 1, page: 1, page_size: 50 },
+      }),
+    })
+  })
+
+  await page.goto('/en/console/wallet/return?status=pending&order_id=POLL-ORDER-20&provider=waffo')
+
+  await expect(page.getByRole('heading', { name: 'Payment processing' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recharge successful' })).toBeVisible({ timeout: 8_000 })
+  expect(billingRequests).toBeGreaterThanOrEqual(3)
+})
+
+test('legacy payment return paths stay inside the localized SPA', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('partokens-locale', 'en')
+    window.sessionStorage.setItem('partokens-payment-return', JSON.stringify({
+      locale: 'en',
+      provider: 'waffo',
+      order_id: 'FIXTURE-ORDER-19',
+      created_at: Date.now(),
+      wallet_path: '/en/console/wallet',
+    }))
+  })
+  await primeUserSession(page)
+  await installMockApi(page)
+
+  await page.goto('/wallet?show_history=true')
+
+  await expect(page).toHaveURL(/\/en\/console\/wallet\/return\?status=unknown&order_id=FIXTURE-ORDER-19&provider=waffo$/)
+  await expect(page.getByRole('heading', { name: 'Recharge successful' })).toBeVisible()
+
+  await page.goto('/usage-logs?pay=fail&trade_no=FIXTURE-ORDER-19')
+  await expect(page).toHaveURL(/\/en\/console\/wallet\/return\?status=failed&trade_no=FIXTURE-ORDER-19$/)
+})
+
+test('identifier-free Stripe returns match only the unique recent provider order', async ({ page }) => {
+  const createdAt = Date.now()
+  await page.addInitScript(({ timestamp }) => {
+    window.localStorage.setItem('partokens-locale', 'en')
+    window.sessionStorage.setItem('partokens-payment-return', JSON.stringify({
+      locale: 'en',
+      provider: 'stripe',
+      created_at: timestamp,
+      wallet_path: '/en/console/wallet',
+    }))
+  }, { timestamp: createdAt })
+  await installMockApi(page)
+  await page.route('**/api/user/topup/self**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        message: '',
+        data: { items: [{ id: 21, amount: 50, money: 45, trade_no: 'STRIPE-ORDER-21', payment_method: 'stripe', payment_provider: 'stripe', create_time: Math.floor(createdAt / 1000), complete_time: Math.floor(createdAt / 1000) + 30, status: 'success' }], total: 1, page: 1, page_size: 50 },
+      }),
+    })
+  })
+
+  await page.goto('/usage-logs')
+
+  await expect(page).toHaveURL(/\/en\/console\/wallet\/return\?status=unknown&provider=stripe$/)
+  await expect(page.getByRole('heading', { name: 'Recharge successful' })).toBeVisible()
+  await expect(page.getByText('STRIPE-ORDER-21', { exact: true }).first()).toBeVisible()
+})
+
 test('canonical leaf routes retain locale and search across a full refresh', async ({ page }) => {
   await primeUserSession(page)
   await installMockApi(page)
@@ -871,6 +967,90 @@ test('canonical console API keys uses the token CRUD, status, batch, and reveal 
   expect(createBody).not.toContain('fixture-session-token')
   expect(consoleErrors).toEqual([])
   expect(pageErrors).toEqual([])
+})
+
+test('API key copy completes after a delayed reveal response while another browser tab is active', async ({ context, page }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:4174' })
+  const reveal = requestGate()
+  let markResponded: () => void = () => undefined
+  const responded = new Promise<void>((resolve) => { markResponded = resolve })
+
+  await primeUserSession(page)
+  await installMockApi(page)
+  await page.route('**/api/token/7/key', async (route) => {
+    reveal.markStarted()
+    await reveal.held
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, message: '', data: { key: 'delayed-background-tab-key' } }),
+    })
+    markResponded()
+  })
+  await page.goto('/en/console/keys')
+  await expect(page.getByText('Studio fixture', { exact: true }).first()).toBeVisible()
+  await page.evaluate(() => navigator.clipboard.writeText('clipboard-sentinel'))
+
+  const otherTab = await context.newPage()
+  await page.bringToFront()
+  await page.getByRole('button', { name: 'Copy key Studio fixture' }).click()
+  await reveal.started
+  await otherTab.bringToFront()
+  reveal.release()
+  await responded
+  await otherTab.waitForTimeout(100)
+
+  await page.bringToFront()
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('sk-delayed-background-tab-key')
+  await expect(page.getByText('API key copied.', { exact: true })).toBeVisible()
+  await otherTab.close()
+})
+
+test('API key copy completes after leaving the API keys page before the reveal response', async ({ context, page }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:4174' })
+  const reveal = requestGate()
+  let markResponded: () => void = () => undefined
+  const responded = new Promise<void>((resolve) => { markResponded = resolve })
+
+  await primeUserSession(page)
+  await installMockApi(page)
+  await page.route('**/api/token/7/key', async (route) => {
+    reveal.markStarted()
+    await reveal.held
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, message: '', data: { key: 'delayed-page-navigation-key' } }),
+    })
+    markResponded()
+  })
+  await page.goto('/en/console/keys')
+  await expect(page.getByText('Studio fixture', { exact: true }).first()).toBeVisible()
+  await page.evaluate(() => navigator.clipboard.writeText('clipboard-sentinel'))
+
+  await page.getByRole('button', { name: 'Copy key Studio fixture' }).click()
+  await reveal.started
+  await page.getByRole('link', { name: 'Overview' }).click()
+  await page.waitForURL('**/en/console/overview')
+  reveal.release()
+  await responded
+
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('sk-delayed-page-navigation-key')
+})
+
+test('API key copy reuses the localized reveal flow when deferred clipboard writes are unavailable', async ({ page }) => {
+  const requests: string[] = []
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'ClipboardItem', { configurable: true, value: undefined })
+  })
+  await primeUserSession(page)
+  await installMockApi(page, { onRequest: (request) => requests.push(`${request.method()} ${new URL(request.url()).pathname}`) })
+  await page.goto('/zh-CN/console/keys')
+
+  await page.getByRole('button', { name: '复制密钥 Studio fixture' }).click()
+  await expect(page.getByRole('dialog', { name: '显示完整密钥？' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '确认显示' })).toBeVisible()
+  expect(requests.filter((request) => request === 'POST /api/token/7/key')).toEqual([])
 })
 
 test('canonical console API key reveal expires from memory without closing the confirmation surface', async ({ page }) => {

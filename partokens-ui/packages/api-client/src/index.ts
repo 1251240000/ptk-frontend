@@ -82,6 +82,7 @@ export type CurrentUser = {
   linux_do_id?: string
   oidc_id?: string
   status?: number
+  language?: string
 }
 
 export type LoginSession = {
@@ -297,10 +298,13 @@ export type TopupRecord = {
   amount: number
   money: number
   trade_no: string
+  order_id?: string
+  session_id?: string
   payment_method: string
+  payment_provider?: string
   create_time: number
   complete_time?: number
-  status: 'success' | 'pending' | 'expired' | string
+  status: 'success' | 'pending' | 'failed' | 'expired' | 'cancelled' | string
 }
 
 export type SubscriptionPlan = {
@@ -355,6 +359,8 @@ export type CheckoutData = {
   session_id?: string
   expires_at?: number | string
   order_id?: string
+  trade_no?: string
+  out_trade_no?: string
   token?: string
   token_expires_at?: number | string
   [key: string]: unknown

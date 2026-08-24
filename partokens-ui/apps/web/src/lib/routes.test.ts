@@ -10,6 +10,7 @@ import {
   isConsoleViewportSection,
   localizedLocation,
   localizedUserPath,
+  paymentReturnPath,
 } from './routes'
 
 describe('localized user routes', () => {
@@ -59,5 +60,10 @@ describe('localized user routes', () => {
     expect(isConsoleViewportSection(consoleCompatibilityBaseSegment)).toBe(true)
     expect(isConsoleViewportSection('docs')).toBe(false)
     expect(Object.values(consoleRouteMap).every((route) => !route.path.includes(consoleCompatibilityBaseSegment))).toBe(true)
+  })
+
+  it('builds the stable localized payment return path', () => {
+    expect(paymentReturnPath('en')).toBe('/en/console/wallet/return')
+    expect(paymentReturnPath('not-a-locale')).toBe('/zh-CN/console/wallet/return')
   })
 })

@@ -70,7 +70,7 @@
 		file_server
 	}
 
-	@localizedUI path_regexp localizedUI ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(?:/?|/(?:docs(?:/(?:getting-started/(?:authentication|first-request)|guides/(?:models-and-groups|chat|images|image-studio|usage-logs|errors-and-limits)|api/(?:chat-completions|responses|embeddings|image-generations|image-edits|audio-transcriptions|models)))?|about|notices|status)/?|/legal/(?:user-agreement|service-agreement|privacy-policy)/?|/auth/(?:sign-in|sign-up|verify-email|forgot-password|reset|otp)/?|/console(?:/?|/(?:overview|analytics|keys|usage-logs|wallet|profile|security|connections|notifications)/?|/(?:playground|studio)(?:/[^/]+)?/?)|/console-foundation(?:/?|/(?:overview|analytics|keys|logs)/?)|/console-(?:security|connections|notifications)/?)$
+	@localizedUI path_regexp localizedUI ^/(zh-CN|zh-TW|en|ja|ru|fr|vi)(?:/?|/(?:docs(?:/(?:getting-started/(?:authentication|first-request)|guides/(?:models-and-groups|chat|images|image-studio|usage-logs|errors-and-limits)|api/(?:chat-completions|responses|embeddings|image-generations|image-edits|audio-transcriptions|models)))?|about|notices|status)/?|/legal/(?:user-agreement|service-agreement|privacy-policy)/?|/auth/(?:sign-in|sign-up|verify-email|forgot-password|reset|otp)/?|/console(?:/?|/(?:overview|analytics|keys|usage-logs|wallet|profile|security|connections|notifications|topup)/?|/wallet/return/?|/(?:playground|studio)(?:/[^/]+)?/?)|/console-foundation(?:/?|/(?:overview|analytics|keys|logs|topup)/?)|/console-(?:security|connections|notifications)/?)$
 	handle @localizedUI {
 		header {
 			Cache-Control "no-store"
@@ -87,7 +87,7 @@
 	}
 
 	# Backend reset emails use /user/reset; the Web router canonicalizes it to /{locale}/auth/reset.
-	@technicalUI path / /oauth /oauth/* /user/reset
+	@technicalUI path / /oauth /oauth/* /user/reset /payment/return /wallet /usage-logs
 	handle @technicalUI {
 		header {
 			Cache-Control "no-store"

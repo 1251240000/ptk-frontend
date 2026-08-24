@@ -45,6 +45,12 @@ export function canonicalConsoleRoute(page: CanonicalConsolePage) {
   return consoleRouteMap[page].route
 }
 
+export const paymentReturnRoute = '/$locale/console/wallet/return' as const
+
+export function paymentReturnPath(locale: string | undefined) {
+  return localizedUserPath(locale, '/console/wallet/return')
+}
+
 export function canonicalConsolePath(locale: string | undefined, page: CanonicalConsolePage): string {
   return localizedUserPath(locale, consoleRouteMap[page].path)
 }

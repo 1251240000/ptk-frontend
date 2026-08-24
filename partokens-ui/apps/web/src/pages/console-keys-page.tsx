@@ -261,6 +261,32 @@ async function projectEnvelope<T>(request: () => Promise<ApiEnvelope<unknown>>, 
   }
 }
 
+function projectRevealedKey(data: unknown): string {
+  const key = sourceObject(data)?.key
+  if (typeof key !== 'string' || key.length < 8 || key.length > 512 || /[\u0000-\u001f\u007f]/.test(key)) {
+    throw new KeyContractError('The reveal response did not include a valid key.')
+  }
+  return withApiKeyPrefix(key)
+}
+
+function fetchRevealedKey(id: number): Promise<string> {
+  return projectEnvelope(() => revealToken(id), projectRevealedKey)
+}
+
+function supportsDeferredClipboardWrite(): boolean {
+  return typeof ClipboardItem !== 'undefined'
+    && typeof navigator !== 'undefined'
+    && typeof navigator.clipboard?.write === 'function'
+}
+
+function copyRevealedKey(id: number): Promise<void> {
+  const key = fetchRevealedKey(id)
+  const item = new ClipboardItem({
+    'text/plain': key.then((value) => new Blob([value], { type: 'text/plain' })),
+  })
+  return navigator.clipboard.write([item])
+}
+
 function errorMessage(error: unknown, fallbackKey: string, t: TFunction): string {
   const status = consoleErrorStatus(error)
   const fallback = t(fallbackKey)
@@ -880,17 +906,10 @@ function KeyActions({
   )
 }
 
-function KeyValue({ apiKey }: { apiKey: KeyRecord }) {
+function KeyValue({ apiKey, onReveal }: { apiKey: KeyRecord; onReveal: (trigger: HTMLButtonElement) => void }) {
   const { t } = useTranslation()
   const copy = useMutation({
-    mutationFn: () => projectEnvelope(
-      () => revealToken(apiKey.id),
-      async (data) => {
-        const key = sourceObject(data)?.key
-        if (typeof key !== 'string' || key.length < 8 || key.length > 512 || /[\u0000-\u001f\u007f]/.test(key)) throw new KeyContractError('The reveal response did not include a valid key.')
-        await navigator.clipboard.writeText(withApiKeyPrefix(key))
-      },
-    ),
+    mutationFn: () => copyRevealedKey(apiKey.id),
     onSuccess: () => toast.success(t('API key copied.')),
     onError: (error) => toast.error(errorMessage(error, 'Unable to copy key', t), { duration: 6000 }),
   })
@@ -907,7 +926,10 @@ function KeyValue({ apiKey }: { apiKey: KeyRecord }) {
             className="size-7 shrink-0"
             aria-label={`${t('Copy key')} ${apiKey.name}`}
             disabled={copy.isPending}
-            onClick={() => copy.mutate()}
+            onClick={(event) => {
+              if (supportsDeferredClipboardWrite()) copy.mutate()
+              else onReveal(event.currentTarget)
+            }}
           >
             {copy.isPending ? <LoaderCircle className="animate-spin" /> : <Copy />}
           </Button>
@@ -1037,14 +1059,10 @@ export function ConsoleKeysPage() {
     },
   })
   const reveal = useMutation({
-    mutationFn: (id: number) => projectEnvelope(
-      () => revealToken(id),
-      (data) => {
-        const key = sourceObject(data)?.key
-        if (typeof key !== 'string' || key.length < 8 || key.length > 512 || /[\u0000-\u001f\u007f]/.test(key)) throw new KeyContractError('The reveal response did not include a valid key.')
-        if (mounted.current) setSecret(withApiKeyPrefix(key))
-      },
-    ),
+    mutationFn: async (id: number) => {
+      const key = await fetchRevealedKey(id)
+      if (mounted.current) setSecret(key)
+    },
     gcTime: 0,
     onError: (error) => {
       toast.error(errorMessage(error, 'Unable to reveal key', t), { duration: 6000 })
@@ -1137,7 +1155,7 @@ export function ConsoleKeysPage() {
                   <TableRow key={record.id}>
                     {selected.length ? <TableCell className="ps-4"><Checkbox aria-label={`${t('Select')} ${record.name}`} checked={selected.includes(record.id)} disabled={!selected.includes(record.id) && selected.length >= maxBatchSize} onCheckedChange={(checked) => checked ? selectRecords([record]) : setSelected((current) => current.filter((id) => id !== record.id))} /></TableCell> : null}
                     <TableCell className={`max-w-48 font-medium ${selected.length ? '' : 'ps-4'}`}><span className="block truncate" title={record.name}>{record.name}</span></TableCell>
-                    <TableCell className="max-w-56"><KeyValue apiKey={record} /></TableCell>
+                    <TableCell className="max-w-56"><KeyValue apiKey={record} onReveal={(trigger) => openReveal(record, trigger)} /></TableCell>
                     <TableCell className="max-w-52"><GroupValue group={record.group} ratio={record.group ? groupRatios.get(record.group) : undefined} /></TableCell>
                     <TableCell><StatusBadge status={record.status} /></TableCell>
                     <TableCell className="font-mono text-xs">{record.unlimitedQuota ? t('Unlimited') : formatQuota(record.remainQuota, locale)}</TableCell>
@@ -1154,7 +1172,7 @@ export function ConsoleKeysPage() {
               <article key={record.id} className="space-y-4 p-4">
                 <div className="flex min-w-0 items-start gap-3">
                   {selected.length ? <Checkbox className="mt-1" aria-label={`${t('Select')} ${record.name}`} checked={selected.includes(record.id)} disabled={!selected.includes(record.id) && selected.length >= maxBatchSize} onCheckedChange={(checked) => checked ? selectRecords([record]) : setSelected((current) => current.filter((id) => id !== record.id))} /> : null}
-                  <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{record.name}</h2><div className="mt-1"><KeyValue apiKey={record} /></div></div>
+                  <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-medium">{record.name}</h2><div className="mt-1"><KeyValue apiKey={record} onReveal={(trigger) => openReveal(record, trigger)} /></div></div>
                   {keyActions(record)}
                 </div>
                 <div className="flex flex-wrap gap-2"><StatusBadge status={record.status} /></div>

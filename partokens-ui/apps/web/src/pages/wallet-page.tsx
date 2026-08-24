@@ -61,6 +61,7 @@ import { isAppLocale } from '@partokens/i18n'
 import { AccountDataState, AccountPageHeader, AccountSectionHeading } from '@/features/account/account-ui'
 import { extractItems, formatCurrency, formatDate, formatInteger, quotaUnitsToDollars } from '@/lib/format'
 import { isConfiguredTopupAmount, starterPlanId } from '@/lib/wallet'
+import { savePaymentReturnContext } from '@/lib/payment-return'
 import { useSessionStore } from '@/stores/session'
 
 type TopupProvider = 'epay' | 'stripe' | 'creem' | 'waffo' | 'waffo-pancake'
@@ -133,6 +134,12 @@ function checkoutUrl(response: CheckoutEnvelope): string | null {
     || safeHttpUrl(response.data?.checkout_url)
     || safeHttpUrl(response.data?.payment_url)
     || safeHttpUrl(response.url)
+}
+
+function checkoutIdentifier(response: CheckoutEnvelope, key: 'order_id' | 'trade_no' | 'out_trade_no'): string | undefined {
+  if (!response.data || typeof response.data !== 'object') return undefined
+  const value = response.data[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
 function continueCheckout(response: CheckoutEnvelope) {
@@ -552,6 +559,14 @@ export function WalletPage() {
   const subscriptionsTriggerRef = useRef<HTMLElement | null>(null)
   const transferTriggerRef = useRef<HTMLButtonElement | null>(null)
 
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search)
+    if (query.get('show_history') !== 'true') return
+    window.requestAnimationFrame(() => {
+      document.getElementById('wallet-billing-history')?.scrollIntoView({ block: 'start' })
+    })
+  }, [])
+
   const topup = useQuery({ queryKey: ['topup-info'], queryFn: getTopupInfo, retry: false })
   const plans = useQuery({ queryKey: ['subscription-plans'], queryFn: getSubscriptionPlans, retry: false })
   const subscriptions = useQuery({ queryKey: ['self-subscriptions'], queryFn: getSelfSubscriptions, retry: false })
@@ -615,7 +630,7 @@ export function WalletPage() {
           pay_method_index: nextIntent.method.payMethodIndex,
         })
         if (!response.success && response.message !== 'success') throw new Error(response.message || t('Payment request failed'))
-        return { response, balance: false }
+        return { response, balance: false, intent: nextIntent }
       }
       if (!nextIntent.method) throw new Error(t('No payment method available'))
       const response = await requestSubscriptionPayment({
@@ -624,16 +639,27 @@ export function WalletPage() {
         payment_method: nextIntent.method.paymentMethod,
       })
       if (!response.success && response.message !== 'success') throw new Error(response.message || t('Payment request failed'))
-      return { response, balance: nextIntent.method.provider === 'balance' }
+      return { response, balance: nextIntent.method.provider === 'balance', intent: nextIntent }
     },
-    onSuccess: ({ response, balance }) => {
+    onSuccess: ({ response, balance, intent: purchaseIntent }) => {
       setIntent(null)
       if (balance) {
         toast.success(t('Subscription purchased'), { duration: 6000 })
         void Promise.all([subscriptions.refetch(), refreshUser()]).catch(() => undefined)
         return
       }
-      if (!continueCheckout(response)) toast.error(t('Payment destination unavailable'), { duration: 6000 })
+      const checkoutAvailable = checkoutUrl(response) != null
+      if (purchaseIntent.kind === 'topup' && checkoutAvailable) {
+        savePaymentReturnContext({
+          locale,
+          provider: purchaseIntent.method?.provider,
+          order_id: checkoutIdentifier(response, 'order_id'),
+          trade_no: checkoutIdentifier(response, 'trade_no') || checkoutIdentifier(response, 'out_trade_no'),
+          created_at: Date.now(),
+          wallet_path: window.location.pathname,
+        })
+      }
+      if (!checkoutAvailable || !continueCheckout(response)) toast.error(t('Payment destination unavailable'), { duration: 6000 })
     },
     onError: (cause) => {
       setIntent(null)
@@ -912,7 +938,7 @@ export function WalletPage() {
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-lg border">
+      <section id="wallet-billing-history" className="scroll-mt-4 overflow-hidden rounded-lg border">
         <AccountSectionHeading eyebrow={t('History').toUpperCase()} title={t('Billing history')} icon={ReceiptText} action={<Button type="button" variant="outline" size="icon" aria-label={t('Refresh')} disabled={refreshing || billing.isFetching} onClick={() => void refreshWallet()}><RefreshCw className={refreshing || billing.isFetching ? 'animate-spin' : ''} /></Button>} />
         <div className="border-b p-4"><Label htmlFor="billing-search" className="sr-only">{t('Search order number')}</Label><Input id="billing-search" className="max-w-sm" value={billingSearch} onChange={(event) => { setBillingSearch(event.target.value); setBillingPage(1) }} placeholder={t('Search order number')} /></div>
         <AccountDataState loading={billing.isLoading} error={billing.isError && !billing.data ? t('Interface data unavailable') : null} empty={!billing.isLoading && billingRecords.length === 0} emptyTitle={t('No billing history')} emptyDescription={t('Completed top-ups and payments will appear here.')} retryLabel={t('Retry')} onRetry={() => void billing.refetch()}>

@@ -15,8 +15,10 @@ import {
   consoleBaseSegment,
   consoleCompatibilityBaseSegment,
   consoleRouteMap,
+  paymentReturnPath,
 } from '@/lib/routes'
 import { useSessionStore } from '@/stores/session'
+import { hasPaymentReturnSignals, normalizePaymentReturnParams, paymentReturnQuery, resolvePaymentLocale, readPaymentReturnContext, savePaymentReturnContext } from '@/lib/payment-return'
 
 function GlobalRoutePending() {
   const { t } = useTranslation()
@@ -159,7 +161,7 @@ function AuthenticatedUserBoundary({ children }: { children: ReactNode }) {
     if (!resolved) return
     if (!user) {
       const locale = isAppLocale(params.locale) ? params.locale : resolvePreferredLocale()
-      const returnTo = `${window.location.pathname}${window.location.search}`
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
       window.location.assign(`/${locale}/auth/sign-in?redirect=${encodeURIComponent(returnTo)}`)
     }
   }, [params.locale, resolved, user])
@@ -183,6 +185,20 @@ const usageLogsComponent = lazyRouteComponent(() => import(/* webpackChunkName: 
 const usageLogsRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.usageLogs.segment, component: usageLogsComponent, ...consoleRouteAsyncOptions })
 const walletComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-wallet" */ '@/pages/wallet-page'), 'WalletPage')
 const walletRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.wallet.segment, component: walletComponent, ...consoleRouteAsyncOptions })
+const paymentReturnComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-payment-return" */ '@/pages/payment-return-page'), 'PaymentReturnPage')
+const paymentReturnPageRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'wallet/return', component: paymentReturnComponent })
+const consoleTopupCompatibilityRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'topup', beforeLoad: ({ params, location }) => {
+  const rawSearch = typeof window === 'undefined' ? '' : window.location.search
+  if (hasPaymentReturnSignals(rawSearch)) {
+    if (typeof window !== 'undefined') {
+      const normalized = normalizePaymentReturnParams(rawSearch)
+      window.location.replace(`${paymentReturnPath(params.locale)}?${paymentReturnQuery(normalized)}${location.hash || ''}`)
+      return
+    }
+    throw redirect({ to: '/$locale/console/wallet/return', params: { locale: params.locale }, search: true, hash: location.hash, replace: true })
+  }
+  throw redirect({ to: canonicalConsoleRoute('wallet'), params: { locale: params.locale }, search: true, hash: location.hash, replace: true })
+} })
 const profileComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-profile" */ '@/pages/profile-page'), 'ProfilePage')
 const profileRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.profile.segment, component: profileComponent, ...consoleRouteAsyncOptions })
 const profileSecurityRoute = createRoute({ getParentRoute: () => consoleRoute, path: 'security', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'security' }, replace: true }) } })
@@ -201,6 +217,18 @@ const consoleCompatibilityOverviewRoute = createRoute({ getParentRoute: () => co
 const consoleCompatibilityAnalyticsRoute = createRoute({ getParentRoute: () => consoleCompatibilityRoute, path: consoleRouteMap.analytics.compatibilitySegment, beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('analytics'), params: { locale: params.locale }, search: true, replace: true }) } })
 const consoleCompatibilityKeysRoute = createRoute({ getParentRoute: () => consoleCompatibilityRoute, path: consoleRouteMap.keys.compatibilitySegment, beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('keys'), params: { locale: params.locale }, search: true, replace: true }) } })
 const consoleCompatibilityUsageLogsRoute = createRoute({ getParentRoute: () => consoleCompatibilityRoute, path: consoleRouteMap.usageLogs.compatibilitySegment, beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('usageLogs'), params: { locale: params.locale }, search: true, replace: true }) } })
+const consoleCompatibilityTopupRoute = createRoute({ getParentRoute: () => consoleCompatibilityRoute, path: 'topup', beforeLoad: ({ params, location }) => {
+  const rawSearch = typeof window === 'undefined' ? '' : window.location.search
+  if (hasPaymentReturnSignals(rawSearch)) {
+    if (typeof window !== 'undefined') {
+      const normalized = normalizePaymentReturnParams(rawSearch)
+      window.location.replace(`${paymentReturnPath(params.locale)}?${paymentReturnQuery(normalized)}${location.hash || ''}`)
+      return
+    }
+    throw redirect({ to: '/$locale/console/wallet/return', params: { locale: params.locale }, search: true, hash: location.hash, replace: true })
+  }
+  throw redirect({ to: canonicalConsoleRoute('wallet'), params: { locale: params.locale }, search: true, hash: location.hash, replace: true })
+} })
 
 const legacyProfileSecurityRoute = createRoute({ getParentRoute: () => localeRoute, path: 'console-security', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'security' }, replace: true }) } })
 const legacyProfileConnectionsRoute = createRoute({ getParentRoute: () => localeRoute, path: 'console-connections', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('profile'), params: { locale: params.locale }, search: { tab: 'connections' }, replace: true }) } })
@@ -221,10 +249,79 @@ const technicalResetRoute = createRoute({
   },
 })
 
-const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, profileRoute, profileSecurityRoute, profileConnectionsRoute, profileNotificationsRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
-const consoleCompatibilityTree = consoleCompatibilityRoute.addChildren([consoleCompatibilityIndexRoute, consoleCompatibilityOverviewRoute, consoleCompatibilityAnalyticsRoute, consoleCompatibilityKeysRoute, consoleCompatibilityUsageLogsRoute])
+function paymentEntryLocale(rawSearch: string, context: ReturnType<typeof readPaymentReturnContext>) {
+  const query = new URLSearchParams(rawSearch)
+  return resolvePaymentLocale({
+    langCode: query.get('lang_code'),
+    lang: query.get('lang'),
+    sessionLocale: context?.locale,
+    userLocale: useSessionStore.getState().user?.language,
+    storedLocale: typeof window === 'undefined' ? undefined : window.localStorage.getItem('partokens-locale'),
+    browserLocale: typeof window === 'undefined' ? undefined : window.navigator.language,
+  })
+}
+
+function redirectPaymentEntry(path: 'wallet' | 'usage-logs', rawSearch: string) {
+  const query = new URLSearchParams(rawSearch)
+  const context = readPaymentReturnContext()
+  const hasContextIdentifier = Boolean(context?.order_id || context?.trade_no)
+  const isLegacyWalletReturn = path === 'wallet' && query.get('show_history') === 'true' && hasContextIdentifier
+  const isLegacyUsageReturn = path === 'usage-logs' && context != null
+  const locale = paymentEntryLocale(rawSearch, context)
+  if (hasPaymentReturnSignals(rawSearch) || isLegacyWalletReturn || isLegacyUsageReturn) {
+    const normalized = normalizePaymentReturnParams(rawSearch)
+    const hasQueryIdentifier = Boolean(normalized.order_id || normalized.trade_no || normalized.session_id)
+    const merged: typeof normalized = {
+      ...normalized,
+      order_id: normalized.order_id || (!hasQueryIdentifier ? context?.order_id : undefined),
+      trade_no: normalized.trade_no || (!hasQueryIdentifier ? context?.trade_no : undefined),
+      provider: normalized.provider || (!hasQueryIdentifier ? context?.provider : undefined),
+    }
+    if (typeof window !== 'undefined') {
+      window.location.replace(`${paymentReturnPath(locale)}?${paymentReturnQuery(merged)}`)
+      return
+    }
+    throw redirect({ to: '/$locale/console/wallet/return', params: { locale }, search: true, replace: true })
+  }
+  throw redirect({ to: canonicalConsoleRoute(path === 'wallet' ? 'wallet' : 'usageLogs'), params: { locale }, search: true, replace: true })
+}
+
+const legacyWalletEntryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'wallet',
+  beforeLoad: () => redirectPaymentEntry('wallet', typeof window === 'undefined' ? '' : window.location.search),
+})
+
+const legacyUsageLogsEntryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'usage-logs',
+  beforeLoad: () => redirectPaymentEntry('usage-logs', typeof window === 'undefined' ? '' : window.location.search),
+})
+
+const paymentReturnEntryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'payment/return',
+  beforeLoad: () => {
+    const rawSearch = typeof window === 'undefined' ? '' : window.location.search
+    const query = normalizePaymentReturnParams(rawSearch)
+    const context = readPaymentReturnContext()
+    const hasQueryIdentifier = Boolean(query.order_id || query.trade_no || query.session_id)
+    const locale = paymentEntryLocale(rawSearch, context)
+    if (typeof window !== 'undefined') {
+      savePaymentReturnContext({ locale, provider: query.provider || (!hasQueryIdentifier ? context?.provider : undefined), order_id: query.order_id || (!hasQueryIdentifier ? context?.order_id : undefined), trade_no: query.trade_no || (!hasQueryIdentifier ? context?.trade_no : undefined), created_at: context?.created_at || Date.now(), wallet_path: context?.wallet_path || `/${locale}/console/wallet` })
+    }
+    if (typeof window !== 'undefined') {
+      window.location.replace(`${paymentReturnPath(locale)}?${paymentReturnQuery(query)}`)
+      return
+    }
+    throw redirect({ to: '/$locale/console/wallet/return', params: { locale }, search: true, replace: true })
+  },
+})
+
+const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, paymentReturnPageRoute, consoleTopupCompatibilityRoute, profileRoute, profileSecurityRoute, profileConnectionsRoute, profileNotificationsRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
+const consoleCompatibilityTree = consoleCompatibilityRoute.addChildren([consoleCompatibilityIndexRoute, consoleCompatibilityOverviewRoute, consoleCompatibilityAnalyticsRoute, consoleCompatibilityKeysRoute, consoleCompatibilityUsageLogsRoute, consoleCompatibilityTopupRoute])
 const localeTree = localeRoute.addChildren([homeRoute, docsRoute, ...docsCompatibilityRoutes, aboutRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, verifyEmailRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree, legacyProfileSecurityRoute, legacyProfileConnectionsRoute, legacyProfileNotificationsRoute])
-const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute])
+const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute, legacyWalletEntryRoute, legacyUsageLogsEntryRoute, paymentReturnEntryRoute])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultPendingComponent: GlobalRoutePending, scrollRestoration: true })
 

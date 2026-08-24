@@ -71,7 +71,7 @@ test('all seven locales publish localized documentation without fallback', async
   await installMockApi(page)
 
   for (const { locale, summary } of localizedDocsCases) {
-    await page.goto(`/${locale}/docs`)
+    await page.goto(`/${locale}/docs`, { waitUntil: 'domcontentloaded' })
     await expect(page.locator('.r3-docs-article')).toBeVisible()
     await expect(page.locator('.r3-docs-hero > p')).toHaveText(summary)
     await expect(page.locator('html')).toHaveAttribute('lang', locale)
@@ -83,7 +83,7 @@ test('all seven locales expose localized deep articles and search text', async (
   await installMockApi(page)
 
   for (const { locale, deepHeading, search, searchResult } of localizedDocsCases) {
-    await page.goto(`/${locale}/docs#docs/first-request`)
+    await page.goto(`/${locale}/docs#docs/first-request`, { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: deepHeading, level: 2 })).toBeVisible()
     await expect(page.locator('.r3-docs-language-fallback')).toHaveCount(0)
 
@@ -208,19 +208,19 @@ test('public product links preserve their intended workspace through sign-in', a
 
 test('localized public metadata and the 404 surface follow the active locale', async ({ page }) => {
   await installMockApi(page)
-  await page.goto('/fr/status')
+  await page.goto('/fr/status', { waitUntil: 'domcontentloaded' })
 
   await expect(page).toHaveTitle('État du service | Partokens')
   await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', 'Consultez la disponibilité actuelle et les informations de déploiement de l’API Partokens.')
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${new URL(page.url()).origin}/fr/status`)
   await expect(page.locator('link[rel="alternate"]')).toHaveCount(8)
 
-  await page.goto('/ja/auth/sign-in')
+  await page.goto('/ja/auth/sign-in', { waitUntil: 'domcontentloaded' })
   await expect(page).toHaveTitle('ログイン | Partokens')
   await expect(page.locator('meta[name="description"]')).not.toHaveAttribute('content', 'Partokens model access, usage, and account console')
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${new URL(page.url()).origin}/ja/auth/sign-in`)
 
-  await page.goto('/fr/not-published')
+  await page.goto('/fr/not-published', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Page introuvable' })).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow')
