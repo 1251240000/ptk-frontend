@@ -501,3 +501,197 @@ export async function primeUserSession(page: Page) {
     window.localStorage.setItem('partokens-locale', 'en')
   })
 }
+
+export async function installMockAdminApi(page: Page) {
+  let modelTaskRequested = false
+  let modelsDiscovered = false
+  let configuredModels = ['gpt-4.1-mini', 'retired-model']
+  const channel = () => ({
+    id: 'lc_fixture',
+    name: 'OpenAI 主渠道',
+    channel_type: 1,
+    base_url: 'https://api.example.test/v1',
+    credential_fingerprint: 'sha256:12345678...cdef',
+    cost_ratio: 1.125,
+    models: configuredModels,
+    note: 'E2E fixture',
+    template_channel_id: 10,
+    enabled: true,
+    state: 'active',
+    status: 'available',
+    groups: 1,
+    attempt_layers: 1,
+    record_count: 2,
+    latest_test_time: 1_777_000_000,
+    response_time: 220,
+    physical_records: [{
+      channel_id: 10,
+      logical_id: 'lc_fixture',
+      kind: 'template',
+      group_name: null,
+      attempt: null,
+      route_revision: null,
+      status: 2,
+      name: 'OpenAI 主渠道 · credential template',
+      models: configuredModels.join(','),
+      priority: 0,
+      weight: 0,
+      test_time: 1_777_000_000,
+      response_time: 220,
+      status_reason: null,
+      drift: 0,
+      observed_at: 1_777_000_000,
+    }],
+    updated_at: 1_777_000_000,
+    model_discovery: modelsDiscovered ? {
+      logical_id: 'lc_fixture',
+      fetched_at: 1_777_000_050,
+      source: 'new-api channel model endpoint',
+      status: 'success',
+      models: [
+        { id: 'gpt-4.1-mini', name: 'gpt-4.1-mini', configured: true },
+        { id: 'retired-model', name: 'retired-model', configured: true },
+        { id: 'gpt-4.1', name: 'gpt-4.1', configured: false },
+      ],
+      error: null,
+    } : null,
+    latest_model_test: null,
+  })
+  const testTask = () => ({
+    id: 'mt_fixture',
+    logical_id: 'lc_fixture',
+    status: modelTaskRequested ? 'partial' : 'pending',
+    total: 2,
+    completed: modelTaskRequested ? 2 : 0,
+    progress: modelTaskRequested ? 100 : 0,
+    available_count: modelTaskRequested ? 1 : 0,
+    failed_count: modelTaskRequested ? 1 : 0,
+    cancel_requested: false,
+    results: modelTaskRequested ? [
+      { model_id: 'gpt-4.1-mini', name: 'gpt-4.1-mini', status: 'available', latency_ms: 180, error: null, tested_at: 1_777_000_100 },
+      { model_id: 'retired-model', name: 'retired-model', status: 'unavailable', latency_ms: 90, error: '模型不存在或渠道未提供该模型', tested_at: 1_777_000_100 },
+    ] : [],
+    created_at: 1_777_000_090,
+    updated_at: 1_777_000_100,
+  })
+  await page.route('**/admin-api/**', async (route) => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname.replace(/\/$/, '')
+    if (path === '/admin-api/v1/bootstrap') {
+      await json(route, envelope({
+        channels: [channel()],
+        groups: ['default', 'premium'],
+        retry_times: 2,
+        routes: [],
+        monitor: {
+          id: 1,
+          observed_at: 1_777_000_000,
+          status: 'healthy',
+          summary: {
+            observed_at: 1_777_000_000,
+            monitoring_available: true,
+            logical_channels: 0,
+            route_records: 0,
+            enabled_route_records: 0,
+            auto_disabled_records: 0,
+            nonstandard_records: 0,
+            issue_count: 0,
+            attempts_24h: 0,
+            success_rate_24h: null,
+          },
+          details: { issues: [], channel_metrics: {}, physical_records: [] },
+          error: null,
+        },
+        changes: [],
+      }))
+      return
+    }
+    if (path === '/admin-api/v1/channels/lc_fixture/copy') {
+      const body = request.postDataJSON() as { name?: string; channel_type?: number; base_url?: string; cost_ratio?: number; models?: string[] }
+      await json(route, envelope({
+        ...channel(),
+        id: 'lc_fixture_copy',
+        name: body.name || 'OpenAI 主渠道 · 副本',
+        channel_type: body.channel_type || 1,
+        base_url: body.base_url || 'https://api.example.test/v1',
+        cost_ratio: body.cost_ratio ?? 1.125,
+        models: body.models?.length ? body.models : configuredModels,
+        credential_fingerprint: 'sha256:87654321...fedc',
+        template_channel_id: 11,
+      }))
+      return
+    }
+    if (path === '/admin-api/v1/channels/lc_fixture/models/discover') {
+      modelsDiscovered = true
+      await json(route, envelope({
+        logical_id: 'lc_fixture',
+        fetched_at: 1_777_000_050,
+        source: 'new-api channel model endpoint',
+        status: 'success',
+        models: [
+          { id: 'gpt-4.1-mini', name: 'gpt-4.1-mini', configured: true },
+          { id: 'retired-model', name: 'retired-model', configured: true },
+          { id: 'gpt-4.1', name: 'gpt-4.1', configured: false },
+        ],
+        error: null,
+      }))
+      return
+    }
+    if (path === '/admin-api/v1/channels/lc_fixture/models/test') {
+      modelTaskRequested = true
+      await json(route, envelope(testTask()))
+      return
+    }
+    if (path === '/admin-api/v1/model-tests/mt_fixture') {
+      await json(route, envelope(testTask()))
+      return
+    }
+    if (path === '/admin-api/v1/channels/lc_fixture/models/remove/preview') {
+      await json(route, envelope({
+        logical_id: 'lc_fixture',
+        logical_name: 'OpenAI 主渠道',
+        remove_models: ['retired-model'],
+        retain_models: ['gpt-4.1-mini'],
+        latest_test_id: 'mt_fixture',
+        physical_records: [{
+          channel_id: 10,
+          kind: 'template',
+          name: 'OpenAI 主渠道 · credential template',
+          before_models: ['gpt-4.1-mini', 'retired-model'],
+          after_models: ['gpt-4.1-mini'],
+          before_model_mapping: '{}',
+          after_model_mapping: '{}',
+          mapping_changed: false,
+        }],
+        modifies_models: true,
+        modifies_model_mapping: false,
+        failure_reasons: [{ model: 'retired-model', reason: '模型不存在或渠道未提供该模型' }],
+        expected_steps: 2,
+        steps: [
+          { action: 'update_models', label: '更新凭据模板的模型清单', payload: {}, status: 'pending', result: null, error: null },
+          { action: 'verify_final', label: '重新读取并核对所有物理记录', payload: {}, status: 'pending', result: null, error: null },
+        ],
+      }))
+      return
+    }
+    if (path === '/admin-api/v1/channels/lc_fixture/models/remove/execute') {
+      configuredModels = ['gpt-4.1-mini']
+      await json(route, envelope({
+        id: 'chg_model_fixture',
+        kind: 'model_remove',
+        target: 'lc_fixture',
+        revision: null,
+        status: 'success',
+        plan: {},
+        steps: [],
+        actor_id: 1,
+        actor_name: 'Fixture User',
+        error: null,
+        created_at: 1_777_000_110,
+        updated_at: 1_777_000_120,
+      }))
+      return
+    }
+    await json(route, envelope(null))
+  })
+}

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { installMockApi, primeUserSession } from './mock-api'
+import { installMockAdminApi, installMockApi, primeUserSession } from './mock-api'
 
 const evidenceScreenshots = process.env.PARTOKENS_E2E_EVIDENCE_DIR || '../../dogfood-output/r60-console-staging-validation/screenshots'
 
@@ -35,6 +35,76 @@ test('administrators can use the localized Partokens Console', async ({ page }) 
   await expect(page).toHaveURL(/\/en\/console\/overview$/)
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible()
   await expect(page.getByText('Fixture User', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('管理员', { exact: true })).toHaveCount(0)
+})
+
+test('non-Root administrators cannot open channel administration directly', async ({ page }) => {
+  await installMockApi(page, { role: 10 })
+  await page.goto('/zh-CN/console/admin/channels')
+
+  await expect(page).toHaveURL(/\/zh-CN\/console\/overview$/)
+  await expect(page.getByRole('heading', { name: '概览', exact: true })).toBeVisible()
+})
+
+test('Root can open the four administrator workspaces', async ({ page }) => {
+  await installMockAdminApi(page)
+  await installMockApi(page, { role: 100 })
+  await page.goto('/zh-CN/console/admin/channels')
+
+  await expect(page.getByRole('heading', { name: '渠道', exact: true })).toBeVisible()
+  for (const name of ['渠道', '分组路由', '监控', '变更记录']) {
+    await expect(page.getByRole('link', { name, exact: true })).toBeVisible()
+  }
+})
+
+test('Root can copy a channel into a new key variant without revealing the source key', async ({ page }) => {
+  await installMockAdminApi(page)
+  await installMockApi(page, { role: 100 })
+  await page.goto('/zh-CN/console/admin/channels')
+
+  await page.getByRole('row').filter({ hasText: 'OpenAI 主渠道' }).getByRole('button', { name: '复制渠道' }).click()
+  await expect(page.getByRole('heading', { name: '复制渠道', exact: true })).toBeVisible()
+  await expect(page.getByText('已复制非敏感配置；请输入新密钥。新副本会作为独立密钥变体保存。')).toBeVisible()
+  await page.getByLabel('API 密钥').fill('new-variant-secret')
+  await page.getByRole('button', { name: '创建副本', exact: true }).click()
+  await expect(page.getByText('渠道副本已创建')).toBeVisible()
+  await expect(page.getByText('new-variant-secret', { exact: true })).toHaveCount(0)
+})
+
+test('Root can discover, test, preview, and remove unavailable channel models', async ({ page }) => {
+  await installMockAdminApi(page)
+  await installMockApi(page, { role: 100 })
+  await page.goto('/zh-CN/console/admin/channels')
+
+  await page.getByRole('row').filter({ hasText: 'OpenAI 主渠道' }).click()
+  await expect(page.getByRole('heading', { name: 'OpenAI 主渠道', exact: true })).toBeVisible()
+  await expect(page.getByText('1.125x · 仅展示参考')).toBeVisible()
+
+  await page.getByRole('button', { name: '从渠道获取模型' }).click()
+  await expect(page.getByText('gpt-4.1', { exact: true })).toBeVisible()
+  await expect(page.getByText('状态：获取成功', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: '测试选中模型' }).click()
+  await expect(page.getByText('测试进度：2/2 · 可用 1 · 失败 1')).toBeVisible()
+  await expect(page.getByText('模型不存在或渠道未提供该模型', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: '移除不可用模型' }).click()
+  await expect(page.getByRole('heading', { name: '移除不可用模型', exact: true })).toBeVisible()
+  await expect(page.getByText('new-api #10 · template · 2 → 1 个模型')).toBeVisible()
+  await page.getByRole('button', { name: '确认移除' }).click()
+  await expect(page.getByText('不可用模型已移除')).toBeVisible()
+})
+
+test('channel model operations remain usable at a mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await installMockAdminApi(page)
+  await installMockApi(page, { role: 100 })
+  await page.goto('/zh-CN/console/admin/channels')
+
+  await page.getByRole('button', { name: /OpenAI 主渠道/ }).click()
+  await expect(page.getByRole('button', { name: '从渠道获取模型' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '测试选中模型' })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
 })
 
 test('compatibility entries redirect to locale-preserving canonical routes and keep search', async ({ page }) => {
