@@ -64,7 +64,7 @@ test('Root can copy a channel into a new key variant without revealing the sourc
 
   await page.getByRole('row').filter({ hasText: 'OpenAI 主渠道' }).getByRole('button', { name: '复制渠道' }).click()
   await expect(page.getByRole('heading', { name: '复制渠道', exact: true })).toBeVisible()
-  await expect(page.getByText('已复制非敏感配置；请输入新密钥。新副本会作为独立密钥变体保存。')).toBeVisible()
+  await expect(page.getByText('已复制渠道配置，请输入新密钥。')).toBeVisible()
   await page.getByLabel('API 密钥').fill('new-variant-secret')
   await page.getByRole('button', { name: '创建副本', exact: true }).click()
   await expect(page.getByText('渠道副本已创建')).toBeVisible()
@@ -76,21 +76,21 @@ test('Root can discover, test, preview, and remove unavailable channel models', 
   await installMockApi(page, { role: 100 })
   await page.goto('/zh-CN/console/admin/channels')
 
-  await page.getByRole('row').filter({ hasText: 'OpenAI 主渠道' }).click()
-  await expect(page.getByRole('heading', { name: 'OpenAI 主渠道', exact: true })).toBeVisible()
-  await expect(page.getByText('1.125x · 仅展示参考')).toBeVisible()
+  await page.locator('[data-model-status]').first().click()
+  await expect(page.getByRole('heading', { name: 'OpenAI 主渠道 · 模型配置', exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: '从渠道获取模型' }).click()
+  await page.getByRole('button', { name: '获取模型', exact: true }).click()
   await expect(page.getByText('gpt-4.1', { exact: true })).toBeVisible()
-  await expect(page.getByText('状态：获取成功', { exact: true })).toBeVisible()
+  await expect(page.getByText('获取成功 ·', { exact: false })).toBeVisible()
 
-  await page.getByRole('button', { name: '测试选中模型' }).click()
-  await expect(page.getByText('测试进度：2/2 · 可用 1 · 失败 1')).toBeVisible()
+  await page.getByRole('button', { name: '批量测试 (3)' }).click()
+  await expect(page.getByText('测试进度：2/2 · 可用 1 · 异常 1')).toBeVisible()
   await expect(page.getByText('模型不存在或渠道未提供该模型', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: '移除不可用模型' }).click()
   await expect(page.getByRole('heading', { name: '移除不可用模型', exact: true })).toBeVisible()
-  await expect(page.getByText('new-api #10 · template · 2 → 1 个模型')).toBeVisible()
+  await page.getByText('配置影响与执行步骤', { exact: true }).click()
+  await expect(page.getByText('#10 · 2 → 1 个模型 · 映射不变')).toBeVisible()
   await page.getByRole('button', { name: '确认移除' }).click()
   await expect(page.getByText('不可用模型已移除')).toBeVisible()
 })
@@ -101,9 +101,9 @@ test('channel model operations remain usable at a mobile viewport', async ({ pag
   await installMockApi(page, { role: 100 })
   await page.goto('/zh-CN/console/admin/channels')
 
-  await page.getByRole('button', { name: /OpenAI 主渠道/ }).click()
-  await expect(page.getByRole('button', { name: '从渠道获取模型' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '测试选中模型' })).toBeVisible()
+  await page.locator('[data-model-status]').first().click()
+  await expect(page.getByRole('button', { name: '获取模型', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '批量测试 (2)' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
 })
 

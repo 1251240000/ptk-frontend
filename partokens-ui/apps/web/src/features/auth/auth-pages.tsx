@@ -65,7 +65,8 @@ async function authDestination(
 ): Promise<void> {
   const queryReturn = new URLSearchParams(window.location.search).get('redirect')
   const safeReturn = validatedReturnPath(locale, returnTo || queryReturn)
-  await navigate({ to: (safeReturn || canonicalConsolePath(locale, 'overview')) as never })
+  const defaultPage = useSessionStore.getState().user?.role === 100 ? 'adminChannels' : 'overview'
+  await navigate({ to: (safeReturn || canonicalConsolePath(locale, defaultPage)) as never })
 }
 
 function StatusFailure(props: { retry: () => void }) {

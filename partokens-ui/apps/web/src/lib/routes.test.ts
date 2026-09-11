@@ -35,6 +35,10 @@ describe('localized user routes', () => {
     ['studio', 'studio'],
     ['wallet', 'wallet'],
     ['profile', 'profile'],
+    ['adminChannels', 'admin/channels'],
+    ['adminRoutes', 'admin/routes'],
+    ['adminMonitoring', 'admin/monitoring'],
+    ['adminChanges', 'admin/changes'],
   ] as const)('maps the %s page to its canonical console segment', (page, segment) => {
     expect(canonicalConsoleSegment(page)).toBe(segment)
   })
@@ -49,6 +53,8 @@ describe('localized user routes', () => {
     ['/en/console/overview', 'overview'],
     ['/fr/console/usage-logs', 'usageLogs'],
     ['/zh-CN/console/playground/thread-1', 'playground'],
+    ['/zh-CN/console/admin/channels', 'adminChannels'],
+    ['/en/console/admin/monitoring', 'adminMonitoring'],
     ['/en/console', 'overview'],
   ] as const)('resolves %s to the %s page', (pathname, page) => {
     expect(consolePageFromPathname(pathname)).toBe(page)

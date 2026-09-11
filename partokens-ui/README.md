@@ -34,11 +34,26 @@ bun install
 bun run dev
 ```
 
-The development proxy uses `https://partokens.com` by default for same-origin API compatibility. Override it when running a local New API instance:
+The development proxy uses `http://localhost:3000` by default for a local New API instance. Override it when using the hosted API:
 
 ```bash
-PARTOKENS_API_TARGET=http://localhost:3000 bun run dev
+PARTOKENS_API_TARGET=https://partokens.com bun run dev
 ```
+
+The Root channel workspaces use the sibling `partokens-admin-api` service. Its
+`PARTOKENS_ADMIN_NEW_API_ORIGIN` must point to the same New API origin as
+`PARTOKENS_API_TARGET`; `PARTOKENS_ADMIN_API_TARGET` only changes where the Web
+development proxy finds the administrator service:
+
+```bash
+PARTOKENS_ADMIN_NEW_API_ORIGIN=http://localhost:3000 \
+PARTOKENS_ADMIN_DATABASE_PATH=/tmp/partokens-admin.sqlite3 \
+  ../partokens-admin-api/.venv/bin/python -m admin_api
+```
+
+When using the hosted API target, set
+`PARTOKENS_ADMIN_NEW_API_ORIGIN=https://partokens.com` instead. A running
+administrator service with an unreachable New API reports `502` by design.
 
 Payment actions accept only backend-provided fixed amounts and require explicit confirmation. Image Studio calls same-origin New API-compatible image endpoints after the user unlocks a key for the current page session.
 

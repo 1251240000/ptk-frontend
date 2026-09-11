@@ -11,6 +11,7 @@ import { consoleRouteAsyncOptions } from '@/components/console-route-state'
 import { i18n } from '@/lib/i18n'
 import { usePageMetadata } from '@/lib/page-metadata'
 import {
+  canonicalConsolePath,
   canonicalConsoleRoute,
   consoleBaseSegment,
   consoleCompatibilityBaseSegment,
@@ -173,6 +174,18 @@ function ConsoleGuard() {
   return <AuthenticatedUserBoundary><ConsoleShell /></AuthenticatedUserBoundary>
 }
 
+function RootBoundary({ children }: { children: ReactNode }) {
+  const { user } = useSessionStore()
+  const params = useParams({ strict: false }) as { locale?: string }
+  useEffect(() => {
+    if (user?.role === 100) return
+    const locale = isAppLocale(params.locale) ? params.locale : resolvePreferredLocale()
+    window.location.replace(canonicalConsolePath(locale, 'overview'))
+  }, [params.locale, user?.role])
+  if (user?.role !== 100) return <LoadingRegion className="route-loader" label="正在核对 Root 权限" />
+  return children
+}
+
 const consoleRoute = createRoute({ getParentRoute: () => localeRoute, path: consoleBaseSegment, component: ConsoleGuard })
 const consoleIndexRoute = createRoute({ getParentRoute: () => consoleRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('overview'), params: { locale: params.locale } }) } })
 const overviewComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-overview" */ '@/pages/console-overview-page'), 'ConsoleOverviewPage')
@@ -210,6 +223,31 @@ const playgroundDetailRoute = createRoute({ getParentRoute: () => consoleRoute, 
 const studioComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-studio" */ '@/pages/studio-page'), 'StudioPage')
 const studioRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.studio.segment, component: studioComponent, ...consoleRouteAsyncOptions })
 const studioDetailRoute = createRoute({ getParentRoute: () => consoleRoute, path: `${consoleRouteMap.studio.segment}/$projectId`, component: studioComponent, ...consoleRouteAsyncOptions })
+const AdminChannelsComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-admin-channels" */ '@/features/admin/admin-operations-page'), 'AdminChannelsPage')
+const AdminRoutesComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-admin-routes" */ '@/features/admin/admin-operations-page'), 'AdminRoutesPage')
+const AdminMonitoringComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-admin-monitoring" */ '@/features/admin/admin-operations-page'), 'AdminMonitoringPage')
+const AdminChangesComponent = lazyRouteComponent(() => import(/* webpackChunkName: "console-admin-changes" */ '@/features/admin/admin-operations-page'), 'AdminChangesPage')
+
+function AdminChannelsGuard() {
+  return <RootBoundary><AdminChannelsComponent /></RootBoundary>
+}
+
+function AdminRoutesGuard() {
+  return <RootBoundary><AdminRoutesComponent /></RootBoundary>
+}
+
+function AdminMonitoringGuard() {
+  return <RootBoundary><AdminMonitoringComponent /></RootBoundary>
+}
+
+function AdminChangesGuard() {
+  return <RootBoundary><AdminChangesComponent /></RootBoundary>
+}
+
+const adminChannelsRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.adminChannels.segment, component: AdminChannelsGuard, ...consoleRouteAsyncOptions })
+const adminRoutesRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.adminRoutes.segment, component: AdminRoutesGuard, ...consoleRouteAsyncOptions })
+const adminMonitoringRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.adminMonitoring.segment, component: AdminMonitoringGuard, ...consoleRouteAsyncOptions })
+const adminChangesRoute = createRoute({ getParentRoute: () => consoleRoute, path: consoleRouteMap.adminChanges.segment, component: AdminChangesGuard, ...consoleRouteAsyncOptions })
 
 const consoleCompatibilityRoute = createRoute({ getParentRoute: () => localeRoute, path: consoleCompatibilityBaseSegment })
 const consoleCompatibilityIndexRoute = createRoute({ getParentRoute: () => consoleCompatibilityRoute, path: '/', beforeLoad: ({ params }) => { throw redirect({ to: canonicalConsoleRoute('overview'), params: { locale: params.locale }, search: true, replace: true }) } })
@@ -318,7 +356,7 @@ const paymentReturnEntryRoute = createRoute({
   },
 })
 
-const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, paymentReturnPageRoute, consoleTopupCompatibilityRoute, profileRoute, profileSecurityRoute, profileConnectionsRoute, profileNotificationsRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute])
+const consoleTree = consoleRoute.addChildren([consoleIndexRoute, overviewRoute, analyticsRoute, keysRoute, usageLogsRoute, walletRoute, paymentReturnPageRoute, consoleTopupCompatibilityRoute, profileRoute, profileSecurityRoute, profileConnectionsRoute, profileNotificationsRoute, playgroundRoute, playgroundDetailRoute, studioRoute, studioDetailRoute, adminChannelsRoute, adminRoutesRoute, adminMonitoringRoute, adminChangesRoute])
 const consoleCompatibilityTree = consoleCompatibilityRoute.addChildren([consoleCompatibilityIndexRoute, consoleCompatibilityOverviewRoute, consoleCompatibilityAnalyticsRoute, consoleCompatibilityKeysRoute, consoleCompatibilityUsageLogsRoute, consoleCompatibilityTopupRoute])
 const localeTree = localeRoute.addChildren([homeRoute, docsRoute, ...docsCompatibilityRoutes, aboutRoute, noticesRoute, statusRoute, userAgreementRoute, serviceAgreementRoute, privacyPolicyRoute, signInRoute, signUpRoute, verifyEmailRoute, forgotRoute, localizedResetRoute, otpRoute, consoleTree, consoleCompatibilityTree, legacyProfileSecurityRoute, legacyProfileConnectionsRoute, legacyProfileNotificationsRoute])
 const routeTree = rootRoute.addChildren([rootIndexRoute, localeTree, oauthRoute, technicalResetRoute, legacyWalletEntryRoute, legacyUsageLogsEntryRoute, paymentReturnEntryRoute])

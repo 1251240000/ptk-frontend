@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
-import { ArrowRightLeft, Check, CheckCircle2, CircleDollarSign, Copy, CreditCard, Gift, LoaderCircle, ReceiptText, RefreshCw, Share2, Star, WalletCards } from 'lucide-react'
+import { ArrowRightLeft, Check, CheckCircle2, Circle, CircleDot, CircleDollarSign, Copy, CreditCard, Gift, LoaderCircle, ReceiptText, RefreshCw, Share2, Star, WalletCards } from 'lucide-react'
 import { type FormEvent, type MouseEvent, type RefObject, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -856,7 +856,7 @@ export function WalletPage() {
                       <span className="min-w-0"><span className="block text-xs text-muted-foreground">{t('Amount')}</span><span className="mt-1 block font-mono text-sm font-semibold tabular-nums">{formatMoney(amount, locale)}</span></span>
                       <span className="min-w-0"><span className="block text-xs text-muted-foreground">{t('Discount')}</span><span className="mt-1 block text-sm font-medium">{Math.round((1 - multiplier) * 100)}%</span></span>
                       <span className="min-w-0"><span className="block text-xs text-muted-foreground">{t('Pay')}</span><span className="mt-1 block font-mono text-sm font-semibold tabular-nums">{formatMoney(amount * multiplier, locale)}</span></span>
-                      <CheckCircle2 className={selected ? 'size-4 text-success' : 'size-4 invisible'} />
+                      {selected ? <CircleDot className="size-4 text-foreground" aria-hidden="true" /> : <Circle className="size-4 text-muted-foreground" aria-hidden="true" />}
                     </button>
                   )
                 })}

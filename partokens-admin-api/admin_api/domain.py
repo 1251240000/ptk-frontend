@@ -33,6 +33,8 @@ def normalized_base_url(raw: str) -> str:
         raise ValueError("invalid API base URL")
     if parsed.username or parsed.password:
         raise ValueError("API base URL must not contain credentials")
+    if parsed.query or parsed.fragment:
+        raise ValueError("API base URL must not contain query or fragment")
     port = parsed.port
     if port and not ((scheme == "https" and port == 443) or (scheme == "http" and port == 80)):
         hostname = f"{hostname}:{port}"
@@ -42,6 +44,15 @@ def normalized_base_url(raw: str) -> str:
 
 def credential_fingerprint(secret: str) -> str:
     return f"sha256:{hashlib.sha256(secret.encode('utf-8')).hexdigest()}"
+
+
+def masked_api_key(secret: str) -> str:
+    prefix = "sk-" if secret.startswith("sk-") else ""
+    body = secret[len(prefix):]
+    # Short credentials must not be reconstructable from overlapping fragments.
+    if len(body) <= 7 or any(character.isspace() for character in body):
+        return f"{prefix}....."
+    return f"{prefix}{body[:3]}.....{body[-4:]}"
 
 
 def identity_hash(channel_type: int, base_url: str, fingerprint: str) -> str:
@@ -96,7 +107,7 @@ def channel_metadata(channel: dict[str, Any]) -> dict[str, Any] | None:
         return None
     logical_id = metadata.get("logical_id")
     kind = metadata.get("kind")
-    if not isinstance(logical_id, str) or kind not in {"template", "route", "archive"}:
+    if not isinstance(logical_id, str) or kind not in {"template", "route", "archive", "probe"}:
         return None
     return metadata
 
@@ -151,6 +162,7 @@ def public_logical_channel(row: dict[str, Any], physical: list[dict[str, Any]]) 
         # their routeable identities, health, or model configuration.
         "upstream_key": hashlib.sha256(row["base_url"].encode("utf-8")).hexdigest()[:16],
         "credential_fingerprint": short_fingerprint(row["credential_fingerprint"]),
+        "masked_key": row.get("masked_key"),
         "cost_ratio": cost_ratio_from_millis(
             row.get("cost_ratio_millis")
             if row.get("cost_ratio_millis") is not None
@@ -158,7 +170,8 @@ def public_logical_channel(row: dict[str, Any], physical: list[dict[str, Any]]) 
         ),
         "models": json.loads(row["models_json"]),
         "note": row["note"],
-        "template_channel_id": row["template_channel_id"],
+        "credential_status": "ready" if row.get("config_ciphertext") else "missing",
+        "config_version": row.get("config_version", 1),
         "enabled": bool(row["enabled"]),
         "state": row["state"],
         "status": status,

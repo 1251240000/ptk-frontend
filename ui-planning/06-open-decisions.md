@@ -5,6 +5,19 @@ Scope: baseline for prototype, scaffolding, implementation, and acceptance
 
 The filename is retained so existing planning links remain stable. There are no remaining blocking product decisions in this document.
 
+## Channel model operations
+
+- Reuse new-api channel HTTP endpoints; Partokens does not call arbitrary
+  provider URLs and does not retrieve channel keys.
+- Persist discovery snapshots and model-test results in the administrator
+  SQLite database. One process remains the deployment requirement.
+- Use four concurrent tests, a ten-second model timeout, at most 100 models,
+  and one retry only for timeout/connection failures.
+- Only `unavailable` is eligible for one-click removal. Transient and
+  channel-wide failures remain configured and do not auto-disable channels.
+- Update all Partokens-managed physical mirrors (`template`, `route`, and
+  `archive`) and retain before-state in the resumable change audit.
+
 ## 1. Email Verification Code
 
 Email verification codes are used for registration and account binding only. The sign-in page does not show an email-code login mode because the current backend cannot create a session from email plus code.
@@ -21,7 +34,7 @@ The standalone UI owns three separately maintained documents:
 
 They use canonical localized routes under `/{locale}/legal/*`. There are no compatibility redirects from the old New API legal pages. Existing production HTML and `/api/user-agreement` or `/api/privacy-policy` responses are reference material only and are not runtime content sources.
 
-## 3. Locale-Prefixed User UI And Native Admin Paths
+## 3. Locale-Prefixed User UI And Root Channel Operations
 
 The standalone user UI uses BCP-47 locale prefixes:
 
@@ -35,7 +48,9 @@ The standalone user UI uses BCP-47 locale prefixes:
 
 Use `zh-CN`, not the ambiguous `zh`, because Simplified and Traditional Chinese are both first-class locales. User console routes follow `/{locale}/console/*`, for example `/zh-CN/console/overview`.
 
-Administrators use the current official New API `web/default` management UI, not the classic theme, at native unprefixed paths such as `/channels` and `/system-settings/*`. Role `>= 10` hard-navigates to `/channels` after authentication.
+Root (`role === 100`) uses Partokens-owned channel operations at `/{locale}/console/admin/*` and lands on `admin/channels` after authentication when no validated return path exists. Role 10 lands on the ordinary Partokens overview and has no Partokens administrator navigation.
+
+Other management capabilities remain in the current official New API `web/default` UI at native unprefixed paths. The Root sidebar links to models, users, redemption codes, subscriptions, system information, and system settings. The native `/channels` route remains reachable for diagnosis but is not the normal management surface.
 
 Two unprefixed technical entries remain owned by the standalone UI because current backend/provider links depend on them: `/oauth/:provider` and `/user/reset`. They restore the saved locale before continuing the flow.
 
@@ -102,6 +117,16 @@ Notices are versioned, localized frontend content. Seen/unseen state is a local 
 ## 15. License
 
 Use an AGPL-3.0-compatible license for the new frontend, with `AGPL-3.0-only` as the implementation default unless repository ownership review requires another compatible choice. Preserve all third-party notices and publish the modified studio source as required.
+
+## 16. Lightweight Administrator Service
+
+Create `partokens-admin-api` as a sibling project using Python 3.11+, FastAPI, httpx, and stdlib SQLite. It manages one New API instance through HTTP APIs only; it does not modify New API or connect directly to its PostgreSQL database.
+
+The service owns logical-channel metadata, route revisions, execution steps, and monitoring snapshots. New API remains authoritative for authentication, physical channels, routing, tests, logs, and billing. Partokens metadata copied into New API is a compatibility mirror, not the primary store.
+
+Route changes are explicitly non-atomic. Every step is persisted before execution, uses read-back verification, and can continue after a partial failure. Continuous monitoring uses an optional dedicated Root Personal Access Token for read-only polling. SQLite restricts the first release to one service process/replica.
+
+The first administrator UI ships in Simplified Chinese with a copy-resolver seam for later i18n.
 
 ## Implementation Can Begin When Requested
 

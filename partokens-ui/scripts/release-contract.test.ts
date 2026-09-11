@@ -11,6 +11,7 @@ function stagingEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEn
     PARTOKENS_STAGING_ORIGIN: 'https://staging.partokens.test',
     PARTOKENS_SITE_ADDRESS: 'staging.partokens.test',
     PARTOKENS_API_ORIGIN: 'http://127.0.0.1:3000',
+    PARTOKENS_ADMIN_API_ORIGIN: 'http://127.0.0.1:8081',
     PARTOKENS_API_ENVIRONMENT: 'staging',
     PARTOKENS_DEPLOY_HOST: 'partokens-staging',
     PARTOKENS_DEPLOY_ENVIRONMENT: 'staging',
@@ -33,6 +34,7 @@ describe('staging release contract', () => {
   test('rejects production web and API targets', () => {
     expect(() => validateStagingEnvironment(stagingEnvironment({ PARTOKENS_STAGING_ORIGIN: 'https://partokens.com', PARTOKENS_SITE_ADDRESS: 'partokens.com' }), commit)).toThrow('must not target production')
     expect(() => validateStagingEnvironment(stagingEnvironment({ PARTOKENS_API_ORIGIN: 'https://partokens.com' }), commit)).toThrow('must not target the production API')
+    expect(() => validateStagingEnvironment(stagingEnvironment({ PARTOKENS_ADMIN_API_ORIGIN: 'https://partokens.com' }), commit)).toThrow('must not target production')
   })
 
   test('rejects unpinned source and a non-versioned release directory', () => {

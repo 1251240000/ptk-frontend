@@ -1,9 +1,140 @@
 import { expect, test, type Request } from '@playwright/test'
 
-import { installMockApi, primeUserSession } from './mock-api'
+import { installMockAdminApi, installMockApi, primeUserSession } from './mock-api'
 
 const appLocales = ['zh-CN', 'zh-TW', 'en', 'ja', 'ru', 'fr', 'vi'] as const
 const evidenceScreenshots = process.env.PARTOKENS_E2E_EVIDENCE_DIR || '../../dogfood-output/r60-console-staging-validation/screenshots'
+
+test('channel table is flat and supports model health, latency, filters and actions', async ({ page }) => {
+  await installMockApi(page, { role: 100 })
+  const channel = {
+    id: 'lc_table', name: 'OpenAI 主渠道', channel_type: 1, base_url: 'https://api.example.test',
+    credential_fingerprint: 'sha256:1234...abcd', cost_ratio: 1.125, note: '', template_channel_id: 10,
+    masked_key: 'sk-abc.....abcd',
+    models: ['gpt-4.1-mini', 'slow-model', 'retired-model', 'untested-model'], enabled: true, state: 'active',
+    status: 'available', groups: 2, attempt_layers: 1, record_count: 3, latest_test_time: 1777000000,
+    response_time: 180, physical_records: [], updated_at: 1777000000,
+    latest_model_results: [
+      { model_id: 'gpt-4.1-mini', status: 'available', latency_ms: 180, tested_at: 1777000000 },
+      { model_id: 'slow-model', status: 'available', latency_ms: 3500, tested_at: 1777000000 },
+      { model_id: 'retired-model', status: 'unavailable', latency_ms: 90, tested_at: 1777000000 },
+    ],
+  }
+  let channels = [channel, { ...channel, id: 'lc_other', name: '备用渠道', enabled: false, status: 'disabled', models: [] }]
+  const routes = ['default', 'premium'].map((group_name) => ({ group_name, revision: 1, config: { layers: [{ members: [{ logical_id: channel.id, weight: 100 }] }] }, updated_at: 1777000000, updated_by: 'root' }))
+  let deletions = 0
+  const patches: Record<string, unknown>[] = []
+  let failSave = false
+  await page.route('**/admin-api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (route.request().method() === 'PATCH') {
+      if (failSave) return route.fulfill({ status: 503, json: { success: false, message: '保存失败，请重试' } })
+      const patch = route.request().postDataJSON()
+      patches.push(patch)
+      channels = channels.map((item) => path.endsWith(item.id) ? { ...item, ...patch } : item)
+    }
+    if (route.request().method() === 'DELETE') {
+      deletions += 1
+      channels = channels.filter((item) => !path.endsWith(item.id))
+    }
+    if (path.endsWith('/status')) channels = channels.map((item) => path.includes(item.id) ? { ...item, enabled: route.request().postDataJSON().enabled } : item)
+    await route.fulfill({ json: { success: true, data: path.endsWith('/bootstrap') ? { channels, routes, groups: ['default', 'premium'], retry_times: 2, monitor: null, changes: [] } : {} } })
+  })
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/zh-CN/console/admin/channels')
+  await expect(page.getByRole('table')).toHaveCount(1)
+  await expect(page.getByRole('columnheader')).toHaveText(['渠道名', '渠道类型', '地址', '密钥', '倍率', '模型配置', '绑定分组', '操作'])
+  await expect(page.locator('tbody tr')).toHaveCount(2)
+  const firstRow = page.locator('tbody tr').first()
+  await expect(firstRow.getByLabel('脱敏密钥')).toHaveText('sk-abc.....abcd')
+  await expect(firstRow.getByRole('img', { name: 'OpenAI' })).toBeVisible()
+  await firstRow.getByRole('img', { name: 'OpenAI' }).hover()
+  await expect(page.getByRole('tooltip')).toHaveText('OpenAI')
+  await expect(page.getByRole('button', { name: '编辑渠道', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '模型配置', exact: true })).toHaveCount(0)
+  await expect(firstRow.locator('td').last().getByRole('button')).toHaveCount(3)
+  const actionColors = await page.locator('tbody tr').evaluateAll((rows) => rows.flatMap((row) => Array.from(row.querySelectorAll('td:last-child button')).map((button) => ({ label: button.getAttribute('aria-label'), color: getComputedStyle(button).color }))))
+  expect(new Set(actionColors.map(({ color }) => color)).size).toBe(4)
+  await firstRow.getByRole('button', { name: '编辑渠道名：OpenAI 主渠道', exact: true }).click()
+  await page.getByRole('textbox', { name: '编辑渠道名', exact: true }).fill('取消的名称')
+  await page.getByRole('button', { name: '取消编辑渠道名', exact: true }).click()
+  expect(patches).toEqual([])
+  await firstRow.getByRole('button', { name: '编辑渠道名：OpenAI 主渠道', exact: true }).click()
+  await page.getByRole('textbox', { name: '编辑渠道名', exact: true }).fill('OpenAI 新名称')
+  failSave = true
+  await page.getByRole('button', { name: '保存渠道名', exact: true }).click()
+  await expect(page.getByRole('alert')).toHaveText('保存失败，请重试')
+  await expect(page.getByRole('textbox', { name: '编辑渠道名', exact: true })).toHaveValue('OpenAI 新名称')
+  failSave = false
+  await page.getByRole('button', { name: '保存渠道名', exact: true }).click()
+  await expect(firstRow).toContainText('OpenAI 新名称')
+  expect(patches).toEqual([{ name: 'OpenAI 新名称' }])
+  await firstRow.getByRole('button', { name: '编辑倍率：1.125x', exact: true }).click()
+  await page.getByRole('textbox', { name: '编辑倍率', exact: true }).fill('-1')
+  await page.getByRole('button', { name: '保存倍率', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('倍率必须为非负数')
+  await page.getByRole('textbox', { name: '编辑倍率', exact: true }).fill('0')
+  await page.getByRole('button', { name: '保存倍率', exact: true }).click()
+  await expect(firstRow.getByRole('button', { name: '编辑倍率：0.000x', exact: true })).toBeVisible()
+  expect(patches[1]).toEqual({ cost_ratio: 0 })
+  await firstRow.locator('[data-model-status]').first().click()
+  await expect(page.getByRole('heading', { name: 'OpenAI 新名称 · 模型配置', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: '配置渠道模型', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '备用渠道 · 模型配置', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('上游地址', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('密钥变体', { exact: true })).toHaveCount(0)
+  await expect(page.locator('[data-model-status="available"]')).toHaveText('gpt-4.1-mini')
+  await expect(page.locator('[data-model-status="slow"]')).toHaveText('slow-model')
+  await expect(page.locator('[data-model-status="unavailable"]')).toHaveText('retired-model')
+  await expect(page.locator('[data-model-status="unknown"]')).toHaveText('untested-model')
+  await expect(page.locator('tbody tr').first()).toContainText('default')
+  await expect(page.locator('tbody tr').first()).toContainText('premium')
+  await page.getByRole('switch', { name: '显示延迟 ms' }).click()
+  await expect(page.locator('[data-model-status="available"]')).toContainText('180 ms')
+  await expect(page.locator('[data-model-status="slow"]')).toContainText('3500 ms')
+  await page.screenshot({ path: '/tmp/partokens-channels-desktop.png', fullPage: true })
+  await page.getByRole('switch', { name: '显示延迟 ms' }).click()
+  await expect(page.getByText('180 ms', { exact: true })).toHaveCount(0)
+  await page.getByLabel('搜索渠道').fill('premium')
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await page.getByLabel('搜索渠道').fill('missing')
+  await expect(page.getByText('没有匹配的渠道')).toBeVisible()
+  await page.getByLabel('搜索渠道').fill('')
+  await page.getByRole('button', { name: '复制渠道', exact: true }).first().click()
+  await expect(page.getByLabel('显示名称')).toHaveValue('OpenAI 新名称 · 副本')
+  await expect(page.getByLabel('API 密钥', { exact: true })).toHaveValue('')
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: '禁用渠道', exact: true }).click()
+  await expect(page.getByRole('button', { name: '启用渠道', exact: true })).toHaveCount(2)
+  await page.getByRole('button', { name: '删除渠道', exact: true }).first().click()
+  await expect(page.getByRole('button', { name: '确认删除' })).toBeDisabled()
+  await page.getByRole('button', { name: '取消', exact: true }).click()
+  expect(deletions).toBe(0)
+  await page.getByRole('button', { name: '删除渠道', exact: true }).last().click()
+  await page.getByRole('button', { name: '确认删除' }).click()
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  expect(deletions).toBe(1)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.locator('[data-slot="table-container"]').evaluate((element) => { element.scrollLeft = 0 })
+  await firstRow.getByRole('button', { name: '编辑渠道名：OpenAI 新名称', exact: true }).click()
+  await page.getByRole('textbox', { name: '编辑渠道名', exact: true }).fill('手机端名称')
+  await page.getByRole('button', { name: '保存渠道名', exact: true }).click()
+  await expect(firstRow).toContainText('手机端名称')
+  await page.screenshot({ path: '/tmp/partokens-channels-mobile.png', fullPage: true })
+  await page.locator('[data-slot="table-container"]').evaluate((element) => { element.scrollLeft = element.scrollWidth })
+  await expect(firstRow.getByRole('button', { name: '删除渠道', exact: true })).toBeInViewport()
+  await page.screenshot({ path: '/tmp/partokens-channels-mobile-actions.png', fullPage: true })
+  await page.addInitScript(() => localStorage.setItem('partokens-theme', 'dark'))
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await expect(page.locator('tbody tr')).toHaveCount(1)
+  await page.locator('[data-slot="table-container"]').evaluate((element) => { element.scrollLeft = element.scrollWidth })
+  await page.screenshot({ path: '/tmp/partokens-channels-mobile-dark.png', fullPage: true })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  expect(await page.locator('[data-slot="table-container"]').evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true)
+})
 
 function requestBody(request: Request) {
   try {
@@ -164,7 +295,7 @@ test('registration highlights invalid username and password fields until they ar
   }
 })
 
-test('administrators enter the localized Partokens Console after sign-in', async ({ page }) => {
+test('ordinary administrators enter the localized overview after sign-in', async ({ page }) => {
   await installMockApi(page, { role: 10 })
   await page.goto('/en/auth/sign-in')
   await page.getByLabel('Username or email').fill('fixture-admin')
@@ -173,6 +304,20 @@ test('administrators enter the localized Partokens Console after sign-in', async
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await page.waitForURL(/\/en\/console\/overview$/)
   await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible()
+})
+
+test('Root enters localized channel administration after sign-in', async ({ page }) => {
+  await installMockAdminApi(page)
+  await installMockApi(page, { role: 100 })
+  await page.goto('/zh-CN/auth/sign-in')
+  await page.getByLabel('用户名或邮箱').fill('fixture-root')
+  await page.getByLabel('密码', { exact: true }).fill('fixture-password')
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: '登录', exact: true }).click()
+
+  await page.waitForURL(/\/zh-CN\/console\/admin\/channels$/)
+  await expect(page.getByRole('heading', { name: '渠道', exact: true })).toBeVisible()
+  await expect(page.getByText('管理员', { exact: true })).toBeVisible()
 })
 
 test('OAuth callback restores the saved locale and enters the ordinary-user console', async ({ page }) => {

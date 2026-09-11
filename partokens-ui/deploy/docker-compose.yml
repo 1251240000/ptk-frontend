@@ -14,6 +14,7 @@ services:
     environment:
       PARTOKENS_SITE_ADDRESS: ${PARTOKENS_SITE_ADDRESS:-http://:8080}
       PARTOKENS_API_ORIGIN: ${PARTOKENS_API_ORIGIN:?Set the existing API origin reachable from this container}
+      PARTOKENS_ADMIN_API_ORIGIN: ${PARTOKENS_ADMIN_API_ORIGIN:?Set the external Partokens Admin API origin reachable from this container}
       PARTOKENS_ROBOTS_HEADER: ${PARTOKENS_ROBOTS_HEADER:-all}
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -60,6 +60,11 @@ function ProviderLogo({ provider }: { provider: Provider }): ReactNode {
   )
 }
 
+export function ModelProviderIcon({ name }: { name: string }) {
+  const provider = providers.find((entry) => entry.provider.label === name)?.provider
+  return provider ? <ProviderLogo provider={provider} /> : <Bot className="size-4 text-muted-foreground" aria-hidden="true" />
+}
+
 export function ModelProviderBadge({ model }: { model?: string }) {
   if (!model) return <span>—</span>
   const normalized = model.toLowerCase()

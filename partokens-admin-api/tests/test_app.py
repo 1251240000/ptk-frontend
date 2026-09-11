@@ -66,6 +66,9 @@ class FakeService:
         self.copy_requests.append((authorization, logical_id, request, actor))
         return {"id": "lc_copy", "name": request.name or "copy", "credential_fingerprint": "sha256:redacted"}
 
+    async def delete_channel(self, authorization: str, logical_id: str) -> dict[str, Any]:
+        return {"id": logical_id}
+
 
 class AppTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -97,6 +100,13 @@ class AppTests(unittest.TestCase):
         response = self.test_client.get("/healthz")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok", "database": "sqlite", "monitor_configured": False})
+
+    def test_delete_requires_root(self) -> None:
+        self.assertEqual(self.test_client.delete("/v1/channels/lc_a").status_code, 401)
+        self.assertEqual(self.test_client.delete("/v1/channels/lc_a", headers={"Authorization": "Bearer admin-token"}).status_code, 403)
+        response = self.test_client.delete("/v1/channels/lc_a", headers={"Authorization": "Bearer root-token"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"], {"id": "lc_a"})
 
     def test_bootstrap_requires_exact_root_role(self) -> None:
         missing = self.test_client.get("/v1/bootstrap")

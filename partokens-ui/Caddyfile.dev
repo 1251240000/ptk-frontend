@@ -16,6 +16,10 @@ http://127.0.0.1:8080 {
 		respond 204
 	}
 
+	handle_path /admin-api/* {
+		reverse_proxy 127.0.0.1:8081
+	}
+
 	@backend path /api/* /v1/* /v1beta/* /pg/* /mj/* /*/mj/* /suno/* /kling/* /jimeng /jimeng/* /dashboard/billing/*
 	handle @backend {
 		reverse_proxy https://partokens.com {

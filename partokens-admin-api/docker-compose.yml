@@ -1,0 +1,38 @@
+services:
+  admin-api:
+    build: .
+    image: ${PARTOKENS_ADMIN_API_IMAGE:-partokens-admin-api:local}
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${PARTOKENS_ADMIN_BIND_ADDRESS:-127.0.0.1}:${PARTOKENS_ADMIN_PORT:-8081}:8081"
+    env_file:
+      - .env
+    environment:
+      PARTOKENS_ADMIN_ENCRYPTION_KEY_FILE: /run/secrets/channel_encryption_key
+    secrets:
+      - channel_encryption_key
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - admin_data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  admin_data:
+
+secrets:
+  channel_encryption_key:
+    file: ${PARTOKENS_ADMIN_ENCRYPTION_KEY_SOURCE:?Set the independent channel encryption key file}

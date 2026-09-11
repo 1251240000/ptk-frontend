@@ -454,6 +454,26 @@
   box-shadow: none;
 }
 
+/* State colors must survive application button resets outside CSS layers. */
+[data-slot='checkbox'][data-state] {
+  border-color: var(--muted-foreground);
+  background-color: var(--background);
+}
+
+[data-slot='checkbox']:is([data-state='checked'], [data-state='indeterminate']) {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+[data-slot='checkbox']:focus-visible {
+  border-color: var(--ring);
+}
+
+[data-slot='checkbox'][aria-invalid='true'] {
+  border-color: var(--destructive);
+}
+
 .pt-check {
   --pt-check-size: 1.125rem;
   display: inline-grid;
@@ -471,7 +491,7 @@
   height: var(--pt-check-size);
   position: relative;
   margin: 0;
-  border: 1px solid var(--pt-color-border-strong);
+  border: 1px solid var(--pt-color-text-secondary);
   border-radius: var(--pt-radius-4);
   appearance: none;
   background: var(--pt-color-bg-surface);
@@ -508,6 +528,7 @@
   position: absolute;
   inset: 50% auto auto 50%;
   background: var(--pt-color-text-on-action);
+  border: 0;
   content: '';
   transform: translate(-50%, -50%);
 }
@@ -516,7 +537,9 @@
 .pt-check[data-size='large'] { --pt-check-size: 1.25rem; font-size: var(--pt-font-size-15); }
 .pt-check:has(input:disabled) { color: var(--pt-color-text-tertiary); cursor: not-allowed; }
 .pt-check input:disabled { border-color: var(--pt-color-border-default); background: var(--pt-color-bg-subtle); box-shadow: none; cursor: not-allowed; transform: none; }
-.pt-check input:disabled:checked { background: var(--pt-color-border-strong); }
+.pt-check input:disabled:is(:checked, :indeterminate) { background: var(--pt-color-border-strong); }
+.pt-check input:disabled:checked::after { border-color: var(--pt-color-text-primary); }
+.pt-check input:disabled:indeterminate::after { background: var(--pt-color-text-primary); }
 
 .pt-switch {
   width: 2.75rem;

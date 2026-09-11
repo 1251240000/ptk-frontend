@@ -6,15 +6,14 @@ import {
   Check,
   CheckCircle2,
   Copy,
-  ChevronRight,
   CircleDashed,
-  ClipboardCheck,
   Clock3,
   Eye,
+  Pencil,
+  Power,
   FlaskConical,
   Layers3,
   LoaderCircle,
-  LockKeyhole,
   Plus,
   RefreshCw,
   Route,
@@ -23,6 +22,7 @@ import {
   Sparkles,
   Trash2,
   TriangleAlert,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
@@ -32,17 +32,17 @@ import {
   cancelAdminModelTest,
   copyAdminChannel,
   createAdminChannel,
+  deleteAdminChannel,
   discoverAdminChannelModels,
   executeAdminModelRemoval,
-  executeAdminRoute,
+  executeAdminModelUpdate,
   getAdminModelTest,
   getAdminBootstrap,
-  previewAdminRoute,
   previewAdminModelRemoval,
+  previewAdminModelUpdate,
   refreshAdminMonitor,
   setAdminChannelStatus,
   startAdminModelTest,
-  testAdminChannel,
   updateAdminChannel,
   discoverAdminChannelModelsPreview,
   type AdminBootstrap,
@@ -52,10 +52,8 @@ import {
   type AdminModelDiscoveryPreview,
   type AdminModelRemovePreview,
   type AdminModelTestTask,
+  type AdminModelTestResult,
   type AdminMonitorSnapshot,
-  type AdminRouteInput,
-  type AdminRouteLayer,
-  type AdminRoutePreview,
 } from '@partokens/api-client'
 import {
   Badge,
@@ -96,6 +94,8 @@ import {
 } from '@partokens/design-system/components'
 
 import { adminCopy } from './admin-copy'
+import { ChannelProviderIcon } from './channel-provider-icon'
+import { GroupRoutesView } from './group-routes-view'
 
 type AdminPage = 'channels' | 'routes' | 'monitoring' | 'changes'
 
@@ -134,25 +134,18 @@ export function formatCostRatio(value?: number | null) {
 }
 
 export function modelStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    available: '可用',
-    unavailable: '不可用',
-    timeout: '超时',
-    rate_limited: '限流',
-    unauthorized: '认证失败',
-    server_error: '渠道异常',
-    unknown: '未知',
-    untested: '未测试',
-  }
-  return labels[status] || '未测试'
+  if (status === 'untested') return '未测试'
+  if (status === 'running' || status === 'pending') return '测试中'
+  if (status === 'available') return '可用'
+  return '异常'
 }
 
-function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) {
+function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description?: string; action?: ReactNode }) {
   return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div className="min-w-0">
       <div className="mb-2 flex flex-wrap items-center gap-2"><span className="font-mono text-[10px] font-semibold text-muted-foreground">{eyebrow}</span><Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary"><ShieldCheck />仅 Root</Badge></div>
       <h1 className="text-2xl font-bold">{title}</h1>
-      <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
+      {description ? <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
     </div>
     {action ? <div className="shrink-0">{action}</div> : null}
   </div>
@@ -174,8 +167,8 @@ function HealthDot({ status }: { status: 'healthy' | 'warning' | 'unknown' }) {
   return <span className={`inline-block size-2 shrink-0 rounded-full ${status === 'healthy' ? 'bg-success' : status === 'warning' ? 'bg-warning' : 'bg-muted-foreground/50'}`} aria-hidden="true" />
 }
 
-function IconButton({ label, icon: Icon, onClick, disabled }: { label: string; icon: LucideIcon; onClick?: () => void; disabled?: boolean }) {
-  return <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon" className="size-8" aria-label={label} disabled={disabled} onClick={onClick}><Icon /></Button></TooltipTrigger><TooltipContent>{label}</TooltipContent></Tooltip>
+function IconButton({ label, icon: Icon, onClick, disabled, className = '' }: { label: string; icon: LucideIcon; onClick?: () => void; disabled?: boolean; className?: string }) {
+  return <Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon" className={`size-8 ${className}`} aria-label={label} disabled={disabled} onClick={onClick}><Icon /></Button></TooltipTrigger><TooltipContent>{label}</TooltipContent></Tooltip>
 }
 
 function AdminLoading() {
@@ -194,7 +187,7 @@ function useAdminBootstrap() {
       if (!response.success) throw new Error(response.message || '管理员数据不可用')
       return response.data
     },
-    refetchInterval: 60_000,
+    refetchInterval: (query) => query.state.data?.channels.some((channel) => ['pending', 'running'].includes(channel.latest_model_test?.status ?? '')) ? 2000 : 60_000,
     staleTime: 15_000,
   })
 }
@@ -220,19 +213,37 @@ function modelDiscoverySourceLabel(source?: string | null) {
 }
 
 function ModelRemovalDialog({
-  preview,
-  open,
-  onOpenChange,
-  onExecute,
-  executing,
+  preview, open, onOpenChange, onExecute, executing, change, error,
 }: {
   preview: AdminModelRemovePreview | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onExecute: () => void
   executing: boolean
+  change?: AdminChange | null
+  error: string
 }) {
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>移除不可用模型</DialogTitle><DialogDescription>仅会移除测试结果明确为“不可用”的模型。超时、限流和渠道异常会保留。</DialogDescription></DialogHeader>{preview ? <div className="max-h-[62svh] space-y-5 overflow-y-auto"><div className="grid gap-3 sm:grid-cols-3"><div className="border p-3"><p className="text-xs text-muted-foreground">将移除</p><p className="mt-1 font-mono text-lg font-semibold">{preview.remove_models.length}</p><p className="mt-1 break-words text-xs">{preview.remove_models.join('、')}</p></div><div className="border p-3"><p className="text-xs text-muted-foreground">保留模型</p><p className="mt-1 font-mono text-lg font-semibold">{preview.retain_models.length}</p><p className="mt-1 break-words text-xs">{preview.retain_models.join('、') || '无'}</p></div><div className="border p-3"><p className="text-xs text-muted-foreground">预计步骤</p><p className="mt-1 font-mono text-lg font-semibold">{preview.expected_steps}</p><p className="mt-1 text-xs">模型清单 {preview.modifies_models ? '会' : '不会'}修改，模型映射 {preview.modifies_model_mapping ? '会' : '不会'}修改</p></div></div><section><h3 className="text-sm font-semibold">失败原因</h3><div className="mt-2 divide-y border-y">{preview.failure_reasons.map((item) => <div key={item.model} className="flex flex-wrap justify-between gap-2 py-2 text-sm"><code>{item.model}</code><span className="text-muted-foreground">{item.reason}</span></div>)}</div></section><section><h3 className="text-sm font-semibold">物理记录范围</h3><div className="mt-2 divide-y border-y">{preview.physical_records.map((record) => <div key={record.channel_id} className="grid gap-2 py-3 text-sm sm:grid-cols-[1fr_auto]"><div><strong>{record.name}</strong><p className="mt-1 text-xs text-muted-foreground">new-api #{record.channel_id} · {record.kind} · {record.before_models.length} → {record.after_models.length} 个模型</p></div><span className="text-xs text-muted-foreground">映射 {record.mapping_changed ? '会更新' : '不变'}</span></div>)}</div></section><section><h3 className="text-sm font-semibold">执行步骤</h3><div className="mt-2 divide-y border-y">{preview.steps.map((step, index) => <div key={`${step.action}-${index}`} className="flex gap-3 py-2 text-sm"><span className="font-mono text-muted-foreground">{index + 1}</span><span>{step.label}</span></div>)}</div></section><p className="border border-warning/30 bg-warning/5 p-3 text-sm text-warning">修改前的模型清单和模型映射会保存在变更记录中；执行是非原子的，失败后可以继续。</p></div> : null}<DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button><Button variant="destructive" onClick={onExecute} disabled={!preview || executing}>{executing ? <LoaderCircle className="animate-spin" /> : <Trash2 />}{executing ? '执行中' : '确认移除'}</Button></DialogFooter></DialogContent></Dialog>
+  const adding = Boolean(preview?.add_models?.length)
+  return <Dialog open={open} onOpenChange={(next) => { if (!executing) onOpenChange(next) }}>
+    <DialogContent className="flex max-h-[calc(100svh-2rem)] max-w-[calc(100%-2rem)] flex-col sm:max-w-3xl">
+      <DialogHeader className="shrink-0"><DialogTitle>{adding ? '确认更新模型' : '移除不可用模型'}</DialogTitle><DialogDescription>{adding ? '将选中的新模型加入渠道配置，并同步已绑定的渠道记录。已有模型会保留。' : '将移除以下异常模型，包括超时、限流、认证失败及其他异常。可用、未测试和测试中的模型会保留。'}</DialogDescription></DialogHeader>
+      {preview ? <div className="min-h-0 max-h-[60svh] space-y-4 overflow-y-auto text-xs">
+        <p>{adding ? `将新增 ${preview.add_models!.length} 个，更新后共 ${preview.retain_models.length} 个模型。` : `将移除 ${preview.remove_models.length} 个，保留 ${preview.retain_models.length} 个模型。`}</p>
+        {adding ? <div className="divide-y border-y">{preview.add_models!.map((model) => <p key={model} className="break-all py-2 font-mono">{model}</p>)}</div> : null}
+        <div className="divide-y border-y">{preview.failure_reasons.map((item) => <div key={item.model} className="grid gap-1 py-2"><code className="break-all font-medium">{item.model}</code><span className="text-muted-foreground">{item.reason}</span></div>)}</div>
+        <details><summary className="cursor-pointer font-medium">配置影响与执行步骤</summary>
+          <p className="mt-2 break-all text-muted-foreground">保留：{preview.retain_models.join('、') || '无'}</p>
+          <p className="mt-2">模型清单{preview.modifies_models ? '会修改' : '不变'}，模型映射{preview.modifies_model_mapping ? '会修改' : '不变'}</p>
+          <div className="mt-2 divide-y">{preview.physical_records.map((record) => <div key={record.channel_id} className="py-2"><strong className="break-all">{record.name}</strong><p className="mt-1 text-muted-foreground">#{record.channel_id} · {record.before_models.length} → {record.after_models.length} 个模型 · 映射{record.mapping_changed ? '会更新' : '不变'}</p></div>)}</div>
+          <ol className="mt-2 space-y-1">{(change?.steps ?? preview.steps).map((step, index) => <li key={index} className="break-words">{index + 1}. {step.label} · {step.status === 'success' ? '已完成' : step.status === 'failed' ? '失败' : step.status === 'running' ? '执行中' : '待执行'}</li>)}</ol>
+        </details>
+        <p className="text-warning">变更记录保留修改前的配置。部分失败时可继续执行，全部核对通过后才会完成{adding ? '更新' : '移除'}。</p>
+        {change?.status === 'partial' ? <p role="status" className="break-words text-warning">{adding ? '更新' : '移除'}部分完成：{change.error || '部分记录尚未更新'}。渠道模型配置尚未确认同步。</p> : null}
+        {error ? <p role="alert" className="break-words text-destructive">{error}</p> : null}
+      </div> : null}
+      <DialogFooter className="shrink-0"><Button variant="outline" disabled={executing} onClick={() => onOpenChange(false)}>取消</Button><Button variant={adding ? 'default' : 'destructive'} onClick={onExecute} disabled={!preview || executing || Boolean(error && !change)}>{executing ? <LoaderCircle className="animate-spin" /> : adding ? <Check /> : <Trash2 />}{executing ? '执行中' : change ? '重试未完成步骤' : adding ? '确认更新' : '确认移除'}</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
 }
 
 function ModelOperationsPanel({ channel }: { channel: AdminLogicalChannel }) {
@@ -240,17 +251,15 @@ function ModelOperationsPanel({ channel }: { channel: AdminLogicalChannel }) {
   const [discovery, setDiscovery] = useState<AdminModelDiscovery | null>(channel.model_discovery ?? null)
   const [selectedModels, setSelectedModels] = useState<string[]>(channel.models)
   const [modelFilter, setModelFilter] = useState('all')
-  const [taskId, setTaskId] = useState<string | null>(channel.latest_model_test?.id ?? null)
+  const [search, setSearch] = useState('')
   const [task, setTask] = useState<AdminModelTestTask | null>(null)
+  const [submittingModels, setSubmittingModels] = useState<string[]>([])
   const [preview, setPreview] = useState<AdminModelRemovePreview | null>(null)
   const [removeOpen, setRemoveOpen] = useState(false)
-  useEffect(() => {
-    setDiscovery(channel.model_discovery ?? null)
-    setSelectedModels(channel.models)
-    setModelFilter('all')
-    setTaskId(channel.latest_model_test?.id ?? null)
-    setTask(null)
-  }, [channel.id, channel.model_discovery, channel.latest_model_test?.id, channel.models])
+  const [removeError, setRemoveError] = useState('')
+  const [removal, setRemoval] = useState<AdminChange | null>(null)
+  const [hiddenModels, setHiddenModels] = useState<string[]>([])
+  const taskId = task?.id ?? channel.latest_model_test?.id
   const taskQuery = useQuery({
     queryKey: ['admin-model-test', taskId],
     queryFn: async ({ signal }) => {
@@ -259,77 +268,165 @@ function ModelOperationsPanel({ channel }: { channel: AdminLogicalChannel }) {
       return response.data
     },
     enabled: Boolean(taskId),
-    refetchInterval: (query) => ['pending', 'running'].includes((query.state.data as AdminModelTestTask | undefined)?.status ?? 'pending') ? 1000 : false,
+    refetchInterval: (query) => ['pending', 'running'].includes(query.state.data?.status ?? 'pending') ? 1000 : false,
   })
-  useEffect(() => { if (taskQuery.data) setTask(taskQuery.data) }, [taskQuery.data])
-  const currentTask = taskQuery.data ?? task
-  const discoveredModels = useMemo(() => {
-    const ids = new Set(channel.models)
-    const entries = (discovery?.models ?? []).map((item) => item.id)
-    return [...new Set([...entries, ...ids])]
-  }, [channel.models, discovery?.models])
-  const testResults = currentTask?.results ?? []
-  const visibleModels = useMemo(() => discoveredModels.filter((model) => {
-    if (modelFilter === 'all') return true
-    const status = testResults.find((item) => item.model_id === model)?.status ?? 'untested'
-    if (modelFilter === 'failed') return !['available', 'unavailable', 'untested'].includes(status)
-    return status === modelFilter
-  }), [discoveredModels, modelFilter, testResults])
+  const currentTask = taskQuery.data ?? task ?? channel.latest_model_test
+  useEffect(() => {
+    if (task && channel.latest_model_test?.id === task.id) setTask(null)
+  }, [channel.latest_model_test?.id, task])
+  useEffect(() => {
+    if (taskQuery.data && !['pending', 'running'].includes(taskQuery.data.status)) {
+      void queryClient.invalidateQueries({ queryKey })
+    }
+  }, [taskQuery.data, queryClient])
+  const discoveredModels = useMemo(() => [...new Set([...channel.models, ...(discovery?.models ?? []).map((item) => item.id)])].filter((model) => !hiddenModels.includes(model)), [channel.models, discovery, hiddenModels])
+  const results = channelModelResults(channel, currentTask)
+  for (const model of submittingModels) results.set(model, { model_id: model, name: model, status: 'running' })
+  const running = ['pending', 'running'].includes(currentTask?.status ?? channel.latest_model_test?.status ?? '')
+  const pendingRemoval = (removal && !['success', 'cancelled'].includes(removal.status) ? removal : null) ?? queryClient.getQueryData<AdminBootstrap>(queryKey)?.changes.find((change) => ['model_remove', 'model_update'].includes(change.kind) && change.target === channel.id && !['success', 'cancelled'].includes(change.status))
+  const activeRemoval = pendingRemoval && !['success', 'cancelled'].includes(pendingRemoval.status) ? pendingRemoval : undefined
+  const visibleModels = discoveredModels.filter((model) => {
+    const status = modelTagState(results.get(model)).tone
+    return model.toLowerCase().includes(search.toLowerCase()) && (modelFilter === 'all' || status === modelFilter)
+  })
+  const selected = selectedModels.filter((model) => discoveredModels.includes(model))
+  const candidates = discoveredModels.filter((model) => modelTagState(results.get(model)).tone === 'failed')
+  const additions = selected.filter((model) => !channel.models.includes(model) && results.get(model)?.status !== 'unavailable')
+  const [modelNotice, setModelNotice] = useState('')
   const discover = useMutation({
     mutationFn: () => discoverAdminChannelModels(channel.id),
     onSuccess: async (response) => {
       if (!response.success) throw new Error(response.message || '获取模型失败')
       setDiscovery(response.data)
-      setSelectedModels((current) => current.length ? current : response.data.models.map((item) => item.id))
+      setHiddenModels([])
+      setSelectedModels((current) => [...new Set([...current, ...response.data.models.map((item) => item.id)])])
+      setModelNotice('')
+      if (response.data.status === 'success') toast.success(`已获取 ${response.data.models.length} 个模型`)
+      else toast.warning(modelDiscoveryStatusLabel(response.data.status))
       await queryClient.invalidateQueries({ queryKey })
-      toast.success(response.data.status === 'success' ? `已获取 ${response.data.models.length} 个模型` : modelDiscoveryStatusLabel(response.data.status))
     },
     onError: (cause) => toast.error(errorMessage(cause)),
   })
   const test = useMutation({
-    mutationFn: () => startAdminModelTest(channel.id, selectedModels.slice(0, 100)),
-    onSuccess: (response) => {
+    mutationFn: (models: string[]) => startAdminModelTest(channel.id, models),
+    onMutate: (models) => { setSubmittingModels(models); setModelNotice('') },
+    onSuccess: async (response) => {
       if (!response.success) throw new Error(response.message || '测试任务创建失败')
-      setTaskId(response.data.id)
+      await queryClient.cancelQueries({ queryKey })
       setTask(response.data)
-      toast.success('模型测试已开始')
+      queryClient.setQueryData(['admin-model-test', response.data.id], response.data)
+      queryClient.setQueryData<AdminBootstrap>(queryKey, (current) => current ? { ...current, channels: current.channels.map((item) => item.id === channel.id ? { ...item, latest_model_test: response.data } : item) } : current)
+      setPreview(null)
+      void queryClient.invalidateQueries({ queryKey })
     },
-    onError: (cause) => toast.error(errorMessage(cause)),
+    onError: (cause) => {
+      setModelNotice(errorMessage(cause))
+      toast.error(errorMessage(cause))
+      void queryClient.invalidateQueries({ queryKey })
+    },
+    onSettled: () => setSubmittingModels([]),
   })
   const cancel = useMutation({
     mutationFn: () => cancelAdminModelTest(currentTask!.id),
-    onSuccess: (response) => { if (response.success) setTask(response.data) },
-    onError: (cause) => toast.error(errorMessage(cause)),
-  })
-  const previewMutation = useMutation({
-    mutationFn: () => previewAdminModelRemoval(channel.id),
-    onSuccess: (response) => { if (!response.success) throw new Error(response.message || '预览失败'); setPreview(response.data); setRemoveOpen(true) },
-    onError: (cause) => toast.error(errorMessage(cause)),
-  })
-  const executeMutation = useMutation({
-    mutationFn: () => executeAdminModelRemoval(channel.id, preview?.remove_models),
-    onSuccess: async (response) => {
-      if (!response.success) throw new Error(response.message || '移除失败')
-      await queryClient.invalidateQueries({ queryKey })
-      if (response.data.status === 'success') { toast.success('不可用模型已移除'); setRemoveOpen(false) } else toast.warning('移除部分完成，可在变更记录中继续执行')
+    onSuccess: (response) => {
+      if (!response.success) throw new Error(response.message || '取消测试失败')
+      setTask(response.data)
+      queryClient.setQueryData(['admin-model-test', response.data.id], response.data)
+      void queryClient.invalidateQueries({ queryKey: ['admin-model-test', response.data.id] })
     },
     onError: (cause) => toast.error(errorMessage(cause)),
   })
-  const unavailableCount = testResults.filter((item) => item.status === 'unavailable' && channel.models.includes(item.model_id)).length
-  return <section className="border-t pt-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-sm font-semibold">模型运营</h2><p className="mt-1 text-xs text-muted-foreground">模型获取和测试由管理员服务执行；只展示脱敏状态。</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => discover.mutate()} disabled={discover.isPending}>{discover.isPending ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}从渠道获取模型</Button><Button size="sm" onClick={() => test.mutate()} disabled={!selectedModels.length || test.isPending || Boolean(currentTask && ['pending', 'running'].includes(currentTask.status))}>{test.isPending ? <LoaderCircle className="animate-spin" /> : <FlaskConical />}测试选中模型</Button></div></div><div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground"><span>来源：{modelDiscoverySourceLabel(discovery?.source)}</span><span>刷新：{formatTime(discovery?.fetched_at)}</span><span>状态：{modelDiscoveryStatusLabel(discovery?.status)}</span><Select value={modelFilter} onValueChange={setModelFilter}><SelectTrigger className="h-8 w-32" aria-label="模型状态筛选"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">全部模型</SelectItem><SelectItem value="available">可用</SelectItem><SelectItem value="unavailable">不可用</SelectItem><SelectItem value="untested">未测试</SelectItem><SelectItem value="failed">其他异常</SelectItem></SelectContent></Select></div>{discovery?.error ? <p className="mt-3 border border-warning/30 bg-warning/5 p-3 text-sm text-warning">{discovery.error}</p> : null}<div className="mt-4 grid gap-2 sm:grid-cols-2">{visibleModels.map((model) => { const result = testResults.find((item) => item.model_id === model); const checked = selectedModels.includes(model); return <label key={model} className="flex min-w-0 items-start gap-3 border p-3 text-sm"><Checkbox checked={checked} onCheckedChange={(value) => setSelectedModels((current) => value === true ? [...new Set([...current, model])] : current.filter((item) => item !== model))} /><span className="min-w-0 flex-1"><code className="block truncate">{model}</code><span className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground"><span>{result ? modelStatusLabel(result.status) : '未测试'}</span>{result?.latency_ms ? <span>{result.latency_ms} ms</span> : null}{result?.error ? <span className="text-warning">{result.error}</span> : null}</span></span></label> })}</div>{discoveredModels.length > 0 && !visibleModels.length ? <p className="mt-4 border border-dashed p-6 text-center text-sm text-muted-foreground">当前筛选没有匹配模型。</p> : null}{!discoveredModels.length ? <p className="mt-4 border border-dashed p-6 text-center text-sm text-muted-foreground">还没有模型清单。点击“从渠道获取模型”开始。</p> : null}{currentTask ? <div className="mt-4 border-y py-3"><div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>测试进度：{currentTask.completed}/{currentTask.total} · 可用 {currentTask.available_count} · 失败 {currentTask.failed_count}</span><span className="font-mono">{currentTask.progress}% · {currentTask.status === 'cancelled' ? '已取消' : currentTask.status === 'running' || currentTask.status === 'pending' ? '进行中' : currentTask.status === 'success' ? '全部可用' : '部分结果'}</span></div><div className="mt-2 h-2 overflow-hidden bg-muted"><div className="h-full bg-primary transition-[width]" style={{ width: `${currentTask.progress}%` }} /></div>{currentTask.status === 'running' || currentTask.status === 'pending' ? <Button variant="ghost" size="sm" className="mt-2" onClick={() => cancel.mutate()} disabled={cancel.isPending}>取消测试</Button> : null}</div> : null}<div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-muted-foreground">{unavailableCount ? `只有明确判定为“不可用”的模型可以移除；当前 ${unavailableCount} 个。` : '当前没有可移除的不可用模型。请先完成模型测试。'}</p><Button variant="outline" size="sm" onClick={() => previewMutation.mutate()} disabled={!unavailableCount || previewMutation.isPending}>{previewMutation.isPending ? <LoaderCircle className="animate-spin" /> : <Trash2 />}移除不可用模型</Button></div><ModelRemovalDialog preview={preview} open={removeOpen} onOpenChange={setRemoveOpen} onExecute={() => executeMutation.mutate()} executing={executeMutation.isPending} /></section>
+  const previewMutation = useMutation({
+    mutationFn: (models: string[]) => previewAdminModelRemoval(channel.id, models),
+    onSuccess: (response) => {
+      if (!response.success) throw new Error(response.message || '预览失败')
+      setPreview(response.data)
+      setRemoveError('')
+      setRemoveOpen(true)
+    },
+    onError: (cause) => { setModelNotice(errorMessage(cause)); toast.error(errorMessage(cause)) },
+  })
+  const updatePreview = useMutation({
+    mutationFn: () => previewAdminModelUpdate(channel.id, additions),
+    onSuccess: (response) => {
+      if (!response.success) throw new Error(response.message || '更新预览失败')
+      setPreview(response.data)
+      setRemoveError('')
+      setRemoveOpen(true)
+    },
+    onError: (cause) => { setModelNotice(errorMessage(cause)); toast.error(errorMessage(cause)) },
+  })
+  const executeMutation = useMutation({
+    mutationFn: () => preview?.add_models?.length ? executeAdminModelUpdate(channel.id, preview.add_models, preview.preview_token, activeRemoval?.id) : executeAdminModelRemoval(channel.id, preview?.remove_models, activeRemoval?.id, preview?.preview_token),
+    onSuccess: async (response) => {
+      if (!response.success) throw new Error(response.message || '移除失败')
+      setRemoval(response.data)
+      if (response.data.status === 'success') {
+        const removed = preview?.remove_models ?? []
+        await queryClient.cancelQueries({ queryKey })
+        queryClient.setQueryData<AdminBootstrap>(queryKey, (current) => current ? { ...current, changes: current.changes.filter((item) => item.id !== response.data.id), channels: current.channels.map((item) => item.id === channel.id ? { ...item, models: preview?.retain_models ?? item.models.filter((model) => !removed.includes(model)) } : item) } : current)
+        setHiddenModels((current) => [...new Set([...current, ...removed])])
+        setSelectedModels((current) => current.filter((model) => !removed.includes(model)))
+        setRemoveOpen(false)
+        toast.success(preview?.add_models?.length ? '渠道模型已更新' : '不可用模型已移除')
+      } else toast.warning('变更部分完成，请重试未完成步骤')
+      await queryClient.invalidateQueries({ queryKey })
+    },
+    onError: (cause) => {
+      setRemoveError(errorMessage(cause))
+      void queryClient.invalidateQueries({ queryKey })
+    },
+  })
+  const busy = test.isPending || running || executeMutation.isPending || previewMutation.isPending || updatePreview.isPending || removeOpen || discover.isPending
+  const toggleAll = (checked: boolean) => setSelectedModels((current) => checked ? [...new Set([...current, ...visibleModels])] : current.filter((model) => !visibleModels.includes(model)))
+  return <section className="min-w-0 border-t pt-3" aria-label="模型列表">
+    <div className="flex flex-wrap gap-2" role="toolbar" aria-label="模型批量操作">
+      <Button variant="outline" size="sm" onClick={() => discover.mutate()} disabled={discover.isPending || busy}>{discover.isPending ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}获取模型</Button>
+      <Button size="sm" onClick={() => test.mutate(selected)} disabled={!selected.length || selected.length > 100 || busy}>{test.isPending || running ? <LoaderCircle className="animate-spin" /> : <FlaskConical />}{test.isPending || running ? '测试中' : '批量测试'}{selected.length ? ` (${selected.length})` : ''}</Button>
+      {running ? <Button variant="outline" size="sm" onClick={() => cancel.mutate()} disabled={!currentTask || cancel.isPending || currentTask.cancel_requested}><X />{currentTask?.cancel_requested ? '取消中' : '取消测试'}</Button> : null}
+      <Button variant="outline" size="sm" onClick={() => { setModelNotice(''); if (activeRemoval) { setPreview(activeRemoval.plan as AdminModelRemovePreview); setRemoveError(''); setRemoveOpen(true) } else if (candidates.length) previewMutation.mutate(candidates); else setModelNotice('暂无可移除的异常模型。') }} disabled={busy}><Trash2 />移除不可用模型{candidates.length ? ` (${candidates.length})` : ''}</Button>
+      <Button size="sm" variant="outline" onClick={() => { if (additions.length) updatePreview.mutate(); else setModelNotice('没有待更新的模型。获取模型后，勾选需要加入渠道的新模型。') }} disabled={busy || Boolean(activeRemoval)}><Check />确认更新模型{additions.length ? ` (${additions.length})` : ''}</Button>
+      {activeRemoval ? <Button variant="outline" size="sm" disabled={busy} onClick={() => { setPreview(activeRemoval.plan as AdminModelRemovePreview); setRemoveError(''); setRemoveOpen(true) }}><RefreshCw />{activeRemoval.kind === 'model_update' ? '继续更新' : '继续移除'}</Button> : null}
+    </div>
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <Input aria-label="搜索模型" placeholder="搜索模型" value={search} onChange={(event) => setSearch(event.target.value)} className="h-8 min-w-24 flex-1 text-xs" />
+      <Select value={modelFilter} onValueChange={setModelFilter}><SelectTrigger className="h-8 w-28 text-xs" aria-label="模型状态筛选"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">全部模型</SelectItem><SelectItem value="untested">未测试</SelectItem><SelectItem value="running">测试中</SelectItem><SelectItem value="failed">异常</SelectItem><SelectItem value="available">可用</SelectItem></SelectContent></Select>
+    </div>
+    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground"><span>{discoveredModels.length} 个模型 · 已选 {selected.length}</span><span>{modelDiscoveryStatusLabel(discovery?.status)} · {formatTime(discovery?.fetched_at)}</span><span>来源：{modelDiscoverySourceLabel(discovery?.source)}</span></div>
+    {selected.length > 100 ? <p className="mt-2 text-xs text-warning">每次最多测试 100 个模型，请减少选择。</p> : null}
+    {discovery?.error ? <p role="alert" className="mt-2 break-words text-xs text-warning">{discovery.error}</p> : null}
+    {modelNotice ? <p role="status" className="mt-2 break-words text-xs text-warning">{modelNotice}</p> : null}
+    {taskQuery.isError ? <p role="alert" className="mt-2 flex items-center gap-2 text-xs text-destructive">测试状态读取失败<IconButton label="重试读取测试状态" icon={RefreshCw} onClick={() => { void taskQuery.refetch() }} /></p> : null}
+    {activeRemoval ? <p role="status" className="mt-2 break-words text-xs text-warning">模型{activeRemoval.kind === 'model_update' ? '更新' : '移除'}尚未完成，渠道配置待核对。{activeRemoval.error}</p> : null}
+    {test.isPending ? <p role="status" className="mt-3 text-xs text-muted-foreground">测试中 · 正在提交 {submittingModels.length} 个模型</p> : currentTask ? <div className="mt-3 text-xs" role="status"><div className="flex flex-wrap justify-between gap-1"><span>测试进度：{currentTask.completed}/{currentTask.total} · 可用 {currentTask.available_count} · 异常 {currentTask.failed_count}</span><span>{currentTask.status === 'cancelled' ? '已取消' : running ? '测试中' : currentTask.completed < currentTask.total ? '已中断' : '已完成'}</span></div><div role="progressbar" aria-label="模型测试进度" aria-valuenow={currentTask.total ? Math.round(currentTask.completed / currentTask.total * 100) : 0} aria-valuemin={0} aria-valuemax={100} className="mt-2 h-1 overflow-hidden bg-muted"><div className="h-full bg-primary transition-[width]" style={{ width: `${currentTask.total ? currentTask.completed / currentTask.total * 100 : 0}%` }} /></div></div> : null}
+    <div role="table" aria-label="模型配置列表" className="mt-3 text-xs">
+      <div role="row" className="grid grid-cols-[20px_minmax(0,1fr)_64px] items-center gap-x-2 border-y py-2 text-[10px] text-muted-foreground sm:grid-cols-[20px_minmax(0,1fr)_76px_60px_64px]">
+        <span role="columnheader"><Checkbox aria-label="选择当前筛选模型" checked={visibleModels.length > 0 && visibleModels.every((model) => selected.includes(model)) ? true : visibleModels.some((model) => selected.includes(model)) ? 'indeterminate' : false} onCheckedChange={(value) => toggleAll(value === true)} disabled={!visibleModels.length} /></span>
+        <span role="columnheader">模型名<span className="sm:hidden"> / 状态 / 延迟</span></span><span role="columnheader" className="hidden sm:block">状态</span><span role="columnheader" className="hidden sm:block">延迟</span><span role="columnheader" className="text-end">操作</span>
+      </div>
+      {visibleModels.map((model) => {
+        const result = results.get(model)
+        const state = modelTagState(result)
+        const waiting = state.tone === 'running'
+        const canRemove = state.tone === 'failed'
+        const latency = result?.latency_ms != null ? `${result.latency_ms} ms` : '-'
+        return <div role="row" key={model} data-model-row={model} className="grid grid-cols-[20px_minmax(0,1fr)_64px] items-center gap-x-2 gap-y-1 border-b py-2 sm:grid-cols-[20px_minmax(0,1fr)_76px_60px_64px]">
+          <span role="cell" className="row-span-2 sm:row-span-1"><Checkbox aria-label={`选择 ${model}`} checked={selected.includes(model)} onCheckedChange={(value) => setSelectedModels((current) => value === true ? [...new Set([...current, model])] : current.filter((item) => item !== model))} /></span>
+          <div role="cell" className="min-w-0"><code className="break-all text-[11px]">{model}</code>{!channel.models.includes(model) ? <span className="ml-1 text-[10px] text-muted-foreground">未配置</span> : null}{result?.error ? <p className="mt-1 break-words text-[10px] text-muted-foreground">{result.error}</p> : null}</div>
+          <div role="cell" className="col-start-2 row-start-2 flex flex-wrap items-center gap-2 sm:col-start-auto sm:row-start-auto"><span className={`inline-flex items-center gap-1 text-[10px] ${waiting ? 'text-muted-foreground' : (modelTagColors[state.tone] ?? '').split(' ').filter((item) => item.includes('text-')).join(' ')}`}>{waiting ? <LoaderCircle className="size-3 animate-spin" /> : <state.icon className="size-3" />}{waiting ? '测试中' : modelStatusLabel(result?.status ?? 'untested')}</span><span className="font-mono text-[10px] text-muted-foreground sm:hidden">{latency}</span></div>
+          <span role="cell" className="hidden font-mono text-[10px] text-muted-foreground sm:block">{latency}</span>
+          <div role="cell" className="col-start-3 row-span-2 row-start-1 flex justify-end sm:col-start-auto sm:row-span-1 sm:row-start-auto">
+            <IconButton label={`${result && result.status !== 'untested' ? '重试' : '测试'} ${model}`} icon={result && result.status !== 'untested' ? RefreshCw : FlaskConical} onClick={() => test.mutate([model])} disabled={busy} />
+            <IconButton label={canRemove ? `移除 ${model}` : `${model} 无异常结果，不能移除`} icon={Trash2} className="text-destructive" onClick={() => previewMutation.mutate([model])} disabled={!canRemove || busy || Boolean(activeRemoval)} />
+          </div>
+        </div>
+      })}
+    </div>
+    {!visibleModels.length ? <p className="py-6 text-center text-xs text-muted-foreground">{discoveredModels.length ? '当前筛选没有匹配模型。' : '暂无模型'}</p> : null}
+    <ModelRemovalDialog preview={preview} open={removeOpen} onOpenChange={setRemoveOpen} onExecute={() => { setRemoveError(''); executeMutation.mutate() }} executing={executeMutation.isPending} change={activeRemoval} error={removeError} />
+  </section>
 }
 
-function ChannelSheet({ channel, open, onOpenChange, onEdit, onCopy, onTest, onToggle }: { channel: AdminLogicalChannel | null; open: boolean; onOpenChange: (open: boolean) => void; onEdit: () => void; onCopy: () => void; onTest: () => void; onToggle: () => void }) {
-  if (!channel) return null
-  return <Sheet open={open} onOpenChange={onOpenChange}><SheetContent className="w-full overflow-y-auto sm:max-w-2xl"><SheetHeader className="border-b"><SheetTitle>{channel.name}</SheetTitle><SheetDescription>{channelTypeName(channel.channel_type)} · {channel.base_url}</SheetDescription></SheetHeader><div className="space-y-6 px-4 py-5">
-    <section><h2 className="text-sm font-semibold">密钥变体</h2><p className="mt-1 text-xs text-muted-foreground">同一上游地址可以保留多个独立密钥；每个变体单独维护渠道类型、倍率、模型和健康状态。</p><dl className="mt-3 divide-y border-y text-sm">{[
-      ['逻辑 ID', channel.id], ['API 密钥', `已登记 · ${channel.credential_fingerprint}`], ['成本倍率', `${formatCostRatio(channel.cost_ratio)} · 仅展示参考`], ['模型范围', channel.models.join('、') || '无'], ['备注', channel.note || '无'],
-    ].map(([label, value]) => <div key={label} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 py-3"><dt className="text-muted-foreground">{label}</dt><dd className="min-w-0 break-all font-medium">{value}</dd></div>)}</dl></section>
-    <section><h2 className="text-sm font-semibold">底层记录</h2><div className="mt-3 divide-y border-y">{channel.physical_records.map((record) => <div key={record.channel_id} className="grid gap-2 py-3 text-sm sm:grid-cols-[1fr_auto]"><div><strong>{record.kind === 'template' ? '凭据模板' : record.group_name ? `${record.group_name} · 尝试层 ${record.attempt}` : record.kind}</strong><code className="mt-1 block text-xs text-muted-foreground">new-api #{record.channel_id}{record.route_revision ? ` · r${record.route_revision}` : ''}</code></div><span className="text-xs text-muted-foreground">{record.status === 1 ? '启用' : record.status === 3 ? '自动禁用' : '停用'} · {formatTime(record.test_time)}</span></div>)}</div></section>
-    <p className="flex items-start gap-2 border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground"><LockKeyhole className="mt-0.5 size-3.5 shrink-0 text-primary" />服务只保存不可逆指纹，明文密钥不会进入浏览器存储、查询缓存或变更记录。</p>
-    <ModelOperationsPanel channel={channel} />
-  </div><SheetFooter className="border-t sm:flex-row sm:justify-between"><Button variant="outline" onClick={onToggle}>{channel.enabled ? '停用逻辑渠道' : '启用逻辑渠道'}</Button><div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={onCopy}><Copy />复制渠道</Button><Button variant="outline" onClick={onTest}><FlaskConical />测试模板</Button><Button onClick={onEdit}>编辑元数据</Button></div></SheetFooter></SheetContent></Sheet>
-}
 
 function ChannelForm({ channel, copyFrom, open, onOpenChange, onCreated }: { channel: AdminLogicalChannel | null; copyFrom?: AdminLogicalChannel | null; open: boolean; onOpenChange: (open: boolean) => void; onCreated?: (channel: AdminLogicalChannel) => void }) {
   const queryClient = useQueryClient()
@@ -370,7 +467,7 @@ function ChannelForm({ channel, copyFrom, open, onOpenChange, onCreated }: { cha
   const mutation = useMutation({
     mutationFn: async (runTest: boolean) => {
       if (channel) {
-        const response = await updateAdminChannel(channel.id, { name: name.trim(), cost_ratio: costRatio ? Number(costRatio) : null, note: note.trim() })
+        const response = await updateAdminChannel(channel.id, { name: name.trim(), cost_ratio: costRatio ? Number(costRatio) : null, note: note.trim(), ...(apiKey ? { api_key: apiKey } : {}), ...(baseUrl.trim() !== channel.base_url ? { base_url: baseUrl.trim() } : {}), ...(Number(channelType) !== channel.channel_type ? { channel_type: Number(channelType) } : {}) })
         return { response, testStarted: false, testError: null }
       }
       const inputModels = models.split(',').map((item) => item.trim()).filter(Boolean)
@@ -400,11 +497,11 @@ function ChannelForm({ channel, copyFrom, open, onOpenChange, onCreated }: { cha
       if (!response.success) throw new Error(response.message || '保存失败')
       setApiKey('')
       await queryClient.invalidateQueries({ queryKey })
-      if (channel) toast.success('渠道元数据已保存')
+      if (channel) toast.success('渠道配置已保存，请核对关联分组路由')
       else if (copying && !testStarted && !testError) toast.success('渠道副本已创建')
       else if (testError) toast.warning(`渠道已创建，但模型测试未启动：${testError}`)
       else if (testStarted) toast.success('渠道已创建，模型测试已开始')
-      else toast.success('逻辑渠道与禁用模板已创建')
+      else toast.success('渠道已创建')
       if (!channel) onCreated?.(response.data)
       onOpenChange(false)
     },
@@ -415,138 +512,168 @@ function ChannelForm({ channel, copyFrom, open, onOpenChange, onCreated }: { cha
     setError('')
     if (!name.trim()) return setError('请填写显示名称。')
     if (costRatio && !/^\d+(?:\.\d{1,3})?$/.test(costRatio.trim())) return setError('成本倍率必须是非负数，最多三位小数。')
+    if (channel?.credential_status === 'missing' && !apiKey) return setError('请重新录入 API 密钥。')
     if (!channel && (!apiKey || !models.split(',').some((item) => item.trim()))) return setError('请填写 API 密钥和至少一个模型。')
     mutation.mutate(runTest)
   }
-  return <Sheet open={open} onOpenChange={(next) => { if (!next) setApiKey(''); onOpenChange(next) }}><SheetContent className="w-full overflow-y-auto sm:max-w-2xl"><SheetHeader className="border-b"><SheetTitle>{channel ? '编辑渠道元数据' : copying ? '复制渠道' : '新建逻辑渠道'}</SheetTitle><SheetDescription>{channel ? '身份、凭据和模型变更需要单独轮换，本表单只修改非敏感元数据。' : copying ? '已复制非敏感配置；请输入新密钥。新副本会作为独立密钥变体保存。' : '保存后创建不参与用户路由的禁用凭据模板。'}</SheetDescription></SheetHeader><form className="grid gap-5 px-4 py-5" onSubmit={submit}>
+  return <Sheet open={open} onOpenChange={(next) => { if (!next) setApiKey(''); onOpenChange(next) }}><SheetContent className="w-full overflow-y-auto sm:max-w-2xl"><SheetHeader className="border-b"><SheetTitle>{channel ? '编辑渠道' : copying ? '复制渠道' : '新建渠道'}</SheetTitle><SheetDescription>{channel ? '渠道配置' : copying ? '已复制渠道配置，请输入新密钥。' : '创建后可在分组路由中绑定渠道。'}</SheetDescription></SheetHeader><form className="grid gap-5 px-4 py-5" onSubmit={submit}>
     <div className="grid gap-2"><Label htmlFor="admin-channel-name">显示名称</Label><Input id="admin-channel-name" value={name} onChange={(event) => setName(event.target.value)} /></div>
-    {!channel ? <><div className="grid gap-4 sm:grid-cols-2"><div className="grid gap-2"><Label>渠道类型</Label><Select value={channelType} onValueChange={setChannelType}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{channelTypes.map((type) => <SelectItem key={type.id} value={String(type.id)}>{type.name}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-2"><Label htmlFor="admin-channel-ratio">成本倍率</Label><Input id="admin-channel-ratio" type="number" min="0" step="0.001" value={costRatio} onChange={(event) => setCostRatio(event.target.value)} placeholder="例如 1.125" /></div></div>
+    <><div className="grid gap-4 sm:grid-cols-2"><div className="grid gap-2"><Label>渠道类型</Label><Select value={channelType} onValueChange={setChannelType}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{channelTypes.map((type) => <SelectItem key={type.id} value={String(type.id)}>{type.name}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-2"><Label htmlFor="admin-channel-ratio">成本倍率</Label><Input id="admin-channel-ratio" type="number" min="0" step="0.001" value={costRatio} onChange={(event) => setCostRatio(event.target.value)} placeholder="例如 1.125" /></div></div>
     <div className="grid gap-2"><Label htmlFor="admin-channel-url">API 地址</Label><Input id="admin-channel-url" type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} autoComplete="url" /><p className="text-xs text-muted-foreground">New API 会自动补充 <code>/v1/models</code>，地址不要以 <code>/v1</code> 结尾。</p></div>
-    <div className="grid gap-2"><Label htmlFor="admin-channel-key">API 密钥</Label><Input id="admin-channel-key" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} autoComplete="new-password" /><p className="text-xs text-muted-foreground">仅在本次提交内存中使用，不写入浏览器存储。</p></div>
-    <div className="grid gap-2"><Label htmlFor="admin-channel-models">模型范围</Label><div className="flex min-w-0 flex-col gap-2 sm:flex-row"><Input id="admin-channel-models" value={models} onChange={(event) => { setModels(event.target.value); setModelFetchSummary('') }} placeholder="先获取模型，或使用英文逗号分隔" /><Button type="button" variant="outline" className="shrink-0" onClick={() => discover.mutate()} disabled={discover.isPending || mutation.isPending || !apiKey.trim() || !baseUrl.trim()}>{discover.isPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}从渠道获取</Button></div><p className="text-xs text-muted-foreground">模型密钥仅转发给 Admin API，用于调用 New API 的模型获取接口，不会保存。</p>{modelFetchSummary ? <p className="text-xs text-success">{modelFetchSummary}</p> : null}</div></> : <div className="grid gap-2"><Label htmlFor="admin-channel-ratio">成本倍率</Label><Input id="admin-channel-ratio" type="number" min="0" step="0.001" value={costRatio} onChange={(event) => setCostRatio(event.target.value)} placeholder="例如 1.125" /></div>}
+    <div className="grid gap-2"><Label htmlFor="admin-channel-key">API 密钥</Label><Input id="admin-channel-key" type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} autoComplete="new-password" placeholder={channel ? channel.credential_status === 'missing' ? '请重新录入凭据' : '留空保留现有凭据' : undefined} /><p className="text-xs text-muted-foreground">仅在本次提交内存中使用，不写入浏览器存储。</p></div>
+    <div className="grid gap-2"><Label htmlFor="admin-channel-models">模型范围</Label><div className="flex min-w-0 flex-col gap-2 sm:flex-row"><Input id="admin-channel-models" disabled={!!channel} value={models} onChange={(event) => { setModels(event.target.value); setModelFetchSummary('') }} placeholder="先获取模型，或使用英文逗号分隔" /><Button type="button" variant="outline" className="shrink-0" onClick={() => discover.mutate()} disabled={!!channel || discover.isPending || mutation.isPending || !apiKey.trim() || !baseUrl.trim()}>{discover.isPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}从渠道获取</Button></div><p className="text-xs text-muted-foreground"> </p>{modelFetchSummary ? <p className="text-xs text-success">{modelFetchSummary}</p> : null}</div></>
     <div className="grid gap-2"><Label htmlFor="admin-channel-note">备注</Label><Textarea id="admin-channel-note" value={note} onChange={(event) => setNote(event.target.value)} maxLength={255} /></div>
     {error ? <p role="alert" className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p> : null}
-    <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>取消</Button>{!channel ? <Button type="button" variant="outline" onClick={() => submit(undefined, true)} disabled={mutation.isPending || discover.isPending}>{mutation.isPending ? <LoaderCircle className="animate-spin" /> : <FlaskConical />}{copying ? '创建副本并测试' : '创建并测试'}</Button> : null}<Button type="submit" disabled={mutation.isPending || discover.isPending}>{mutation.isPending ? <LoaderCircle className="animate-spin" /> : <Check />}{channel ? '保存元数据' : copying ? '创建副本' : '创建渠道'}</Button></div>
+    <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>取消</Button>{!channel ? <Button type="button" variant="outline" onClick={() => submit(undefined, true)} disabled={mutation.isPending || discover.isPending}>{mutation.isPending ? <LoaderCircle className="animate-spin" /> : <FlaskConical />}{copying ? '创建副本并测试' : '创建并测试'}</Button> : null}<Button type="submit" disabled={mutation.isPending || discover.isPending}>{mutation.isPending ? <LoaderCircle className="animate-spin" /> : <Check />}{channel ? '保存配置' : copying ? '创建副本' : '创建渠道'}</Button></div>
   </form></SheetContent></Sheet>
 }
 
-function ChannelsView({ data }: { data: AdminBootstrap }) {
+export function modelTagState(result?: AdminModelTestResult) {
+  if (!result || result.status === 'untested') return { tone: 'untested', label: '未测试', icon: CircleDashed }
+  if (result.status === 'running') return { tone: 'running', label: '测试中', icon: LoaderCircle }
+  if (result.status === 'available') return { tone: 'available', label: '可用', icon: CheckCircle2 }
+  return { tone: 'failed', label: '异常', icon: TriangleAlert }
+}
+
+export function channelModelResults(channel: AdminLogicalChannel, task = channel.latest_model_test) {
+  const results = new Map((channel.latest_model_results ?? []).map((result) => [result.model_id, result]))
+  const running = task && ['pending', 'running'].includes(task.status)
+  for (const result of task?.results ?? []) {
+    results.set(result.model_id, running && result.status === 'untested' ? { ...result, status: 'running', latency_ms: null, error: null } : result)
+  }
+  return results
+}
+
+export function channelGroupNames(channel: AdminLogicalChannel, routes: AdminBootstrap['routes']) {
+  return [...new Set(routes.filter((route) => route.config.layers.some((layer) => layer.members.some((member) => member.logical_id === channel.id))).map((route) => route.group_name))]
+}
+
+const modelTagColors: Record<string, string> = {
+  available: 'border-emerald-600/25 bg-emerald-500/10 text-emerald-700! dark:text-emerald-400!',
+  failed: 'border-red-600/25 bg-red-500/10 text-red-700! dark:text-red-400!',
+  running: 'border-blue-600/25 bg-blue-500/10 text-blue-700! dark:text-blue-400!',
+  untested: 'border-border bg-muted/50 text-muted-foreground!',
+}
+
+function ChannelModels({ channel, showLatency, onConfigure }: { channel: AdminLogicalChannel; showLatency: boolean; onConfigure: () => void }) {
+  const results = channelModelResults(channel)
+  return <div className="flex flex-wrap gap-1.5">{channel.models.map((model) => {
+    const result = results.get(model)
+    const state = modelTagState(result)
+    const Icon = state.icon
+    return <Tooltip key={model}><TooltipTrigger asChild><button type="button" onClick={onConfigure} data-model-status={state.tone} aria-label={`${model}：${state.label}，配置模型`} className={`inline-flex max-w-full cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-start text-[10px] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-ring ${modelTagColors[state.tone]} border`}>
+      <Icon className={`size-3 shrink-0 ${state.tone === 'running' ? 'animate-spin' : ''}`} /><span className="min-w-0 break-all whitespace-normal">{model}</span>
+      {showLatency && result?.latency_ms != null ? <span className="shrink-0 font-mono text-[10px]">{result.latency_ms} ms</span> : null}
+    </button></TooltipTrigger><TooltipContent className="max-w-72 break-words"><p>{state.label}{result?.tested_at ? ` · ${formatTime(result.tested_at)}` : ''} · 配置模型</p>{result?.error ? <p>{result.error}</p> : null}</TooltipContent></Tooltip>
+  })}{!channel.models.length ? <button type="button" onClick={onConfigure} aria-label="配置渠道模型" className="rounded border border-dashed px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground">未配置</button> : null}</div>
+}
+
+function ChannelField({ channel, field, disabled }: { channel: AdminLogicalChannel; field: 'name' | 'cost_ratio'; disabled: boolean }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+  const [error, setError] = useState('')
+  const label = field === 'name' ? '渠道名' : '倍率'
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const response = await updateAdminChannel(channel.id, field === 'name' ? { name: value.trim() } : { cost_ratio: value.trim() ? Number(value) : null })
+      if (!response.success) throw new Error(response.message || '保存失败')
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey }); setEditing(false); toast.success(`${label}已保存`) },
+    onError: (cause) => setError(errorMessage(cause)),
+  })
+  const save = (event: FormEvent) => {
+    event.preventDefault()
+    if (mutation.isPending) return
+    if (field === 'name' && !value.trim()) return setError('请填写渠道名。')
+    if (field === 'cost_ratio' && value.trim() && !/^\d+(?:\.\d{1,3})?$/.test(value.trim())) return setError('倍率必须为非负数，最多三位小数。')
+    setError('')
+    mutation.mutate()
+  }
+  if (editing) return <form onSubmit={save} className="grid min-w-0 gap-1" onKeyDown={(event) => { if (event.key === 'Escape' && !mutation.isPending) { event.stopPropagation(); setEditing(false) } }}>
+    <Input autoFocus aria-label={`编辑${label}`} aria-invalid={Boolean(error)} aria-describedby={error ? `${channel.id}-${field}-error` : undefined} value={value} onChange={(event) => setValue(event.target.value)} disabled={mutation.isPending} maxLength={field === 'name' ? 80 : undefined} inputMode={field === 'cost_ratio' ? 'decimal' : undefined} className="h-8 min-w-0 px-1.5 text-sm" />
+    <div className="flex items-center gap-1"><Tooltip><TooltipTrigger asChild><Button type="submit" size="icon" variant="ghost" className="size-8 text-success" aria-label={`保存${label}`} disabled={mutation.isPending}>{mutation.isPending ? <LoaderCircle className="animate-spin" /> : <Check />}</Button></TooltipTrigger><TooltipContent>保存{label}</TooltipContent></Tooltip><IconButton label={`取消编辑${label}`} icon={X} onClick={() => setEditing(false)} disabled={mutation.isPending} /></div>
+    {error ? <p id={`${channel.id}-${field}-error`} role="alert" className="break-words text-xs text-destructive">{error}</p> : null}
+  </form>
+  return <Tooltip><TooltipTrigger asChild><button type="button" aria-label={`编辑${label}：${field === 'name' ? channel.name : formatCostRatio(channel.cost_ratio)}`} disabled={disabled} onClick={() => { setValue(field === 'name' ? channel.name : channel.cost_ratio?.toString() ?? ''); setError(''); setEditing(true) }} className="max-w-full cursor-pointer rounded text-start focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50">
+    {field === 'name' ? <span className="break-all font-medium hover:underline">{channel.name}</span> : <Badge variant="outline" className="max-w-full break-all whitespace-normal rounded border-primary/25 bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-primary">{formatCostRatio(channel.cost_ratio)}</Badge>}
+  </button></TooltipTrigger><TooltipContent>编辑{label}</TooltipContent></Tooltip>
+}
+
+export function ChannelsView({ data }: { data: AdminBootstrap }) {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
-  const [selected, setSelected] = useState<AdminLogicalChannel | null>(null)
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [showLatency, setShowLatency] = useState(false)
+  const [modelChannelId, setModelChannelId] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState<AdminLogicalChannel | null>(null)
   const [copying, setCopying] = useState<AdminLogicalChannel | null>(null)
-  const [expandedUpstreams, setExpandedUpstreams] = useState<Record<string, boolean>>({})
-  useEffect(() => {
-    if (!selected) return
-    const refreshed = data.channels.find((channel) => channel.id === selected.id)
-    if (refreshed) setSelected(refreshed)
-  }, [data.channels, selected?.id])
+  const [editingChannel, setEditingChannel] = useState<AdminLogicalChannel | null>(null)
+  const [deleting, setDeleting] = useState<AdminLogicalChannel | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+  const modelChannel = data.channels.find((channel) => channel.id === modelChannelId)
   const visible = useMemo(() => data.channels.filter((channel) => {
-    const matchesStatus = status === 'all' || channel.status === status
-    const text = `${channel.name} ${channel.id} ${channel.base_url} ${channelTypeName(channel.channel_type)}`.toLowerCase()
+    const matchesStatus = status === 'all' || (status === 'enabled' ? channel.enabled : !channel.enabled)
+    const text = [channel.name, channel.base_url, channelTypeName(channel.channel_type), ...channel.models, ...channelGroupNames(channel, data.routes)].join(' ').toLowerCase()
     return matchesStatus && text.includes(query.trim().toLowerCase())
-  }), [data.channels, query, status])
-  const upstreamGroups = useMemo(() => {
-    const groups = new Map<string, { key: string; baseUrl: string; channels: AdminLogicalChannel[] }>()
-    for (const channel of visible) {
-      const key = channel.upstream_key || channel.base_url
-      const group = groups.get(key) || { key, baseUrl: channel.base_url, channels: [] }
-      group.channels.push(channel)
-      groups.set(key, group)
-    }
-    return [...groups.values()]
-  }, [visible])
-  const allUpstreamCount = useMemo(() => new Set(data.channels.map((channel) => channel.upstream_key || channel.base_url)).size, [data.channels])
-  const groupStateKey = upstreamGroups.map((group) => group.key).join('|')
-  useEffect(() => {
-    setExpandedUpstreams((current) => {
-      const next = { ...current }
-      let changed = false
-      for (const group of upstreamGroups) {
-        if (!(group.key in next)) {
-          next[group.key] = true
-          changed = true
-        }
-      }
-      return changed ? next : current
-    })
-  }, [groupStateKey])
+  }), [data.channels, data.routes, query, status])
   const operation = useMutation({
-    mutationFn: async (input: { channel: AdminLogicalChannel; kind: 'test' | 'status' }) => input.kind === 'test' ? testAdminChannel(input.channel.id) : setAdminChannelStatus(input.channel.id, !input.channel.enabled),
-    onSuccess: async (_, input) => { await queryClient.invalidateQueries({ queryKey }); toast.success(input.kind === 'test' ? '渠道测试已完成' : '逻辑渠道状态已更新'); setSheetOpen(false) },
-    onError: (cause) => toast.error(errorMessage(cause)),
-  })
-  return <div className="space-y-6"><PageHeading eyebrow="ADMIN / CHANNELS" title="渠道" description="按上游地址归组查看，每个密钥仍作为独立渠道维护倍率、类型、模型和路由。明文密钥只在创建请求内存中出现。" action={<Button onClick={() => { setEditing(null); setCopying(null); setFormOpen(true) }}><Plus />新建逻辑渠道</Button>} />
-    <MetricBelt items={[{ label: '上游地址', value: String(allUpstreamCount), detail: '按规范化地址归组' }, { label: '密钥变体', value: String(data.channels.length), detail: '每个变体独立路由' }, { label: '可用', value: String(data.channels.filter((item) => item.status === 'available').length), detail: '配置一致且路由启用', tone: 'success' }, { label: '底层记录', value: String(data.channels.reduce((sum, item) => sum + item.record_count, 0)), detail: '模板、路由与归档' }, { label: '倍率未登记', value: String(data.channels.filter((item) => item.cost_ratio == null).length), detail: '不影响现有计费' }]} />
-    <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row"><label className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute start-3 top-2.5 size-4 text-muted-foreground" /><Input aria-label="搜索渠道" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称、逻辑 ID 或 API 地址" className="ps-9" /></label><Select value={status} onValueChange={setStatus}><SelectTrigger className="w-full sm:w-40" aria-label="渠道状态"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">全部状态</SelectItem><SelectItem value="available">可用</SelectItem><SelectItem value="partial">部分异常</SelectItem><SelectItem value="unavailable">不可用</SelectItem><SelectItem value="disabled">已停用</SelectItem><SelectItem value="unknown">未知</SelectItem></SelectContent></Select></div>
-    <section className="overflow-hidden border bg-card"><div className="hidden overflow-x-auto md:block"><Table><TableHeader><TableRow><TableHead>状态</TableHead><TableHead>密钥变体</TableHead><TableHead>API 地址</TableHead><TableHead>成本倍率</TableHead><TableHead>路由</TableHead><TableHead>最近测试</TableHead><TableHead className="text-end">操作</TableHead></TableRow></TableHeader><TableBody>{upstreamGroups.flatMap((group) => {
-      const expanded = expandedUpstreams[group.key] ?? true
-      const types = [...new Set(group.channels.map((channel) => channelTypeName(channel.channel_type)))]
-      const ratios = [...new Set(group.channels.map((channel) => formatCostRatio(channel.cost_ratio)))]
-      const header = <TableRow key={`upstream-${group.key}`} className="bg-muted/30"><TableCell colSpan={7} className="p-0"><button type="button" className="flex w-full flex-wrap items-center gap-2 px-4 py-3 text-start" aria-expanded={expanded} onClick={() => setExpandedUpstreams((current) => ({ ...current, [group.key]: !expanded }))}><ChevronRight className={`size-4 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} /><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">上游</span><code className="min-w-0 max-w-full truncate text-sm font-medium">{group.baseUrl}</code><Badge variant="secondary">{group.channels.length} 个密钥</Badge><span className="text-xs text-muted-foreground">{types.join(' / ')} · 倍率 {ratios.join(' / ')}</span></button></TableCell></TableRow>
-      const rows = expanded ? group.channels.map((channel) => <TableRow key={channel.id} className="cursor-pointer" onClick={() => { setSelected(channel); setSheetOpen(true) }}><TableCell><StatusBadge status={channel.status} /></TableCell><TableCell><div className="ps-5"><strong>{channel.name}</strong><code className="mt-1 block max-w-44 truncate text-xs text-muted-foreground">{channel.id}</code><span className="mt-1 block text-xs text-muted-foreground">{channelTypeName(channel.channel_type)} · {channel.models.length} 个模型</span></div></TableCell><TableCell className="max-w-72 truncate text-muted-foreground">{channel.base_url}</TableCell><TableCell className="font-mono">{formatCostRatio(channel.cost_ratio)}</TableCell><TableCell>{channel.groups} 组 · {channel.attempt_layers} 层 · {channel.record_count} 条</TableCell><TableCell><span className="block">{formatTime(channel.latest_test_time)}</span><span className="text-xs text-muted-foreground">{channel.response_time ? `${channel.response_time} ms` : '无延迟数据'}</span></TableCell><TableCell className="text-end" onClick={(event) => event.stopPropagation()}><div className="flex justify-end gap-1"><IconButton label="查看详情" icon={Eye} onClick={() => { setSelected(channel); setSheetOpen(true) }} /><IconButton label="复制渠道" icon={Copy} onClick={() => { setCopying(channel); setEditing(null); setFormOpen(true) }} /></div></TableCell></TableRow>) : []
-      return [header, ...rows]
-    })}</TableBody></Table></div>
-      <div className="divide-y md:hidden">{upstreamGroups.flatMap((group) => { const expanded = expandedUpstreams[group.key] ?? true; const header = <button key={`upstream-mobile-${group.key}`} type="button" className="flex w-full min-w-0 items-center gap-2 bg-muted/30 px-4 py-3 text-start" aria-expanded={expanded} onClick={() => setExpandedUpstreams((current) => ({ ...current, [group.key]: !expanded }))}><ChevronRight className={`size-4 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} /><span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-muted-foreground">上游 · {group.channels.length} 个密钥</span><code className="mt-1 block truncate text-xs">{group.baseUrl}</code></span></button>; const rows = expanded ? group.channels.map((channel) => <button key={channel.id} type="button" className="flex w-full min-w-0 items-start gap-3 p-4 ps-8 text-start" onClick={() => { setSelected(channel); setSheetOpen(true) }}><HealthDot status={channel.status === 'available' ? 'healthy' : channel.status === 'partial' || channel.status === 'unavailable' ? 'warning' : 'unknown'} /><span className="min-w-0 flex-1"><strong className="block truncate">{channel.name}</strong><span className="mt-1 block truncate text-xs text-muted-foreground">{channelTypeName(channel.channel_type)} · {channel.models.length} 个模型 · {formatCostRatio(channel.cost_ratio)}</span><span className="mt-1 block text-xs text-muted-foreground">{channel.groups} 组 · {channel.record_count} 条记录</span></span><ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground" /></button>) : []; return [header, ...rows] })}</div>{!visible.length ? <p className="p-10 text-center text-sm text-muted-foreground">没有匹配的逻辑渠道。</p> : null}</section>
-    <ChannelSheet channel={selected} open={sheetOpen} onOpenChange={setSheetOpen} onEdit={() => { setEditing(selected); setCopying(null); setSheetOpen(false); setFormOpen(true) }} onCopy={() => { setCopying(selected); setEditing(null); setSheetOpen(false); setFormOpen(true) }} onTest={() => selected && operation.mutate({ channel: selected, kind: 'test' })} onToggle={() => selected && operation.mutate({ channel: selected, kind: 'status' })} />
-    <ChannelForm channel={editing} copyFrom={copying} open={formOpen} onOpenChange={setFormOpen} onCreated={(created) => { setCopying(null); setSelected(created); setSheetOpen(true) }} />
-  </div>
-}
-
-function defaultLayers(): AdminRouteLayer[] {
-  return [{ members: [] }]
-}
-
-function RoutePreviewDialog({ preview, input, open, onOpenChange, group }: { preview: AdminRoutePreview | null; input: AdminRouteInput; open: boolean; onOpenChange: (open: boolean) => void; group: string }) {
-  const queryClient = useQueryClient()
-  const execute = useMutation({
-    mutationFn: () => executeAdminRoute(group, input),
-    onSuccess: async (response) => {
-      if (!response.success) throw new Error(response.message || '执行失败')
-      await queryClient.invalidateQueries({ queryKey })
-      if (response.data.status === 'success') { toast.success(`路由 r${response.data.revision} 已完成`); onOpenChange(false) } else toast.warning('路由变更部分失败，已保留续跑记录')
+    mutationFn: async (channel: AdminLogicalChannel) => {
+      const response = await setAdminChannelStatus(channel.id, !channel.enabled)
+      if (!response.success) throw new Error(response.message || '状态更新失败')
+      return response
     },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey }); toast.success('渠道状态已更新') },
     onError: (cause) => toast.error(errorMessage(cause)),
   })
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>保存 {group} 路由</DialogTitle><DialogDescription>新记录先在禁用状态下配置和核对，再启用新修订并停用旧修订。提交过程不是数据库事务。</DialogDescription></DialogHeader>{preview ? <div className="space-y-5"><MetricBelt items={[{ label: '新建并配置', value: String(preview.summary.create_and_configure), detail: '禁用状态准备' }, { label: '启用新记录', value: String(preview.summary.enable_new), detail: `修订 r${preview.revision}` }, { label: '停用旧记录', value: String(preview.summary.disable_old), detail: '随后标记归档' }, { label: '非标准记录', value: String(preview.summary.nonstandard_untouched), detail: '保持原状', tone: preview.summary.nonstandard_untouched ? 'warning' : undefined }, { label: '执行步骤', value: String(preview.steps.length), detail: '失败后可续跑' }]} /><div className="max-h-60 divide-y overflow-y-auto border-y">{preview.steps.map((step, index) => <div key={`${step.action}-${index}`} className="flex items-center gap-3 py-3 text-sm"><span className="flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-xs">{index + 1}</span><span>{step.label}</span></div>)}</div>{preview.nonstandard_channels.length ? <p className="border border-warning/30 bg-warning/5 p-3 text-sm text-warning"><TriangleAlert className="me-2 inline size-4" />目标分组中有 {preview.nonstandard_channels.length} 条非标准记录，本次不会修改它们。</p> : null}</div> : null}<DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button><Button onClick={() => execute.mutate()} disabled={!preview || execute.isPending}>{execute.isPending ? <LoaderCircle className="animate-spin" /> : <ArrowRight />}{execute.isPending ? '执行中' : '开始执行'}</Button></DialogFooter></DialogContent></Dialog>
-}
-
-function RoutesView({ data }: { data: AdminBootstrap }) {
-  const firstGroup = data.routes.find((route) => data.groups.includes(route.group_name))?.group_name ?? data.groups[0] ?? ''
-  const [group, setGroup] = useState(firstGroup)
-  const [layers, setLayers] = useState<AdminRouteLayer[]>(defaultLayers)
-  const [acknowledge, setAcknowledge] = useState(false)
-  const [preview, setPreview] = useState<AdminRoutePreview | null>(null)
-  const [previewOpen, setPreviewOpen] = useState(false)
-  useEffect(() => { if (!group && firstGroup) setGroup(firstGroup) }, [firstGroup, group])
-  const storedRoute = data.routes.find((route) => route.group_name === group)
-  useEffect(() => { setLayers(storedRoute?.config.layers?.length ? structuredClone(storedRoute.config.layers) : defaultLayers()); setAcknowledge(false) }, [group, storedRoute?.revision])
-  const used = new Set(layers.flatMap((layer) => layer.members.map((member) => member.logical_id)))
-  const input: AdminRouteInput = { layers, acknowledge_nonstandard: acknowledge }
-  const dirty = JSON.stringify(layers) !== JSON.stringify(storedRoute?.config.layers ?? defaultLayers())
-  const previewMutation = useMutation({
-    mutationFn: () => previewAdminRoute(group, input),
-    onSuccess: (response) => { if (!response.success) throw new Error(response.message || '预览失败'); setPreview(response.data); setPreviewOpen(true) },
-    onError: (cause) => toast.error(errorMessage(cause)),
+  const remove = useMutation({
+    mutationFn: async (channel: AdminLogicalChannel) => {
+      const response = await deleteAdminChannel(channel.id)
+      if (!response.success) throw new Error(response.message || '删除失败')
+    },
+    onSuccess: async () => { setDeleting(null); await queryClient.invalidateQueries({ queryKey }); toast.success('渠道已删除') },
+    onError: (cause) => setDeleteError(errorMessage(cause)),
   })
-  const setWeight = (attempt: number, logicalId: string, value: string) => setLayers((current) => current.map((layer, index) => index === attempt ? { members: layer.members.map((member) => member.logical_id === logicalId ? { ...member, weight: Math.max(1, Number(value) || 1) } : member) } : layer))
-  const addMember = (attempt: number, logicalId: string) => { if (!logicalId || used.has(logicalId)) return; setLayers((current) => current.map((layer, index) => index === attempt ? { members: [...layer.members, { logical_id: logicalId, weight: 100 }] } : layer)) }
-  const removeMember = (attempt: number, logicalId: string) => setLayers((current) => current.map((layer, index) => index === attempt ? { members: layer.members.filter((member) => member.logical_id !== logicalId) } : layer))
-  const valid = Boolean(group) && layers.length > 0 && layers.every((layer) => layer.members.length > 0)
-  const nonstandard = data.monitor?.summary.nonstandard_records ?? 0
-  return <div className="space-y-6"><PageHeading eyebrow="ADMIN / ROUTING" title="分组路由" description="每个尝试层是按相对权重选择的候选池。失败后进入下一层，不承诺同层渠道之间的固定顺序。" action={<Button disabled={!dirty || !valid || previewMutation.isPending} onClick={() => previewMutation.mutate()}>{previewMutation.isPending ? <LoaderCircle className="animate-spin" /> : <ClipboardCheck />}预览变更</Button>} />
-    <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between"><div><Label>目标分组</Label><p className="mt-1 text-xs text-muted-foreground">分组及倍率继续由 new-api 其他页面维护。</p></div><Select value={group} onValueChange={setGroup}><SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="选择分组" /></SelectTrigger><SelectContent>{data.groups.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
-    <MetricBelt items={[{ label: '当前分组', value: group || '无', detail: '单个 new-api 实例' }, { label: '尝试层', value: String(layers.length), detail: `最多 ${data.retry_times + 1} 层` }, { label: '候选渠道', value: String(used.size), detail: '不可跨层重复' }, { label: '当前修订', value: storedRoute ? `r${storedRoute.revision}` : '未配置', detail: storedRoute ? formatTime(storedRoute.updated_at) : '保存后生成 r1' }, { label: '状态', value: dirty ? '有未保存变更' : '已同步', detail: dirty ? '预览后执行' : storedRoute?.updated_by || '无' }]} />
-    <div className="space-y-4">{layers.map((layer, attempt) => { const total = layer.members.reduce((sum, member) => sum + member.weight, 0); return <section key={attempt} className="border bg-card"><header className="flex items-center justify-between border-b p-4"><div><span className="font-mono text-xs text-muted-foreground">P{1000 - attempt * 100}</span><h2 className="font-semibold">{attempt === 0 ? '初次尝试' : `第 ${attempt} 次重试`}</h2></div>{layers.length > 1 ? <IconButton label="移除尝试层" icon={Trash2} onClick={() => setLayers((current) => current.filter((_, index) => index !== attempt))} /> : null}</header><div className="divide-y">{layer.members.map((member) => { const channel = data.channels.find((item) => item.id === member.logical_id); return <div key={member.logical_id} className="flex flex-wrap items-center gap-3 p-4"><div className="flex min-w-0 flex-1 items-center gap-3"><StatusBadge status={channel?.status ?? 'unknown'} /><span className="min-w-0 truncate text-sm font-medium">{channel?.name ?? member.logical_id}</span></div><label className="flex items-center gap-2 text-xs text-muted-foreground">权重 <Input type="number" min="1" max="1000000" value={member.weight} className="h-8 w-24 font-mono" onChange={(event) => setWeight(attempt, member.logical_id, event.target.value)} /><span className="w-12 text-end font-mono text-foreground">{total ? Math.round(member.weight / total * 100) : 0}%</span></label><IconButton label="移除渠道" icon={Trash2} onClick={() => removeMember(attempt, member.logical_id)} /></div>})}</div><div className="border-t bg-muted/20 p-3"><Select value="" onValueChange={(value) => addMember(attempt, value)}><SelectTrigger className="w-full"><SelectValue placeholder="添加逻辑渠道" /></SelectTrigger><SelectContent>{data.channels.filter((channel) => channel.enabled && !used.has(channel.id)).map((channel) => <SelectItem key={channel.id} value={channel.id}>{channel.name} · {channel.models.length} 个模型</SelectItem>)}</SelectContent></Select></div></section> })}</div>
-    <div className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between"><div><strong className="text-sm">非标准记录</strong><p className="mt-1 text-xs text-muted-foreground">当前实例检测到 {nonstandard} 条非标准物理记录，目标分组命中时预览会再次确认。</p></div><label className="flex items-center gap-2 text-sm"><Checkbox checked={acknowledge} onCheckedChange={(checked) => setAcknowledge(checked === true)} />我已核对并保留非标准记录</label></div>
-    <div className="flex justify-end"><Button variant="outline" disabled={layers.length >= data.retry_times + 1} onClick={() => setLayers((current) => [...current, { members: [] }])}><Plus />添加重试层</Button></div>
-    <RoutePreviewDialog preview={preview} input={input} group={group} open={previewOpen} onOpenChange={setPreviewOpen} />
+  const deleteGroups = deleting ? channelGroupNames(deleting, data.routes) : []
+  return <div className="min-w-0 space-y-4">
+    <PageHeading eyebrow="ADMIN / CHANNELS" title="渠道" action={<Button onClick={() => { setEditingChannel(null); setCopying(null); setFormOpen(true) }}><Plus />新建渠道</Button>} />
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="relative min-w-48 flex-1"><Search className="pointer-events-none absolute start-3 top-2.5 size-4 text-muted-foreground" /><Input aria-label="搜索渠道" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索渠道、地址、模型或分组" className="ps-9" /></label>
+      <Select value={status} onValueChange={setStatus}><SelectTrigger className="w-32" aria-label="渠道状态"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">全部状态</SelectItem><SelectItem value="enabled">已启用</SelectItem><SelectItem value="disabled">已禁用</SelectItem></SelectContent></Select>
+      <div className="flex items-center gap-2"><Switch id="channel-model-latency" checked={showLatency} onCheckedChange={setShowLatency} /><Label htmlFor="channel-model-latency" className="whitespace-nowrap text-xs">显示延迟 ms</Label></div>
+      <IconButton label="刷新渠道" icon={RefreshCw} onClick={() => { void queryClient.invalidateQueries({ queryKey }) }} />
+    </div>
+    <div className="min-w-0 border-y">
+      <Table className="w-full min-w-[1080px] table-fixed">
+        <colgroup><col className="w-[14%]" /><col className="w-[7%]" /><col className="w-[14%]" /><col className="w-[13%]" /><col className="w-[10%]" /><col className="w-[23%]" /><col className="w-[9%]" /><col className="w-[10%]" /></colgroup>
+        <TableHeader><TableRow>{['渠道名', '渠道类型', '地址', '密钥', '倍率', '模型配置', '绑定分组', '操作'].map((label) => <TableHead key={label} className={label === '操作' ? 'text-end' : ''}>{label}</TableHead>)}</TableRow></TableHeader>
+        <TableBody>{visible.map((channel) => {
+          const groups = channelGroupNames(channel, data.routes)
+          const busy = operation.isPending || remove.isPending
+          return <TableRow key={channel.id} className="align-top">
+            <TableCell className="whitespace-normal"><ChannelField channel={channel} field="name" disabled={busy} /><span className={`mt-1.5 flex items-center gap-1.5 text-xs ${channel.enabled ? 'text-muted-foreground' : 'text-destructive'}`}><span className={`size-1.5 rounded-full ${channel.enabled ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />{channel.enabled ? '已启用' : '已禁用'}</span></TableCell>
+            <TableCell><Tooltip><TooltipTrigger asChild><span tabIndex={0} role="img" aria-label={channelTypeName(channel.channel_type)} className="inline-flex size-8 items-center justify-center"><ChannelProviderIcon type={channel.channel_type} /></span></TooltipTrigger><TooltipContent>{channelTypeName(channel.channel_type)}</TooltipContent></Tooltip></TableCell>
+            <TableCell><Tooltip><TooltipTrigger asChild><span tabIndex={0} className="block truncate font-mono text-xs text-muted-foreground">{channel.base_url}</span></TooltipTrigger><TooltipContent className="max-w-80 break-all">{channel.base_url}</TooltipContent></Tooltip></TableCell>
+            <TableCell><span aria-label="脱敏密钥" className="font-mono text-xs text-muted-foreground">{channel.credential_status === 'missing' ? '待录入凭据' : channel.masked_key ?? '暂不可用'}</span></TableCell>
+            <TableCell className="whitespace-normal"><ChannelField channel={channel} field="cost_ratio" disabled={busy} /></TableCell>
+            <TableCell className="whitespace-normal"><ChannelModels channel={channel} showLatency={showLatency} onConfigure={() => setModelChannelId(channel.id)} /></TableCell>
+            <TableCell className="whitespace-normal"><div className="flex flex-wrap gap-1">{groups.map((group) => <Badge key={group} variant="secondary" className="max-w-full break-all whitespace-normal rounded">{group}</Badge>)}{!groups.length ? <span className="text-xs text-muted-foreground">未绑定</span> : null}</div></TableCell>
+            <TableCell><div className="grid grid-cols-[repeat(2,2rem)] justify-end gap-0.5">
+              <IconButton label="编辑渠道" icon={Pencil} onClick={() => { setEditingChannel(channel); setCopying(null); setFormOpen(true) }} disabled={busy} />
+              <IconButton label="复制渠道" icon={Copy} className="text-blue-600! hover:bg-blue-500/10 hover:text-blue-700! dark:text-blue-400!" onClick={() => { setEditingChannel(null); setCopying(channel); setFormOpen(true) }} disabled={busy} />
+              <IconButton label={channel.enabled ? '禁用渠道' : '启用渠道'} icon={Power} className={channel.enabled ? 'text-yellow-600! hover:bg-yellow-500/10 hover:text-yellow-700! dark:text-yellow-400!' : 'text-emerald-600! hover:bg-emerald-500/10 hover:text-emerald-700! dark:text-emerald-400!'} onClick={() => operation.mutate(channel)} disabled={busy} />
+              <IconButton label="删除渠道" icon={Trash2} className="text-red-600! hover:bg-red-500/10 hover:text-red-700! dark:text-red-400!" onClick={() => { setDeleteError(''); setDeleting(channel) }} disabled={busy} />
+            </div></TableCell>
+          </TableRow>
+        })}{!visible.length ? <TableRow><TableCell colSpan={8} className="h-40 text-center text-muted-foreground">{query || status !== 'all' ? '没有匹配的渠道' : '暂无渠道'}</TableCell></TableRow> : null}</TableBody>
+      </Table>
+    </div>
+    <ChannelForm channel={editingChannel} copyFrom={copying} open={formOpen} onOpenChange={setFormOpen} onCreated={() => setCopying(null)} />
+    <Sheet open={Boolean(modelChannel)} onOpenChange={(open) => { if (!open) setModelChannelId(null) }}><SheetContent className="w-full overflow-y-auto sm:max-w-2xl"><SheetHeader><SheetTitle>{modelChannel?.name} · 模型配置</SheetTitle><SheetDescription>{modelChannel?.base_url}</SheetDescription></SheetHeader><div className="px-4 pb-5">{modelChannel ? <ModelOperationsPanel key={modelChannel.id} channel={modelChannel} /> : null}</div></SheetContent></Sheet>
+    <Dialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open && !remove.isPending) setDeleting(null) }}><DialogContent><DialogHeader><DialogTitle>删除渠道</DialogTitle><DialogDescription>{deleteGroups.length ? `请先在分组路由中解除 ${deleteGroups.join('、')} 的绑定，再删除「${deleting?.name}」。` : `删除「${deleting?.name}」及其关联渠道记录？此操作无法撤销。`}</DialogDescription></DialogHeader>{deleteError ? <p role="alert" className="text-sm text-destructive">{deleteError}</p> : null}<DialogFooter><Button variant="outline" disabled={remove.isPending} onClick={() => setDeleting(null)}>取消</Button><Button variant="destructive" disabled={Boolean(deleteGroups.length) || remove.isPending} onClick={() => deleting && remove.mutate(deleting)}>{remove.isPending ? <LoaderCircle className="animate-spin" /> : <Trash2 />}确认删除</Button></DialogFooter></DialogContent></Dialog>
   </div>
 }
+
 
 function MonitoringView({ data }: { data: AdminBootstrap }) {
   const queryClient = useQueryClient()
@@ -574,7 +701,7 @@ function ChangesView({ data }: { data: AdminBootstrap }) {
   const [open, setOpen] = useState(false)
   return <div className="space-y-6"><PageHeading eyebrow="ADMIN / CHANGES" title="变更记录" description="每个底层步骤在执行前持久化。失败后保留结果并从未完成步骤继续，不保存密钥明文。" />
     <MetricBelt items={[{ label: '全部变更', value: String(data.changes.length), detail: '最近 50 条' }, { label: '执行成功', value: String(data.changes.filter((item) => item.status === 'success').length), detail: '全部步骤完成', tone: 'success' }, { label: '部分失败', value: String(data.changes.filter((item) => item.status === 'partial').length), detail: '可继续执行', tone: 'warning' }, { label: '执行中', value: String(data.changes.filter((item) => item.status === 'running').length), detail: '后台步骤状态' }, { label: '最新修订', value: data.routes.length ? `r${Math.max(...data.routes.map((route) => route.revision))}` : '无', detail: '按分组独立递增' }]} />
-    <section className="overflow-hidden border bg-card">{data.changes.length ? <div className="divide-y">{data.changes.map((change) => <article key={change.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start"><span className="mt-0.5">{change.status === 'success' ? <CheckCircle2 className="size-5 text-success" /> : change.status === 'partial' ? <TriangleAlert className="size-5 text-warning" /> : <LoaderCircle className="size-5 animate-spin" />}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><code className="text-xs text-muted-foreground">{change.id.slice(0, 14)}</code><h2 className="font-semibold">{change.target} · r{change.revision ?? '-'}</h2><Badge variant="outline" className={change.status === 'success' ? 'border-success/30 text-success' : 'border-warning/30 text-warning'}>{change.status === 'success' ? '已完成' : change.status === 'partial' ? '部分失败' : '执行中'}</Badge></div><p className="mt-2 text-xs text-muted-foreground">{formatTime(change.created_at)} · {change.actor_name} · {change.steps.filter((step) => step.status === 'success').length}/{change.steps.length} 步完成</p></div><Button variant="outline" size="sm" onClick={() => { setSelected(change); setOpen(true) }}><Eye />查看步骤</Button></article>)}</div> : <p className="p-10 text-center text-sm text-muted-foreground">还没有管理员渠道变更。</p>}</section>
+    <section className="overflow-hidden border bg-card">{data.changes.length ? <div className="divide-y">{data.changes.map((change) => <article key={change.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start"><span className="mt-0.5">{change.status === 'success' ? <CheckCircle2 className="size-5 text-success" /> : change.status === 'cancelled' ? <CircleDashed className="size-5 text-muted-foreground" /> : change.status === 'partial' ? <TriangleAlert className="size-5 text-warning" /> : <LoaderCircle className="size-5 animate-spin" />}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><code className="text-xs text-muted-foreground">{change.id.slice(0, 14)}</code><h2 className="font-semibold">{change.target} · r{change.revision ?? '-'}</h2><Badge variant="outline" className={change.status === 'success' ? 'border-success/30 text-success' : 'border-warning/30 text-warning'}>{change.status === 'success' ? '已完成' : change.status === 'cancelled' ? '已迁移' : change.status === 'partial' ? '部分失败' : '执行中'}</Badge></div><p className="mt-2 text-xs text-muted-foreground">{formatTime(change.created_at)} · {change.actor_name} · {change.steps.filter((step) => step.status === 'success').length}/{change.steps.length} 步完成</p></div><Button variant="outline" size="sm" onClick={() => { setSelected(change); setOpen(true) }}><Eye />查看步骤</Button></article>)}</div> : <p className="p-10 text-center text-sm text-muted-foreground">还没有管理员渠道变更。</p>}</section>
     <ChangeDialog change={selected} open={open} onOpenChange={setOpen} />
   </div>
 }
@@ -584,7 +711,7 @@ export function AdminOperationsPage({ page }: { page: AdminPage }) {
   if (query.isPending) return <AdminLoading />
   if (query.isError || !query.data) return <AdminUnavailable retry={() => void query.refetch()} message={errorMessage(query.error)} />
   if (page === 'channels') return <ChannelsView data={query.data} />
-  if (page === 'routes') return <RoutesView data={query.data} />
+  if (page === 'routes') return <GroupRoutesView data={query.data} />
   if (page === 'monitoring') return <MonitoringView data={query.data} />
   return <ChangesView data={query.data} />
 }

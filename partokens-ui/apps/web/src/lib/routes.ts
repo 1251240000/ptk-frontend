@@ -33,6 +33,10 @@ export const consoleRouteMap = {
   studio: defineConsoleRoute('studio'),
   wallet: defineConsoleRoute('wallet'),
   profile: defineConsoleRoute('profile'),
+  adminChannels: defineConsoleRoute('admin/channels'),
+  adminRoutes: defineConsoleRoute('admin/routes'),
+  adminMonitoring: defineConsoleRoute('admin/monitoring'),
+  adminChanges: defineConsoleRoute('admin/changes'),
 } as const
 
 export type CanonicalConsolePage = keyof typeof consoleRouteMap
@@ -56,10 +60,13 @@ export function canonicalConsolePath(locale: string | undefined, page: Canonical
 }
 
 export function consolePageFromPathname(pathname: string): CanonicalConsolePage {
-  const segment = pathname.match(/\/console\/([^/?#]+)/)?.[1]
-  const page = (Object.keys(consoleRouteMap) as CanonicalConsolePage[]).find(
-    (candidate) => consoleRouteMap[candidate].segment === segment,
-  )
+  const consolePath = pathname.replace(/^\/[^/]+(?=\/|$)/, '')
+  const page = (Object.keys(consoleRouteMap) as CanonicalConsolePage[])
+    .sort((left, right) => consoleRouteMap[right].path.length - consoleRouteMap[left].path.length)
+    .find((candidate) => {
+      const routePath = consoleRouteMap[candidate].path
+      return consolePath === routePath || consolePath.startsWith(`${routePath}/`)
+    })
   return page ?? 'overview'
 }
 

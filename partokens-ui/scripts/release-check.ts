@@ -135,7 +135,7 @@ function checkPackage() {
   if (!bundleContainsSource) fail('Web bundle does not contain the configured corresponding-source URL; rebuild with PUBLIC_PARTOKENS_SOURCE_URL set')
 
   const caddy = readFileSync(join(root, 'deploy/Caddyfile'), 'utf8')
-  for (const requiredRoute of ['@backend', '@officialAdmin', '@uiRelease', '@publicContent', '@webMedia', '@localizedUI', '@technicalUI']) {
+  for (const requiredRoute of ['handle_path /admin-api/*', '@backend', '@officialAdmin', '@uiRelease', '@publicContent', '@webMedia', '@localizedUI', '@technicalUI']) {
     if (!caddy.includes(requiredRoute)) fail(`Caddy release configuration is missing ${requiredRoute}`)
   }
   for (const forbidden of ['PARTOKENS_DOCS_ORIGIN', '@localizedDocs', '@docsInternal', '@docsStatic', '/_docs', '127.0.0.1:3001']) {

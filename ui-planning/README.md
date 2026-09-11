@@ -1,7 +1,7 @@
 # Partokens User UI Discovery Pack
 
-Status: discovery, R1, and R2 complete; R3.6 awaiting product review  
-Snapshot date: 2026-07-22 (Asia/Shanghai)
+Status: user UI implemented; Root channel operations first release implemented and verified
+Snapshot date: 2026-08-25 (Asia/Shanghai)
 
 The original `Signal Ledger` and subsequent `Model Switchboard` concepts were rejected after implementation review. Product scope, API contracts, security boundaries, locale routing, and deployment ownership remain valid. The active visual brief is [Partokens redesign brief: AI Product Workspace](./07-redesign-brief.md), with delivery sequencing in [Redesign execution plan](./08-redesign-execution-plan.md).
 
@@ -14,6 +14,7 @@ This directory contains the product, requirement, design, API, and deployment ba
 - The future UI is a separately built and deployed frontend that consumes existing New API contracts.
 - New API remains the authority for authentication, authorization, quota, billing, model availability, and logs.
 - Caddy owns path routing between the standalone user UI and the official New API management UI.
+- The sibling `partokens-admin-api/` may orchestrate New API only through HTTP; it never modifies or directly queries New API.
 
 ## Audited Baselines
 
@@ -36,7 +37,8 @@ No credential values or user-specific production data are recorded in these docu
 - Display that conversation history stays in the browser and Partokens does not store that history.
 - Treat the image studio as a separately buildable, controlled AGPL fork, not copied into the main dashboard feature tree.
 - Use preset wallet amounts returned by `amount_options`; never render a custom amount field.
-- Redirect roles `10` and `100` to official management routes after authentication.
+- Send Root (`role === 100`) to localized Partokens channel operations; role 10 remains on the ordinary overview.
+- Keep other native New API management pages linked from the Root sidebar.
 - Ship application UI, public content, legal content, notices, quick-start docs, and full reference docs in all seven locales.
 - Keep homepage, About, legal documents, and notices in the standalone project; administrator-configured HTML is reference-only.
 
@@ -59,8 +61,9 @@ No credential values or user-specific production data are recorded in these docu
 15. [R3.5 Playground](./15-r35-playground.md)
 16. [R3.6 image studio](./16-r36-image-studio.md)
 17. [R3.7 homepage refresh and image assets](./17-r37-homepage-refresh.md)
-18. [R4 implementation tasks](./r4-implementation-tasks/00-scope-and-foundation.md)
-19. [R4 development session prompt](./r4-implementation-tasks/SESSION-PROMPT.md)
+18. [Administrator channel operations product design](./18-admin-channel-operations-product-design.md)
+19. [R4 implementation tasks](./r4-implementation-tasks/00-scope-and-foundation.md)
+20. [R4 development session prompt](./r4-implementation-tasks/SESSION-PROMPT.md)
 
 ## Confirmed Capability Findings
 

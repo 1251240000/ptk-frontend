@@ -8,7 +8,7 @@ Future sibling directory:
 partokens/
 ├── new-api/                 # upstream, read-only
 ├── new-api-docs-v1/         # upstream, read-only
-├── partokens-ui/             # new standalone project
+├── partokens-ui/             # standalone public/user/admin frontend
 │   ├── apps/
 │   │   ├── web/              # public/auth/console SPA
 │   │   ├── studio/           # separately loaded image workbench
@@ -21,10 +21,14 @@ partokens/
 │   │   ├── docs-sync/         # read-only upstream snapshot/diff tooling
 │   │   └── test-contracts/   # redacted fixtures and compatibility tests
 │   └── compatibility.json
+├── partokens-admin-api/      # Root-only channel orchestration and monitoring
+│   ├── admin_api/            # FastAPI, httpx, stdlib sqlite3
+│   ├── data/                 # service-owned SQLite volume
+│   └── tests/
 └── ui-planning/
 ```
 
-`partokens-ui` should be its own Git repository. Neither upstream repository is a package dependency; their route/types are reference inputs only.
+`partokens-ui` and `partokens-admin-api` are independent projects. Neither upstream repository is a package dependency; their route/types are reference inputs only. The administrator service manages one New API instance and uses only its supported HTTP APIs. It does not import or modify New API source and does not connect to its PostgreSQL database.
 
 ## Technology Stack
 
@@ -49,6 +53,7 @@ partokens/
 | Canvas persistence | localForage/IndexedDB in studio package | Blob/project storage and upstream canvas compatibility |
 | Tests | Vitest, Testing Library, MSW, Playwright | Unit, adapter, flow, and visual coverage |
 | Package manager | Bun | Matches current upstream frontend conventions |
+| Administrator service | Python 3.11+, FastAPI, httpx, stdlib sqlite3 | Small single-instance service with async HTTP and no ORM/database server |
 
 The web/studio runtime does not add both Radix and Base UI or multiple chart libraries without a measured need. Fumadocs dependencies remain isolated in the docs deployment and do not enter the user-console bundle.
 
@@ -68,14 +73,49 @@ Caddy
 Unmodified New API
 ```
 
+Administrator operations use a separate same-origin branch:
+
+```text
+/{locale}/console/admin/*
+        ↓
+Partokens admin API adapter
+        ↓
+Caddy /admin-api/* (prefix stripped)
+        ↓
+partokens-admin-api ── HTTP only ──> Unmodified New API
+        ↓
+service-owned SQLite
+```
+
+The administrator API forwards the current browser bearer token to `GET /api/user/self` for every request and requires `role === 100`. Browser tokens and channel API keys are never persisted by the service. A separate Root Personal Access Token is optional and is used only for continuous read-only monitoring.
+
 The bearer transport is isolated to the studio. Full API keys never enter global stores, query caches, logs, error telemetry, or persistent browser storage.
+
+### Channel model operations
+
+The administrator service reuses New API's supported physical-channel HTTP
+capabilities: `GET /api/channel/fetch_models/{id}` for discovery,
+`GET /api/channel/test/{id}?model=...` for a specified-model test, and
+`PUT /api/channel/` for updating `models` and `model_mapping`. New API resolves
+the stored physical-channel credential in its own process; Partokens neither
+retrieves nor persists that credential.
+
+SQLite stores exact integer `cost_ratio_millis`, model discovery snapshots,
+model-test tasks/results, and removal change plans. Model tests are in-process
+async tasks with four workers and a ten-second per-model deadline; this retains
+the single-instance deployment constraint and does not add Redis or Celery.
+Task rows are durable across browser refreshes, and a partial removal uses the
+same resumable `changes` step journal as route revisions.
 
 ## Caddy Routing
 
-The current official New API `web/default` SPA has no supported router basename/base-path, so administrators use its native, unprefixed management paths. The deployed New API theme must be configured to the current default frontend rather than classic. The standalone experience is separated by locale prefixes rather than attempting role-dependent routing at the same URL:
+The Partokens SPA owns Root channel operations while the current official New API `web/default` SPA continues to own the other native administrator pages:
 
 - `/{locale}/*` belongs to the standalone user experience, where locale is one of the seven supported BCP-47 IDs.
-- `/channels`, `/models/*`, `/users`, `/redemption-codes`, `/subscriptions`, `/system-info`, and `/system-settings/*` belong to the official New API UI.
+- `/{locale}/console/admin/{channels,routes,monitoring,changes}` belongs to Partokens and requires Root.
+- `/models/*`, `/users`, `/redemption-codes`, `/subscriptions`, `/system-info`, and `/system-settings/*` remain native New API pages linked from the Root sidebar.
+- `/channels` remains a direct compatibility/debug entry to the native UI, but it is no longer the normal channel-management destination.
+- `/admin-api/*` proxies to the separate administrator service and strips `/admin-api` before forwarding.
 - `/` is a standalone locale-negotiation entry.
 - `/oauth/:provider` and `/user/reset` are standalone technical entries required by existing external/backend callbacks.
 - No compatibility redirects are added for old public, user, or legal routes. Unknown unprefixed paths fall through to unchanged New API.
@@ -88,6 +128,10 @@ Illustrative Caddyfile (to be validated against the real container names and doc
 ```caddyfile
 partokens.com {
   encode zstd gzip
+
+  handle_path /admin-api/* {
+    reverse_proxy partokens-admin-api:8081
+  }
 
   @docsInternal path /_docs/*
   handle @docsInternal {
@@ -153,21 +197,21 @@ Important corrections for implementation:
 
 ## Role Redirect
 
-After any completed auth path:
+After any completed authentication path, a validated same-locale return path still wins. Without one:
 
 ```text
 login/password/OAuth/Passkey/2FA
               ↓
         GET /api/user/self
               ↓
-     role >= 10 ?
-       yes          no
-       ↓            ↓
-window.location   validated same-locale return path
-.assign('/channels') or '/{locale}/console/overview'
+     role === 100 ?
+       yes                    no
+       ↓                      ↓
+/{locale}/console/       /{locale}/console/
+admin/channels           overview
 ```
 
-Use a hard navigation for administrators so Caddy selects the official UI. Backend authorization still protects management APIs and routes.
+Role 10 keeps access to native New API management URLs when opened explicitly, but receives no Partokens administrator navigation and cannot access `/console/admin/*`. Frontend guards are only a usability boundary; the administrator API repeats the exact Root check on every request.
 
 ## Image Studio Strategy
 
@@ -236,7 +280,8 @@ Routing rules:
 - `/` chooses saved account preference, then local preference, then browser preference, then `en` fallback.
 - Locale switching changes only the locale segment and preserves the semantic destination, query, and safe return path.
 - Unprefixed OAuth/reset technical entries restore the locale saved before the external flow.
-- Administrator routes remain unprefixed and use the official UI's own language behavior.
+- Partokens administrator routes retain the active locale prefix. Their first release displays Simplified Chinese copy through a dedicated copy resolver, leaving a later i18n seam.
+- Remaining native New API administrator routes are unprefixed and use the official UI's own language behavior.
 
 ## Documentation And Content Translation
 
@@ -304,6 +349,7 @@ Do not import upstream React components. Reusing their UI would couple releases,
 | Adapter | Zod fixtures for every required endpoint and error normalization |
 | Component | Forms, consent gating, tables, filters, responsive rows, key reveal |
 | Integration | MSW-backed auth/role, wallet, logs, Playground, studio request flow |
+| Administrator API | SQLite repository, identity redaction, route validation, resumable revision execution, Root authorization |
 | E2E | Real local New API session and Caddy route ownership |
 | Visual | Desktop/mobile, light/dark, seven locale stress pages, nonblank canvas pixel check |
 | Content | Seven-locale page parity, internal links, code samples, effective dates, and legal review state |
@@ -313,8 +359,9 @@ Do not import upstream React components. Reusing their UI would couple releases,
 - `partokens-ui-web`: static files.
 - `partokens-ui-studio`: separate static chunk/build under the same origin.
 - `partokens-ui-docs`: isolated Next/Fumadocs service for seven-locale full reference docs.
+- `partokens-admin-api`: one FastAPI process with one service-owned SQLite volume; no horizontal replicas.
 - `new-api`: unchanged upstream container/binary.
 - `new-api-docs-v1`: unchanged read-only update source; it is not the public Partokens docs runtime.
 - `caddy`: only routing/TLS/compression/cache headers.
 
-Rollback replaces only the standalone web/studio release, docs service, and Caddy config. It never requires rebuilding or rolling back New API.
+The Web deployment references `partokens-admin-api` through `PARTOKENS_ADMIN_API_ORIGIN` but does not own its container, SQLite volume, or monitoring token. Rollback never requires rebuilding or rolling back New API. Before multiple administrator-service workers or replicas are introduced, move the service-owned tables to PostgreSQL and add cross-process serialization.

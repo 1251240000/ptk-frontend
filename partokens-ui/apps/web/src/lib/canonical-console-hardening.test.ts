@@ -50,7 +50,7 @@ describe('canonical Console source boundaries', () => {
     const routeState = readFileSync(join(srcRoot, 'components/console-route-state.tsx'), 'utf8')
     const shell = readFileSync(join(srcRoot, 'components/console-shell.tsx'), 'utf8')
 
-    expect(router.match(/\.\.\.consoleRouteAsyncOptions/g)).toHaveLength(10)
+    expect(router.match(/\.\.\.consoleRouteAsyncOptions/g)).toHaveLength(14)
     expect(routeState).toContain('pendingComponent: ConsoleRoutePending')
     expect(routeState).toContain('errorComponent: ConsoleRouteError')
     expect(routeState).toContain('window.location.pathname}${window.location.search}')

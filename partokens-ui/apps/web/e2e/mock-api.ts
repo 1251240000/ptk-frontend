@@ -512,10 +512,12 @@ export async function installMockAdminApi(page: Page) {
     channel_type: 1,
     base_url: 'https://api.example.test/v1',
     credential_fingerprint: 'sha256:12345678...cdef',
+    masked_key: 'sk-abc.....cdef',
     cost_ratio: 1.125,
     models: configuredModels,
     note: 'E2E fixture',
-    template_channel_id: 10,
+    credential_status: 'ready',
+    config_version: 1,
     enabled: true,
     state: 'active',
     status: 'available',
@@ -555,7 +557,7 @@ export async function installMockAdminApi(page: Page) {
       ],
       error: null,
     } : null,
-    latest_model_test: null,
+    latest_model_test: modelTaskRequested ? testTask() : null,
   })
   const testTask = () => ({
     id: 'mt_fixture',
@@ -617,7 +619,8 @@ export async function installMockAdminApi(page: Page) {
         cost_ratio: body.cost_ratio ?? 1.125,
         models: body.models?.length ? body.models : configuredModels,
         credential_fingerprint: 'sha256:87654321...fedc',
-        template_channel_id: 11,
+        credential_status: 'ready',
+        config_version: 1,
       }))
       return
     }
@@ -653,6 +656,7 @@ export async function installMockAdminApi(page: Page) {
         remove_models: ['retired-model'],
         retain_models: ['gpt-4.1-mini'],
         latest_test_id: 'mt_fixture',
+        preview_token: 'a'.repeat(64),
         physical_records: [{
           channel_id: 10,
           kind: 'template',

@@ -88,7 +88,7 @@ export type CurrentUser = {
 export type AdminPhysicalRecord = {
   channel_id: number
   logical_id?: string | null
-  kind: 'template' | 'route' | 'archive' | 'nonstandard'
+  kind: 'template' | 'route' | 'archive' | 'probe' | 'nonstandard'
   group_name?: string | null
   attempt?: number | null
   route_revision?: number | null
@@ -111,10 +111,12 @@ export type AdminLogicalChannel = {
   base_url: string
   upstream_key?: string
   credential_fingerprint: string
+  masked_key?: string | null
   cost_ratio?: number | null
   models: string[]
   note: string
-  template_channel_id: number
+  credential_status: 'ready' | 'missing'
+  config_version: number
   enabled: boolean
   state: string
   status: 'available' | 'partial' | 'unavailable' | 'disabled' | 'unknown'
@@ -127,6 +129,7 @@ export type AdminLogicalChannel = {
   updated_at: number
   model_discovery?: AdminModelDiscovery | null
   latest_model_test?: AdminModelTestSummary | null
+  latest_model_results?: AdminModelTestResult[]
 }
 
 export type AdminDiscoveredModel = {
@@ -146,7 +149,7 @@ export type AdminModelDiscovery = {
 
 export type AdminModelDiscoveryPreview = Omit<AdminModelDiscovery, 'logical_id' | 'fetched_at'>
 
-export type AdminModelTestStatus = 'available' | 'unavailable' | 'timeout' | 'rate_limited' | 'unauthorized' | 'server_error' | 'unknown' | 'untested'
+export type AdminModelTestStatus = 'available' | 'unavailable' | 'timeout' | 'rate_limited' | 'unauthorized' | 'server_error' | 'unknown' | 'untested' | 'running'
 
 export type AdminModelTestResult = {
   model_id: string
@@ -176,6 +179,8 @@ export type AdminModelTestTask = {
 export type AdminModelTestSummary = Omit<AdminModelTestTask, 'progress' | 'cancel_requested' | 'created_at'> & { progress?: number; cancel_requested?: boolean; created_at?: number }
 
 export type AdminModelRemovePreview = {
+  add_models?: string[]
+  preview_token: string
   logical_id: string
   logical_name: string
   remove_models: string[]
@@ -199,8 +204,8 @@ export type AdminModelRemovePreview = {
 }
 
 export type AdminRouteMember = { logical_id: string; weight: number }
-export type AdminRouteLayer = { members: AdminRouteMember[] }
-export type AdminRouteInput = { layers: AdminRouteLayer[]; acknowledge_nonstandard?: boolean }
+export type AdminRouteLayer = { priority?: number; members: AdminRouteMember[] }
+export type AdminRouteInput = { layers: AdminRouteLayer[]; acknowledge_nonstandard?: boolean; confirm_empty?: boolean; expected_revision?: number; preview_token?: string }
 
 export type AdminRouteConfig = {
   group_name: string
@@ -224,7 +229,7 @@ export type AdminChange = {
   kind: string
   target: string
   revision?: number | null
-  status: 'pending' | 'running' | 'partial' | 'success'
+  status: 'pending' | 'running' | 'partial' | 'success' | 'cancelled'
   plan: Record<string, unknown>
   steps: AdminChangeStep[]
   actor_id: number
@@ -268,13 +273,16 @@ export type AdminBootstrap = {
 }
 
 export type AdminRoutePreview = {
+  preview_token?: string
+  changes?: Array<{ logical_id: string; before: { priority: number; weight: number } | null; after: { priority: number; weight: number } | null }>
+  uncovered_models?: string[]
   group: string
   revision: number
   route: AdminRouteInput
   desired: Array<{
     logical_id: string
     logical_name: string
-    template_channel_id: number
+    config_version: number
     group: string
     attempt: number
     priority: number
@@ -896,6 +904,14 @@ api.interceptors.response.use(undefined, async (error: unknown) => {
   throw error
 })
 
+// Do not retain Axios request bodies (including write-only channel credentials) in mutation errors.
+api.interceptors.response.use(undefined, (error: unknown) => {
+  if (axios.isAxiosError(error) && error.config?.url?.startsWith('/admin-api/')) {
+    throw new Error(typeof error.response?.data?.message === 'string' ? error.response.data.message : '管理员服务请求失败')
+  }
+  throw error
+})
+
 async function performRefresh(startRevision: number): Promise<RefreshOutcome> {
   for (const delay of [0, 80, 200, 500]) {
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
@@ -1041,7 +1057,7 @@ export async function discoverAdminChannelModelsPreview(input: {
 
 export async function updateAdminChannel(
   logicalId: string,
-  input: { name?: string; cost_ratio?: number | null; note?: string },
+  input: { name?: string; cost_ratio?: number | null; note?: string; api_key?: string; channel_type?: number; base_url?: string },
 ): Promise<ApiEnvelope<AdminLogicalChannel>> {
   const response = await api.patch(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}`, input)
   return parseEnvelope<AdminLogicalChannel>(response.data)
@@ -1050,6 +1066,11 @@ export async function updateAdminChannel(
 export async function setAdminChannelStatus(logicalId: string, enabled: boolean): Promise<ApiEnvelope<AdminLogicalChannel>> {
   const response = await api.post(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}/status`, { enabled })
   return parseEnvelope<AdminLogicalChannel>(response.data)
+}
+
+export async function deleteAdminChannel(logicalId: string): Promise<ApiEnvelope<{ id: string }>> {
+  const response = await api.delete(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}`)
+  return parseEnvelope<{ id: string }>(response.data)
 }
 
 export async function testAdminChannel(logicalId: string): Promise<ApiEnvelope<unknown>> {
@@ -1063,17 +1084,17 @@ export async function discoverAdminChannelModels(logicalId: string): Promise<Api
 }
 
 export async function startAdminModelTest(logicalId: string, models: string[]): Promise<ApiEnvelope<AdminModelTestTask>> {
-  const response = await api.post(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}/models/test`, { models })
+  const response = await api.post(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}/models/test`, { models }, { timeout: 20_000 })
   return parseEnvelope<AdminModelTestTask>(response.data)
 }
 
 export async function getAdminModelTest(taskId: string, signal?: AbortSignal): Promise<ApiEnvelope<AdminModelTestTask>> {
-  const response = await api.get(`/admin-api/v1/model-tests/${encodeURIComponent(taskId)}`, { signal })
+  const response = await api.get(`/admin-api/v1/model-tests/${encodeURIComponent(taskId)}`, { signal, timeout: 15_000 })
   return parseEnvelope<AdminModelTestTask>(response.data)
 }
 
 export async function cancelAdminModelTest(taskId: string): Promise<ApiEnvelope<AdminModelTestTask>> {
-  const response = await api.post(`/admin-api/v1/model-tests/${encodeURIComponent(taskId)}/cancel`)
+  const response = await api.post(`/admin-api/v1/model-tests/${encodeURIComponent(taskId)}/cancel`, undefined, { timeout: 15_000 })
   return parseEnvelope<AdminModelTestTask>(response.data)
 }
 
@@ -1082,10 +1103,21 @@ export async function previewAdminModelRemoval(logicalId: string, models?: strin
   return parseEnvelope<AdminModelRemovePreview>(response.data)
 }
 
-export async function executeAdminModelRemoval(logicalId: string, models?: string[], changeId?: string): Promise<ApiEnvelope<AdminChange>> {
+export async function previewAdminModelUpdate(logicalId: string, models: string[]): Promise<ApiEnvelope<AdminModelRemovePreview>> {
+  const response = await api.post(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}/models/update/preview`, { models })
+  return parseEnvelope<AdminModelRemovePreview>(response.data)
+}
+
+export async function executeAdminModelUpdate(logicalId: string, models: string[], previewToken: string, changeId?: string): Promise<ApiEnvelope<AdminChange>> {
+  const response = await api.post(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}/models/update/execute`, { models, preview_token: previewToken, ...(changeId ? { change_id: changeId } : {}) })
+  return parseEnvelope<AdminChange>(response.data)
+}
+
+export async function executeAdminModelRemoval(logicalId: string, models?: string[], changeId?: string, previewToken?: string): Promise<ApiEnvelope<AdminChange>> {
   const response = await api.post(`/admin-api/v1/channels/${encodeURIComponent(logicalId)}/models/remove/execute`, {
     ...(models?.length ? { models } : {}),
     ...(changeId ? { change_id: changeId } : {}),
+    ...(previewToken ? { preview_token: previewToken } : {}),
   })
   return parseEnvelope<AdminChange>(response.data)
 }

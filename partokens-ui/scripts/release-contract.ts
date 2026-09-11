@@ -54,6 +54,7 @@ export type StagingEnvironment = {
   stagingOrigin: URL
   siteAddress: string
   apiOrigin: URL
+  adminApiOrigin: URL
   deployHost: string
   releaseRoot: string
   uiRoot: string
@@ -117,6 +118,12 @@ export function validateStagingEnvironment(env: NodeJS.ProcessEnv, sourceCommit:
     throw new Error('PARTOKENS_API_ENVIRONMENT must be staging')
   }
 
+  const adminApiOrigin = absoluteUrl('PARTOKENS_ADMIN_API_ORIGIN', required(env, 'PARTOKENS_ADMIN_API_ORIGIN'))
+  if (!['http:', 'https:'].includes(adminApiOrigin.protocol)) throw new Error('PARTOKENS_ADMIN_API_ORIGIN must use HTTP or HTTPS')
+  if (isProductionHostname(adminApiOrigin.hostname, productionOrigin)) {
+    throw new Error('PARTOKENS_ADMIN_API_ORIGIN must not target production')
+  }
+
   const deployHost = required(env, 'PARTOKENS_DEPLOY_HOST')
   if (isProductionHostname(deployHost, productionOrigin)) throw new Error('PARTOKENS_DEPLOY_HOST must not target production')
   if (required(env, 'PARTOKENS_DEPLOY_ENVIRONMENT') !== 'staging') {
@@ -153,6 +160,7 @@ export function validateStagingEnvironment(env: NodeJS.ProcessEnv, sourceCommit:
     stagingOrigin,
     siteAddress,
     apiOrigin,
+    adminApiOrigin,
     deployHost,
     releaseRoot,
     uiRoot,

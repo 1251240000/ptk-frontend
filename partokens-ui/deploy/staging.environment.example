@@ -11,6 +11,7 @@ PARTOKENS_PRODUCTION_DEPLOY_HOST=partokens-production
 PARTOKENS_RELEASE_ROOT=/srv/partokens-ui/releases/r60-<git-short-sha>.1
 PARTOKENS_UI_ROOT=/srv/partokens-ui/current/web
 PARTOKENS_API_ORIGIN=http://127.0.0.1:3000
+PARTOKENS_ADMIN_API_ORIGIN=http://127.0.0.1:8081
 PARTOKENS_API_ENVIRONMENT=staging
 PARTOKENS_ROBOTS_HEADER=noindex, nofollow, noarchive
 

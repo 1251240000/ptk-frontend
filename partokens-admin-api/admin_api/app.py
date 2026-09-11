@@ -27,6 +27,8 @@ from .schemas import (
     RoutePlanInput,
 )
 from .service import AdminService
+from .vault import CredentialVault
+from .migration import audit, migrate_route
 
 
 logger = logging.getLogger(__name__)
@@ -43,10 +45,15 @@ class Runtime:
 
 
 def build_runtime(settings: Settings) -> Runtime:
+    if settings.encryption_key_file is None:
+        raise ConfigError("PARTOKENS_ADMIN_ENCRYPTION_KEY_FILE is required")
+    vault = CredentialVault.from_file(settings.encryption_key_file)
     database = Database(settings.database_path)
     database.initialize()
-    repository = Repository(database)
-    repository.recover_model_test_tasks()
+    repository = Repository(database, vault)
+    for row in repository.logical_rows():
+        if row.get("config_ciphertext"):
+            repository.channel_config(row["id"])
     client = NewApiClient(settings.new_api_origin, settings.request_timeout_seconds)
     monitor = Monitor(settings, repository, client)
     return Runtime(settings, database, repository, client, monitor, AdminService(repository, client, monitor))
@@ -58,13 +65,27 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        active_runtime.monitor.start()
-        yield
-        await active_runtime.monitor.stop()
-        await active_runtime.client.close()
+        try:
+            with active_runtime.repository.model_test_runtime():
+                active_runtime.monitor.start()
+                try:
+                    yield
+                finally:
+                    models = getattr(active_runtime.service, "models", None)
+                    if models is not None:
+                        await models.stop()
+                    await active_runtime.monitor.stop()
+        finally:
+            await active_runtime.client.close()
 
     app = FastAPI(title="Partokens Admin API", version="0.1.0", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.runtime = active_runtime
+
+    @app.middleware("http")
+    async def no_cache(request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.exception_handler(NewApiError)
     async def handle_new_api_error(_, exc: NewApiError) -> JSONResponse:
@@ -83,7 +104,7 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     async def handle_validation_error(_, exc: RequestValidationError) -> JSONResponse:
         errors = [
             {
-                "location": [str(part) for part in error.get("loc", ())],
+                "location": [str(part) for part in error.get("loc", ())] if error.get("type") != "extra_forbidden" else ["body"],
                 "message": str(error.get("msg", "Invalid value")),
                 "type": str(error.get("type", "validation_error")),
             }
@@ -114,9 +135,33 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
         authorization, _ = context
         return {"success": True, "data": await active_runtime.service.bootstrap(authorization)}
 
+    @app.get("/v1/migration/audit")
+    async def migration_audit(context=Depends(root_context)) -> dict[str, Any]:
+        return {"success": True, "data": await audit(active_runtime.repository, active_runtime.client, context[0])}
+
+    @app.post("/v1/changes/{change_id}/migrate")
+    async def migrate_change(change_id: str, context=Depends(root_context)) -> dict[str, Any]:
+        return {"success": True, "data": await migrate_route(active_runtime.service, context[0], change_id)}
+
+    @app.post("/v1/executions/{channel_id}/cleanup")
+    async def cleanup_execution(channel_id: int, context=Depends(root_context)) -> dict[str, Any]:
+        from .domain import channel_metadata
+        service = active_runtime.service
+        async with service.routes._execution_lock, service.models._change_lock:
+            channel = await service.routes.executions.require_owned(context[0], channel_id)
+            metadata = channel_metadata(channel)
+            if int(channel.get("status", 0)) != 2 or metadata.get("kind") not in {"template", "probe", "archive"}:
+                raise ConflictError("仅可清理已禁用的遗留模板、测试或归档记录")
+            if active_runtime.repository.active_model_test_task(metadata["logical_id"]):
+                raise ConflictError("渠道正在测试，请稍后清理")
+            if any(channel_id in change["plan"].get("old_channel_ids", []) for change in active_runtime.repository.unfinished_route_changes()):
+                raise ConflictError("执行记录仍被未完成变更引用")
+            await service.routes.executions.delete(context[0], channel_id, metadata["logical_id"])
+        return {"success": True, "data": {"channel_id": channel_id}}
+
     @app.get("/v1/channels")
-    async def channels(_: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
-        return {"success": True, "data": active_runtime.repository.public_channels()}
+    async def channels(context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
+        return {"success": True, "data": await active_runtime.service.list_channels(context[0])}
 
     @app.post("/v1/channels", status_code=201)
     async def create_channel(request: LogicalChannelCreate, context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
@@ -131,6 +176,11 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     @app.patch("/v1/channels/{logical_id}")
     async def update_channel(logical_id: str, request: LogicalChannelUpdate, _: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
         return {"success": True, "data": active_runtime.service.update_channel(logical_id, request)}
+
+    @app.delete("/v1/channels/{logical_id}")
+    async def delete_channel(logical_id: str, context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
+        authorization, _ = context
+        return {"success": True, "data": await active_runtime.service.delete_channel(authorization, logical_id)}
 
     @app.post("/v1/channels/{logical_id}/status")
     async def channel_status(logical_id: str, request: LogicalChannelStatus, context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
@@ -166,8 +216,26 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     async def execute_model_remove(logical_id: str, request: ModelRemoveExecuteRequest, context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
         authorization, actor = context
         if request.change_id:
+            change = active_runtime.service.repository.change(request.change_id)
+            if change["kind"] != "model_remove" or change["target"] != logical_id:
+                raise ConflictError("变更记录不属于该渠道的模型移除")
             return {"success": True, "data": await active_runtime.service.continue_change(authorization, request.change_id)}
-        return {"success": True, "data": await active_runtime.service.execute_model_remove(authorization, logical_id, request.models, actor)}
+        return {"success": True, "data": await active_runtime.service.execute_model_remove(authorization, logical_id, request.models, actor, request.preview_token)}
+
+    @app.post("/v1/channels/{logical_id}/models/update/preview")
+    async def preview_model_update(logical_id: str, request: ModelRemoveRequest, context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
+        authorization, _ = context
+        return {"success": True, "data": await active_runtime.service.models.preview_add(authorization, logical_id, request.models)}
+
+    @app.post("/v1/channels/{logical_id}/models/update/execute")
+    async def execute_model_update(logical_id: str, request: ModelRemoveExecuteRequest, context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
+        authorization, actor = context
+        if request.change_id:
+            change = active_runtime.repository.change(request.change_id)
+            if change["kind"] != "model_update" or change["target"] != logical_id:
+                raise ConflictError("变更记录不属于该渠道的模型更新")
+            return {"success": True, "data": await active_runtime.service.continue_change(authorization, request.change_id)}
+        return {"success": True, "data": await active_runtime.service.execute_model_remove(authorization, logical_id, request.models, actor, request.preview_token, adding=True)}
 
     @app.get("/v1/model-tests/{task_id}")
     async def get_model_test(task_id: str, _: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:

@@ -12,6 +12,7 @@ describe('frontend-only deployment', () => {
 
     expect(compose).toContain('services:\n  web:')
     expect(compose).toContain('PARTOKENS_API_ORIGIN: ${PARTOKENS_API_ORIGIN:?')
+    expect(compose).toContain('PARTOKENS_ADMIN_API_ORIGIN: ${PARTOKENS_ADMIN_API_ORIGIN:?')
     for (const forbidden of ['\n  new-api:', '\n  postgres:', '\n  redis:', 'POSTGRES_PASSWORD', 'REDIS_PASSWORD', 'SESSION_SECRET']) {
       expect(compose).not.toContain(forbidden)
     }
@@ -32,8 +33,11 @@ describe('frontend-only deployment', () => {
     const environment = deployFile('.env.example')
 
     expect(caddyfile).toContain('reverse_proxy {$PARTOKENS_API_ORIGIN}')
+    expect(caddyfile).toContain('reverse_proxy {$PARTOKENS_ADMIN_API_ORIGIN}')
+    expect(caddyfile).toContain('handle_path /admin-api/*')
     expect(caddyfile).not.toContain('PARTOKENS_API_ORIGIN:http')
     expect(environment).toContain('PARTOKENS_API_ORIGIN=http://host.docker.internal:3000')
+    expect(environment).toContain('PARTOKENS_ADMIN_API_ORIGIN=http://host.docker.internal:8081')
     for (const forbidden of ['POSTGRES_', 'REDIS_', 'SESSION_SECRET', 'NEW_API_']) {
       expect(environment).not.toContain(forbidden)
     }
@@ -45,6 +49,12 @@ describe('frontend-only deployment', () => {
     expect(caddyfile).toContain('/wallet/return/?')
     expect(caddyfile).toContain('|topup)')
     expect(caddyfile).toContain('/payment/return /wallet /usage-logs')
+  })
+
+  test('Root administrator routes remain owned by the Web SPA', () => {
+    const caddyfile = deployFile('Caddyfile')
+
+    expect(caddyfile).toContain('/admin/(?:channels|routes|monitoring|changes)/?')
   })
 
   test('production listener is HTTP-only on port 8080 and cannot auto-upgrade to HTTPS', () => {

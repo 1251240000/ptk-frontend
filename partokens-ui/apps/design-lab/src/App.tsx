@@ -54,6 +54,7 @@ import { resolvePreferredLocale, type AppLocale } from '@partokens/i18n'
 import { AuthPrototype, type AuthPrototypeScreen } from './auth-prototype'
 import { PublicPrototype, type PublicPrototypeScreen } from './public-prototype'
 import { ShadcnAnalyticsScreen } from './shadcn-analytics-screen'
+import { ShadcnAdminOperationsScreen, type AdminOperationsRoute } from './shadcn-admin-operations-screen'
 import { ShadcnApiKeysScreen } from './shadcn-api-keys-screen'
 import { ShadcnImageStudioScreen } from './shadcn-image-studio-screen'
 import { ShadcnOverviewScreen } from './shadcn-overview-screen'
@@ -70,7 +71,7 @@ type Theme = 'light' | 'dark'
 type ThemePreference = Theme | 'system'
 const publicScreens: PublicPrototypeScreen[] = ['home', 'models', 'docs', 'about', 'notices', 'status', 'legal-user', 'legal-service', 'legal-privacy']
 const authScreens: AuthPrototypeScreen[] = ['signin', 'signup', 'verify-email', 'forgot-password', 'reset-password', 'oauth-callback', 'auth-otp']
-const consoleScreens: ConsoleRoute[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile']
+const consoleScreens: ConsoleRoute[] = ['console', 'console-analytics', 'console-keys', 'console-logs', 'console-playground', 'console-studio', 'console-wallet', 'console-profile', 'console-admin-channels', 'console-admin-routes', 'console-admin-monitoring', 'console-admin-changes']
 const legacyProfileScreens = ['console-security', 'console-connections', 'console-notifications']
 
 function initialThemePreference(): ThemePreference {
@@ -353,6 +354,7 @@ export function App() {
   const isShadcnStudio = screen === 'console-studio'
   const isShadcnUsageLogs = screen === 'console-logs'
   const isShadcnWallet = screen === 'console-wallet'
+  const isShadcnAdmin = screen.startsWith('console-admin-')
   const usesSharedLocale = isPublicPrototype || isAuthPrototype
 
   useEffect(() => {
@@ -399,6 +401,7 @@ export function App() {
     {isShadcnApiKeys ? <ShadcnApiKeysScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnUsageLogs ? <ShadcnUsageLogsScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {isShadcnWallet ? <ShadcnWalletScreen theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
+    {isShadcnAdmin ? <ShadcnAdminOperationsScreen activeRoute={screen as AdminOperationsRoute} theme={theme} onTheme={common.onTheme} onNavigate={(target) => go(target)} /> : null}
     {screen === 'system' ? <ShadcnSystemScreen theme={theme} onTheme={common.onTheme} onExit={() => go('home')} /> : null}
     {isPublicPrototype ? <PublicPrototype screen={screen as PublicPrototypeScreen} locale={publicLocale} theme={theme} online={online} version={version} onLocale={setPublicLocale} onTheme={common.onTheme} go={go} /> : null}
     {notice ? <div className="prototype-toast" role="status"><CircleHelp size={17} /><span>{notice}</span><IconButton label={t.close} onClick={() => setNotice('')}><X size={16} /></IconButton></div> : null}

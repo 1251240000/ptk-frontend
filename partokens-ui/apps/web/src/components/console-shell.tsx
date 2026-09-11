@@ -1,19 +1,29 @@
 import { Link, Outlet, useLocation, useParams } from '@tanstack/react-router'
 import {
+  Activity,
   BarChart3,
   Bell,
   BookOpen,
+  Boxes,
   CircleUserRound,
+  ClipboardList,
+  CreditCard,
   Globe2,
   Image as ImageIcon,
+  Info,
   KeyRound,
+  Layers3,
   LayoutDashboard,
   LogOut,
   MessageSquare,
   Monitor,
   Moon,
   ReceiptText,
+  Route,
+  Settings,
   Sun,
+  TicketPercent,
+  Users,
   WalletCards,
 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
@@ -51,6 +61,7 @@ import {
 import { isAppLocale, localeLabels, locales, type AppLocale } from '@partokens/i18n'
 
 import { consoleRouteRetryStorageKey } from '@/components/console-route-state'
+import { adminCopy } from '@/features/admin/admin-copy'
 import { canonicalConsoleRoute, consolePageFromPathname, localizedLocation, type CanonicalConsolePage } from '@/lib/routes'
 import { usePreferenceStore, type ThemeMode } from '@/stores/preferences'
 import { useSessionStore } from '@/stores/session'
@@ -89,6 +100,26 @@ const consoleNavigation: Array<{ label: string; items: NavigationItem[] }> = [
   },
 ]
 
+const adminText = adminCopy()
+const adminNavigation: Array<{ label: string; items: NavigationItem[] }> = [{
+  label: adminText.section,
+  items: [
+    { label: adminText.channels, page: 'adminChannels', icon: Layers3 },
+    { label: adminText.routes, page: 'adminRoutes', icon: Route },
+    { label: adminText.monitoring, page: 'adminMonitoring', icon: Activity },
+    { label: adminText.changes, page: 'adminChanges', icon: ClipboardList },
+  ],
+}]
+
+const nativeAdminNavigation = [
+  { label: adminText.nativeModels, href: '/models', icon: Boxes },
+  { label: adminText.nativeUsers, href: '/users', icon: Users },
+  { label: adminText.nativeRedemptions, href: '/redemption-codes', icon: TicketPercent },
+  { label: adminText.nativeSubscriptions, href: '/subscriptions', icon: CreditCard },
+  { label: adminText.nativeSystemInfo, href: '/system-info', icon: Info },
+  { label: adminText.nativeSystemSettings, href: '/system-settings', icon: Settings },
+] as const
+
 const pageLabels: Record<ConsolePage, string> = {
   overview: 'Overview',
   analytics: 'Analytics',
@@ -98,6 +129,10 @@ const pageLabels: Record<ConsolePage, string> = {
   studio: 'Image studio',
   wallet: 'Wallet',
   profile: 'Profile',
+  adminChannels: adminText.channels,
+  adminRoutes: adminText.routes,
+  adminMonitoring: adminText.monitoring,
+  adminChanges: adminText.changes,
 }
 
 function userInitials(name: string): string {
@@ -145,8 +180,9 @@ function ConsoleNavigation({ activePage }: { activePage: ConsolePage }) {
   const params = useParams({ strict: false }) as { locale?: string }
   const locale = isAppLocale(params.locale) ? params.locale : 'zh-CN'
   const closeMobileNavigation = useConsoleNavigation()
+  const isRoot = useSessionStore((state) => state.user?.role === 100)
 
-  return consoleNavigation.map((group) => (
+  return <>{[...consoleNavigation, ...(isRoot ? adminNavigation : [])].map((group) => (
     <SidebarGroup key={group.label}>
       <SidebarGroupLabel>{t(group.label)}</SidebarGroupLabel>
       <SidebarGroupContent>
@@ -174,7 +210,21 @@ function ConsoleNavigation({ activePage }: { activePage: ConsolePage }) {
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  ))
+  ))}{isRoot ? <SidebarGroup>
+    <SidebarGroupLabel>{adminText.nativeSection}</SidebarGroupLabel>
+    <SidebarGroupContent>
+      <SidebarMenu>
+        {nativeAdminNavigation.map((item) => {
+          const Icon = item.icon
+          return <SidebarMenuItem key={item.href}>
+            <SidebarMenuButton asChild tooltip={item.label}>
+              <a href={item.href} onClick={closeMobileNavigation}><Icon /><span>{item.label}</span></a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        })}
+      </SidebarMenu>
+    </SidebarGroupContent>
+  </SidebarGroup> : null}</>
 }
 
 function UserMenu() {
@@ -325,6 +375,10 @@ const pageSections: Record<ConsolePage, string> = {
   studio: 'Workspace',
   wallet: 'Account',
   profile: 'Account',
+  adminChannels: adminText.section,
+  adminRoutes: adminText.section,
+  adminMonitoring: adminText.section,
+  adminChanges: adminText.section,
 }
 
 function LanguageMenu() {

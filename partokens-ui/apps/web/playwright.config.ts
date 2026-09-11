@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 const evidenceRoot = process.env.PARTOKENS_E2E_OUTPUT_DIR || '../../dogfood-output/r60-console-staging-validation'
 const e2eSuites = [
+  'selection-controls.spec.ts',
+  'admin-model-operations.spec.ts',
   'account.spec.ts',
   'auth-visual.spec.ts',
   'console-release-readiness.spec.ts',

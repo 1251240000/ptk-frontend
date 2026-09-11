@@ -4,8 +4,9 @@ This deployment owns one service: the Partokens Web SPA served by Caddy. It does
 not create, configure, health-check, upgrade, or persist an API, database, cache,
 or any other backend service.
 
-Caddy forwards same-origin API and unprefixed administrator requests to the
-required `PARTOKENS_API_ORIGIN`. That endpoint must already exist and must be
+Caddy forwards same-origin New API requests to `PARTOKENS_API_ORIGIN`, and
+strips `/admin-api` before forwarding Root channel operations to the separately
+deployed `PARTOKENS_ADMIN_API_ORIGIN`. Both endpoints must already exist and be
 reachable from the Web container.
 
 ## Requirements
@@ -13,6 +14,7 @@ reachable from the Web container.
 - A clean, committed Partokens UI checkout.
 - Docker Engine with the Docker Compose plugin.
 - An existing API endpoint reachable from Docker.
+- An existing Partokens Admin API endpoint reachable from Docker.
 - An internal network path to TCP port 8080 on this host.
 - An anonymously readable HTTPS source URL pinned to the deployed Git commit.
 
@@ -32,6 +34,7 @@ does not replace existing environment values with the example defaults:
 PARTOKENS_SITE_ADDRESS=http://:8080
 PARTOKENS_HTTP_BIND_ADDRESS=0.0.0.0
 PARTOKENS_HTTP_PORT=8080
+PARTOKENS_ADMIN_API_ORIGIN=http://host.docker.internal:8081
 ```
 
 Remove any `PARTOKENS_HTTPS_*` values from that file.
@@ -55,6 +58,7 @@ The required runtime values are:
 | --- | --- | --- |
 | `PARTOKENS_SITE_ADDRESS` | Explicit HTTP address handled by Caddy | `http://:8080` |
 | `PARTOKENS_API_ORIGIN` | Existing API origin reachable from the container | `http://host.docker.internal:3000` |
+| `PARTOKENS_ADMIN_API_ORIGIN` | External Root-only administrator API | `http://host.docker.internal:8081` |
 | `PARTOKENS_UI_IMAGE` | Immutable image tag for this release | `partokens-ui:2026-08-22.1` |
 | `PARTOKENS_SOURCE_COMMIT` | Full commit built into the image | 40-character Git SHA |
 | `PUBLIC_PARTOKENS_SOURCE_URL` | Public source URL containing that SHA | Repository tree URL |
@@ -75,7 +79,9 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.yml build --pull 
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --no-build --remove-orphans web
 ```
 
-Only the `web` container and the Caddy configuration volumes are created. This
+Only the `web` container and the Caddy configuration volumes are created. The
+administrator service, its SQLite volume, and its monitoring token remain in
+the sibling project's deployment. This
 stack intentionally serves plain HTTP on port 8080 and does not obtain
 certificates or redirect HTTP requests to HTTPS. Put TLS termination in a
 separate trusted edge proxy if the service later needs public HTTPS.

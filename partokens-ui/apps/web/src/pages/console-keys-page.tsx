@@ -1000,6 +1000,7 @@ export function ConsoleKeysPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize)
   const allVisibleSelected = visible.length > 0 && visible.every((record) => selected.includes(record.id))
+  const someVisibleSelected = visible.some((record) => selected.includes(record.id))
   const contractBlocked = Boolean(list.data && list.data.reportedTotal > 0 && list.data.records.length === 0)
   const hasFilters = Boolean(search.trim()) || status !== 'all'
 
@@ -1148,7 +1149,7 @@ export function ConsoleKeysPage() {
             <div className="hidden overflow-x-auto lg:block">
               <Table className={selected.length ? 'min-w-[1090px]' : 'min-w-[1030px]'}>
                 <TableHeader><TableRow className="hover:bg-transparent">
-                  {selected.length ? <TableHead className="w-10 ps-4"><Checkbox aria-label={t('Select page')} checked={allVisibleSelected} disabled={!allVisibleSelected && selected.length >= maxBatchSize} onCheckedChange={(checked) => checked ? selectRecords(visible) : setSelected((current) => current.filter((id) => !visible.some((record) => record.id === id)))} /></TableHead> : null}
+                  {selected.length ? <TableHead className="w-10 ps-4"><Checkbox aria-label={t('Select page')} checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false} disabled={!allVisibleSelected && selected.length >= maxBatchSize} onCheckedChange={(checked) => checked === true ? selectRecords(visible) : setSelected((current) => current.filter((id) => !visible.some((record) => record.id === id)))} /></TableHead> : null}
                   <TableHead className={selected.length ? undefined : 'ps-4'}>{t('Name')}</TableHead><TableHead>{t('Key')}</TableHead><TableHead>{t('Group')}</TableHead><TableHead>{t('Status')}</TableHead><TableHead>{t('Quota')}</TableHead><TableHead>{t('Created')}</TableHead><TableHead>{t('Last used')}</TableHead><TableHead>{t('Expires')}</TableHead><TableHead><span className="sr-only">{t('Actions')}</span></TableHead>
                 </TableRow></TableHeader>
                 <TableBody>{visible.map((record) => (

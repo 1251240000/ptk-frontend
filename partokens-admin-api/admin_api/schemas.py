@@ -3,6 +3,23 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr, field_validator
+import json
+
+
+def execution_config(value: SecretStr | None) -> dict:
+    defaults = {"auto_ban": 0, "other": "", "settings": "{}"}
+    if value is None:
+        return defaults
+    try:
+        config = json.loads(value.get_secret_value())
+        allowed = {"auto_ban", "other", "openai_organization", "test_model", "status_code_mapping", "setting", "settings", "param_override", "header_override"}
+        if not isinstance(config, dict) or not set(config).issubset(allowed):
+            raise ValueError()
+        if any(not isinstance(item, (str, int, type(None))) or isinstance(item, bool) for item in config.values()):
+            raise ValueError()
+        return {**defaults, **config}
+    except Exception:
+        raise ValueError("invalid execution configuration") from None
 
 
 def _validate_cost_ratio(value: Decimal | float | int | str | None) -> Decimal | None:
@@ -26,6 +43,20 @@ class LogicalChannelCreate(BaseModel):
     channel_type: int = Field(ge=1)
     base_url: HttpUrl
     api_key: SecretStr = Field(min_length=1)
+    execution_config: SecretStr | None = None
+
+    @field_validator("execution_config")
+    @classmethod
+    def validate_execution_config(cls, value: SecretStr | None) -> SecretStr | None:
+        execution_config(value)
+        return value
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value):
+        from .domain import normalized_base_url
+        normalized_base_url(str(value))
+        return value
     cost_ratio: Decimal | None = Field(default=None)
     models: list[str] = Field(min_length=1, max_length=200)
     model_mapping: str | None = None
@@ -102,6 +133,13 @@ class ChannelModelDiscoveryRequest(BaseModel):
     base_url: HttpUrl
     api_key: SecretStr = Field(min_length=1)
 
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value):
+        from .domain import normalized_base_url
+        normalized_base_url(str(value))
+        return value
+
 
 class LogicalChannelUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -109,6 +147,31 @@ class LogicalChannelUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     cost_ratio: Decimal | None = Field(default=None)
     note: str | None = Field(default=None, max_length=255)
+    api_key: SecretStr | None = Field(default=None, min_length=1)
+    channel_type: int | None = Field(default=None, ge=1)
+    base_url: HttpUrl | None = None
+    model_mapping: str | None = None
+    execution_config: SecretStr | None = None
+
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value):
+        from .domain import normalized_base_url
+        normalized_base_url(str(value))
+        return value
+
+    @field_validator("execution_config")
+    @classmethod
+    def validate_execution_config(cls, value: SecretStr | None) -> SecretStr | None:
+        execution_config(value)
+        return value
+
+    @field_validator("api_key", "channel_type", "base_url")
+    @classmethod
+    def reject_null_config(cls, value):
+        if value is None:
+            raise ValueError("field cannot be null")
+        return value
 
     @field_validator("name", "note")
     @classmethod
@@ -163,19 +226,28 @@ class ModelRemoveRequest(BaseModel):
 
 class ModelRemoveExecuteRequest(ModelRemoveRequest):
     change_id: str | None = Field(default=None, min_length=1, max_length=100)
+    preview_token: str | None = Field(default=None, min_length=64, max_length=64)
 
 
 class RouteMember(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     logical_id: str
-    weight: int = Field(ge=1, le=1_000_000)
+    weight: int = Field(strict=True, ge=1, le=1_000_000)
 
 
 class RouteLayer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    priority: int | None = Field(default=None, strict=True, ge=-2_147_483_648, le=2_147_483_647)
     members: list[RouteMember] = Field(min_length=1)
 
 
 class RoutePlanInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    layers: list[RouteLayer] = Field(min_length=1)
+    layers: list[RouteLayer]
     acknowledge_nonstandard: bool = False
+    confirm_empty: bool = False
+    expected_revision: int | None = Field(default=None, strict=True, ge=0)
+    preview_token: str | None = Field(default=None, min_length=64, max_length=64)

@@ -1,17 +1,21 @@
 import {
+  Activity,
   BarChart3,
   Bell,
   BookOpen,
   Check,
   CircleUserRound,
+  ClipboardList,
   Globe2,
   Image as ImageIcon,
   KeyRound,
+  Layers3,
   LayoutDashboard,
   LogOut,
   MessageSquare,
   Moon,
   ReceiptText,
+  Route,
   Sun,
   WalletCards,
 } from 'lucide-react'
@@ -95,6 +99,10 @@ export type ConsoleRoute =
   | 'console-security'
   | 'console-connections'
   | 'console-notifications'
+  | 'console-admin-channels'
+  | 'console-admin-routes'
+  | 'console-admin-monitoring'
+  | 'console-admin-changes'
 
 export type ConsoleTarget = ConsoleRoute | 'system' | 'docs' | 'notices'
 
@@ -136,9 +144,18 @@ const consoleNavigation: {
       { label: 'Profile', target: 'console-profile', icon: CircleUserRound },
     ],
   },
+  {
+    label: '管理员 · Root',
+    items: [
+      { label: '渠道', target: 'console-admin-channels', icon: Layers3 },
+      { label: '分组路由', target: 'console-admin-routes', icon: Route },
+      { label: '监控', target: 'console-admin-monitoring', icon: Activity },
+      { label: '变更记录', target: 'console-admin-changes', icon: ClipboardList },
+    ],
+  },
 ]
 
-const routeSections: Record<ConsoleRoute, 'Workspace' | 'General' | 'Account'> = {
+const routeSections: Record<ConsoleRoute, 'Workspace' | 'General' | 'Account' | '管理员'> = {
   console: 'General',
   'console-analytics': 'General',
   'console-keys': 'General',
@@ -150,6 +167,10 @@ const routeSections: Record<ConsoleRoute, 'Workspace' | 'General' | 'Account'> =
   'console-security': 'Account',
   'console-connections': 'Account',
   'console-notifications': 'Account',
+  'console-admin-channels': '管理员',
+  'console-admin-routes': '管理员',
+  'console-admin-monitoring': '管理员',
+  'console-admin-changes': '管理员',
 }
 
 const routeLabels: Record<ConsoleRoute, string> = {
@@ -164,6 +185,10 @@ const routeLabels: Record<ConsoleRoute, string> = {
   'console-security': 'Security',
   'console-connections': 'Connections',
   'console-notifications': 'Notifications',
+  'console-admin-channels': '渠道',
+  'console-admin-routes': '分组路由',
+  'console-admin-monitoring': '监控',
+  'console-admin-changes': '变更记录',
 }
 
 function useConsoleNavigation(onNavigate: ConsoleScreenProps['onNavigate']) {
