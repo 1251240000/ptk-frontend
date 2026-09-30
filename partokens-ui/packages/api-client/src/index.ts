@@ -239,6 +239,55 @@ export type AdminChange = {
   updated_at: number
 }
 
+export type AdminTrafficPeriod = 'requests_60' | '6h' | '7d'
+export type AdminTrafficMetrics = {
+  requests: number
+  successes: number
+  errors: number
+  success_rate: number | null
+  first_token_ms: number | null
+  p95_first_token_ms: number | null
+  latency_samples: number
+  cache_samples: number
+  cache_rate: number | null
+  cached_tokens: number
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  original_usd: number | null
+  cost_cny: number | null
+  unpriced_requests: number
+  uncosted_requests: number
+}
+export type AdminTrafficRequest = {
+  id: number
+  request_id: string | null
+  created_at: number
+  channel_id: number
+  model: string
+  success: boolean
+  first_token_ms: number | null
+  cache_rate: number | null
+  cached_tokens: number | null
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  original_usd: number | null
+  cost_cny: number | null
+}
+export type AdminChannelTraffic = {
+  logical_id: string
+  channel_name: string
+  period: AdminTrafficPeriod
+  model: string | null
+  observed_at: number
+  cost_ratio: number | null
+  summary: AdminTrafficMetrics
+  series: Array<AdminTrafficMetrics & { created_at: number }>
+  models: Array<AdminTrafficMetrics & { model: string }>
+  recent_requests: AdminTrafficRequest[]
+}
+
 export type AdminMonitorSnapshot = {
   id: number
   observed_at: number
@@ -1140,6 +1189,11 @@ export async function continueAdminChange(changeId: string): Promise<ApiEnvelope
 export async function refreshAdminMonitor(): Promise<ApiEnvelope<AdminMonitorSnapshot>> {
   const response = await api.post('/admin-api/v1/monitor/refresh')
   return parseEnvelope<AdminMonitorSnapshot>(response.data)
+}
+
+export async function getAdminChannelTraffic(logicalId: string, period: AdminTrafficPeriod, model?: string): Promise<ApiEnvelope<AdminChannelTraffic>> {
+  const response = await api.get(`/admin-api/v1/monitor/channels/${encodeURIComponent(logicalId)}`, { params: { period, model } })
+  return parseEnvelope<AdminChannelTraffic>(response.data)
 }
 
 export async function login(input: {

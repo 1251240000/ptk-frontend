@@ -37,6 +37,9 @@ class FakeMonitor:
     async def stop(self) -> None:
         return None
 
+    async def channel_traffic(self, authorization, logical_id, period, model):
+        return {"logical_id": logical_id, "period": period, "model": model}
+
 
 class FakeService:
     def __init__(self) -> None:
@@ -100,6 +103,16 @@ class AppTests(unittest.TestCase):
         response = self.test_client.get("/healthz")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok", "database": "sqlite", "monitor_configured": False})
+
+    def test_channel_traffic_requires_root_and_validates_period(self) -> None:
+        path = "/v1/monitor/channels/lc_test"
+        self.assertEqual(self.test_client.get(path).status_code, 401)
+        self.assertEqual(self.test_client.get(path, headers={"Authorization": "Bearer admin-token"}).status_code, 403)
+        headers = {"Authorization": "Bearer root-token"}
+        self.assertEqual(self.test_client.get(path, params={"period": "invalid"}, headers=headers).status_code, 422)
+        response = self.test_client.get(path, params={"period": "7d", "model": "provider/model"}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"], {"logical_id": "lc_test", "period": "7d", "model": "provider/model"})
 
     def test_delete_requires_root(self) -> None:
         self.assertEqual(self.test_client.delete("/v1/channels/lc_a").status_code, 401)

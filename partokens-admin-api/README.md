@@ -108,6 +108,28 @@ Without `credential_fingerprint`, preparation fails closed and leaves new
 records disabled. See [migration and deployment](docs/local-channel-migration.md)
 before upgrading an existing database. Never regenerate the master key on deploy.
 
+## Channel Traffic Monitoring
+
+`GET /v1/monitor/channels/{logical_id}` requires the current Root session.
+Use `period=requests_60` (default), `6h`, or `7d`, and optional `model` for an
+exact model filter. Time windows aggregate all matching logs; only the request
+detail list is limited to 60. Charts use 60 time buckets, or one point per
+request for the recent-request window. Route bindings survive rebuilds and
+are backfilled from retained monitoring snapshots; probe channels are excluded.
+
+Requests with the same request ID and model on this logical channel are merged,
+preferring the consumed result. A stream marked as interrupted counts as a
+failure. First-token latency uses valid streaming `other.frt` values only.
+Cache rate is cached read tokens divided by total input tokens, weighted by
+tokens; Anthropic cache reads/writes are included in total input. Missing cache
+fields are excluded rather than interpreted as misses.
+
+USD list amounts remove the effective group billing ratio from log quota using
+the upstream `quota_per_unit`. CNY cost equals that USD amount multiplied by the
+channel's currently registered cost ratio. Missing billing data or a missing
+cost ratio produces an unknown amount, never a fabricated zero. History is
+limited by upstream log retention and the retained channel bindings.
+
 ## Verification
 
 Tests use temporary databases and synthetic credentials. Set the bootstrap

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import json
 from typing import Any
 
 from .config import Settings
@@ -9,6 +10,7 @@ from .domain import channel_metadata, channel_status_reason, models_list, now
 from .new_api import NewApiClient, NewApiError
 from .repository import Repository
 from .execution import owned, matches_config
+from .traffic import report, request_sample
 
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,34 @@ class Monitor:
     def service_authorization(self) -> str:
         token = self.settings.service_token or ""
         return token if token.lower().startswith("bearer ") else f"Bearer {token}"
+
+    async def channel_traffic(self, authorization: str, logical_id: str, period: str,
+                              model: str | None = None) -> dict[str, Any]:
+        logical = self.repository.logical_row(logical_id)
+        snapshot = self.repository.database.latest_snapshot()
+        if snapshot is None or snapshot["observed_at"] < now() - 60 or snapshot["status"] != "healthy":
+            await self.refresh(authorization, include_logs=False)
+        bindings = self.repository.database.fetch_all(
+            "SELECT channel_id FROM monitor_channel_bindings WHERE logical_id = ?", (logical_id,)
+        )
+        observed_at = now()
+        start = 0 if period == "requests_60" else observed_at - (6 * 3600 if period == "6h" else 7 * 86400)
+        quota_unit = await self.client.quota_per_unit(authorization) if bindings else 500_000
+        ratio = logical.get("cost_ratio_millis")
+        ratio = int(ratio) / 1000 if ratio is not None else None
+        semaphore = asyncio.Semaphore(4)
+
+        async def fetch(channel_id: int, log_type: int) -> list[dict[str, Any]]:
+            async with semaphore:
+                return await self.client.request_logs(authorization, channel_id, log_type, start, observed_at,
+                                                      model=model, limit=60 if period == "requests_60" else None)
+
+        pages = await asyncio.gather(*(fetch(binding["channel_id"], log_type)
+                                       for binding in bindings for log_type in (2, 5)))
+        samples = [request_sample(row, quota_unit, ratio) for page in pages for row in page]
+        return {"logical_id": logical_id, "channel_name": logical["name"], "period": period,
+                "model": model, "observed_at": observed_at, "cost_ratio": ratio,
+                **report(samples, period, observed_at, json.loads(logical["models_json"]))}
 
     async def refresh(self, authorization: str, *, include_logs: bool = True) -> dict[str, Any]:
         observed_at = now()

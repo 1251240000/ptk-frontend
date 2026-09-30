@@ -40,7 +40,6 @@ import {
   getAdminBootstrap,
   previewAdminModelRemoval,
   previewAdminModelUpdate,
-  refreshAdminMonitor,
   setAdminChannelStatus,
   startAdminModelTest,
   updateAdminChannel,
@@ -53,7 +52,6 @@ import {
   type AdminModelRemovePreview,
   type AdminModelTestTask,
   type AdminModelTestResult,
-  type AdminMonitorSnapshot,
 } from '@partokens/api-client'
 import {
   Badge,
@@ -96,6 +94,7 @@ import {
 import { adminCopy } from './admin-copy'
 import { ChannelProviderIcon } from './channel-provider-icon'
 import { GroupRoutesView } from './group-routes-view'
+import { ChannelMonitoringView } from './channel-monitoring-view'
 
 type AdminPage = 'channels' | 'routes' | 'monitoring' | 'changes'
 
@@ -161,10 +160,6 @@ function StatusBadge({ status }: { status: AdminLogicalChannel['status'] }) {
   if (status === 'unavailable') return <Badge variant="destructive"><TriangleAlert />不可用</Badge>
   if (status === 'disabled') return <Badge variant="secondary"><CircleDashed />已停用</Badge>
   return <Badge variant="outline" className="text-muted-foreground"><Clock3 />未知</Badge>
-}
-
-function HealthDot({ status }: { status: 'healthy' | 'warning' | 'unknown' }) {
-  return <span className={`inline-block size-2 shrink-0 rounded-full ${status === 'healthy' ? 'bg-success' : status === 'warning' ? 'bg-warning' : 'bg-muted-foreground/50'}`} aria-hidden="true" />
 }
 
 function IconButton({ label, icon: Icon, onClick, disabled, className = '' }: { label: string; icon: LucideIcon; onClick?: () => void; disabled?: boolean; className?: string }) {
@@ -675,20 +670,6 @@ export function ChannelsView({ data }: { data: AdminBootstrap }) {
 }
 
 
-function MonitoringView({ data }: { data: AdminBootstrap }) {
-  const queryClient = useQueryClient()
-  const monitor = data.monitor
-  const summary = monitor?.summary
-  const refresh = useMutation({ mutationFn: refreshAdminMonitor, onSuccess: async () => { await queryClient.invalidateQueries({ queryKey }); toast.success('监控快照已刷新') }, onError: (cause) => toast.error(errorMessage(cause)) })
-  const records = monitor?.details.physical_records ?? []
-  const issues = monitor?.details.issues ?? []
-  return <div className="space-y-6"><PageHeading eyebrow="ADMIN / MONITORING" title="监控" description="持续核对物理渠道状态、路由字段和最近 24 小时渠道尝试。测试延迟只是最近快照，不是实时 SLA。" action={<Button variant="outline" onClick={() => refresh.mutate()} disabled={refresh.isPending}>{refresh.isPending ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}刷新</Button>} />
-    <MetricBelt items={[{ label: '最近同步', value: monitor ? formatTime(monitor.observed_at) : '未同步', detail: monitor?.status === 'healthy' ? '后台监控正常' : monitor?.error || '等待首个快照', tone: monitor?.status === 'healthy' ? 'success' : 'warning' }, { label: '路由记录', value: String(summary?.route_records ?? 0), detail: `${summary?.enabled_route_records ?? 0} 条启用` }, { label: '自动禁用', value: String(summary?.auto_disabled_records ?? 0), detail: '需要人工处理', tone: summary?.auto_disabled_records ? 'warning' : undefined }, { label: '24h 尝试', value: summary?.attempts_24h?.toLocaleString('zh-CN') ?? '暂无数据', detail: '消费 + 错误日志' }, { label: '尝试成功率', value: summary?.success_rate_24h == null ? '暂无数据' : `${summary.success_rate_24h}%`, detail: '不等于最终请求成功率', tone: summary?.success_rate_24h != null && summary.success_rate_24h >= 98 ? 'success' : 'warning' }]} />
-    <section className="border bg-card"><header className="flex items-center justify-between border-b p-4"><div><h2 className="font-semibold">问题队列</h2><p className="mt-1 text-xs text-muted-foreground">监控只报告问题，不自动修改逻辑身份或路由。</p></div><Badge variant="outline" className={issues.length ? 'border-warning/30 text-warning' : 'border-success/30 text-success'}>{issues.length} 项</Badge></header>{issues.length ? <div className="divide-y">{issues.map((issue, index) => <div key={`${issue.kind}-${issue.channel_id}-${index}`} className="flex items-start gap-3 p-4"><HealthDot status="warning" /><div><strong>new-api #{issue.channel_id}</strong><p className="mt-1 text-sm">{issue.message}</p><code className="mt-1 block text-xs text-muted-foreground">{issue.kind}</code></div></div>)}</div> : <p className="p-8 text-center text-sm text-muted-foreground">当前快照没有需要处理的问题。</p>}</section>
-    <section className="overflow-hidden border bg-card"><header className="border-b p-4"><h2 className="font-semibold">底层执行记录</h2><p className="mt-1 text-xs text-muted-foreground">包含 Partokens 管理记录和非标准物理渠道。</p></header><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>物理 ID</TableHead><TableHead>类型</TableHead><TableHead>路由实例</TableHead><TableHead>状态</TableHead><TableHead>最近测试</TableHead><TableHead>延迟</TableHead><TableHead>一致性</TableHead></TableRow></TableHeader><TableBody>{records.map((record) => <TableRow key={record.channel_id}><TableCell className="font-mono text-xs">#{record.channel_id}</TableCell><TableCell>{record.kind}</TableCell><TableCell>{record.group_name ? `${record.group_name} · 层 ${record.attempt}` : record.name}</TableCell><TableCell>{record.status === 1 ? '启用' : record.status === 3 ? '自动禁用' : '停用'}</TableCell><TableCell>{formatTime(record.test_time)}</TableCell><TableCell className="font-mono text-xs">{record.response_time ? `${record.response_time} ms` : '暂无数据'}</TableCell><TableCell className={record.drift ? 'text-warning' : 'text-success'}>{record.drift ? '漂移' : record.kind === 'nonstandard' ? '非标准' : '一致'}</TableCell></TableRow>)}</TableBody></Table></div></section>
-  </div>
-}
-
 function ChangeDialog({ change, open, onOpenChange }: { change: AdminChange | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   const queryClient = useQueryClient()
   const mutation = useMutation({ mutationFn: () => continueAdminChange(change!.id), onSuccess: async (response) => { await queryClient.invalidateQueries({ queryKey }); if (response.data.status === 'success') { toast.success('变更已继续并完成'); onOpenChange(false) } else toast.warning('变更仍有未完成步骤') }, onError: (cause) => toast.error(errorMessage(cause)) })
@@ -712,7 +693,7 @@ export function AdminOperationsPage({ page }: { page: AdminPage }) {
   if (query.isError || !query.data) return <AdminUnavailable retry={() => void query.refetch()} message={errorMessage(query.error)} />
   if (page === 'channels') return <ChannelsView data={query.data} />
   if (page === 'routes') return <GroupRoutesView data={query.data} />
-  if (page === 'monitoring') return <MonitoringView data={query.data} />
+  if (page === 'monitoring') return <ChannelMonitoringView data={query.data} />
   return <ChangesView data={query.data} />
 }
 

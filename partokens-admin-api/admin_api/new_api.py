@@ -219,3 +219,40 @@ class NewApiClient:
         )
         data = payload.get("data", {})
         return int(data.get("total", 0)) if isinstance(data, dict) else 0
+
+    async def request_logs(self, token: str, channel_id: int, log_type: int, start: int, end: int,
+                           *, model: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        scanned = 0
+        request_keys: set[tuple[Any, ...]] = set()
+        for page in range(1, 10_001):
+            payload = await self.request("GET", "/api/log/", token, params={
+                "p": page, "page_size": 100, "type": log_type, "channel": channel_id,
+                "start_timestamp": start, "end_timestamp": end,
+                **({"model_name": model} if model and "%" not in model else {}),
+            })
+            data = payload.get("data")
+            if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+                raise NewApiError("new-api returned an invalid request log list")
+            rows = data["items"]
+            scanned += len(rows)
+            for row in rows:
+                if not isinstance(row, dict) or row.get("type") != log_type or row.get("channel") != channel_id or (model is not None and row.get("model_name") != model):
+                    continue
+                key = (row.get("request_id"), row.get("model_name")) if row.get("request_id") else (row.get("id"), row.get("created_at"))
+                if key in request_keys:
+                    continue
+                request_keys.add(key)
+                items.append(row)
+                if limit is not None and len(items) >= limit:
+                    return items
+            if not rows or scanned >= int(data.get("total", scanned)):
+                return items
+        raise NewApiError("new-api request log pagination did not terminate")
+
+    async def quota_per_unit(self, token: str) -> float:
+        payload = await self.request("GET", "/api/status", token)
+        value = payload.get("data", {}).get("quota_per_unit")
+        if not isinstance(value, (int, float)) or not 0 < value < float("inf"):
+            raise NewApiError("new-api returned an invalid quota unit")
+        return float(value)

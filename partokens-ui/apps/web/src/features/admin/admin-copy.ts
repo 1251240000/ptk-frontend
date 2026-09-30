@@ -4,7 +4,7 @@ const zhCN = {
   section: '管理员',
   channels: '渠道',
   routes: '分组路由',
-  monitoring: '监控',
+  monitoring: '渠道监控',
   changes: '变更记录',
   nativeSection: '原生管理',
   nativeModels: '模型',

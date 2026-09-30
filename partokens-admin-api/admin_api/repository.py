@@ -114,6 +114,11 @@ class Repository:
         with self.database.transaction() as connection:
             connection.execute("DELETE FROM physical_records")
             for record in records:
+                if record["kind"] == "route" and record.get("logical_id"):
+                    connection.execute(
+                        "INSERT OR IGNORE INTO monitor_channel_bindings(channel_id, logical_id) VALUES (?, ?)",
+                        (record["channel_id"], record["logical_id"]),
+                    )
                 connection.execute(
                     """INSERT INTO physical_records(
                       channel_id, logical_id, kind, group_name, attempt, route_revision, status,

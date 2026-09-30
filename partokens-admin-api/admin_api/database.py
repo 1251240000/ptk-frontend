@@ -79,6 +79,12 @@ CREATE TABLE IF NOT EXISTS physical_records (
 CREATE INDEX IF NOT EXISTS idx_physical_logical ON physical_records(logical_id);
 CREATE INDEX IF NOT EXISTS idx_physical_route ON physical_records(group_name, route_revision);
 
+CREATE TABLE IF NOT EXISTS monitor_channel_bindings (
+  channel_id INTEGER PRIMARY KEY,
+  logical_id TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_monitor_binding_logical ON monitor_channel_bindings(logical_id);
+
 CREATE TABLE IF NOT EXISTS execution_creations (
   creation_id TEXT PRIMARY KEY,
   logical_id TEXT NOT NULL,
@@ -145,6 +151,12 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as connection:
             connection.executescript(SCHEMA)
+            connection.execute("INSERT OR IGNORE INTO monitor_channel_bindings SELECT channel_id, logical_id FROM physical_records WHERE kind = 'route' AND logical_id IS NOT NULL")
+            for snapshot in connection.execute("SELECT details_json FROM monitor_snapshots ORDER BY id"):
+                for record in json.loads(snapshot["details_json"]).get("physical_records", []):
+                    if record.get("kind") == "route" and record.get("logical_id"):
+                        connection.execute("INSERT OR IGNORE INTO monitor_channel_bindings VALUES (?, ?)",
+                                           (record["channel_id"], record["logical_id"]))
             columns = {row["name"] for row in connection.execute("PRAGMA table_info(logical_channels)").fetchall()}
             if "masked_key" not in columns:
                 connection.execute("ALTER TABLE logical_channels ADD COLUMN masked_key TEXT")

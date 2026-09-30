@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Annotated, Any, AsyncIterator
+from typing import Annotated, Any, AsyncIterator, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.exceptions import RequestValidationError
@@ -271,6 +271,13 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None)
     @app.get("/v1/monitor")
     async def monitor(_: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
         return {"success": True, "data": active_runtime.database.latest_snapshot()}
+
+    @app.get("/v1/monitor/channels/{logical_id}")
+    async def channel_monitor(logical_id: str, period: Literal["requests_60", "6h", "7d"] = "requests_60",
+                              model: str | None = Query(None, min_length=1, max_length=256),
+                              context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:
+        authorization, _ = context
+        return {"success": True, "data": await active_runtime.monitor.channel_traffic(authorization, logical_id, period, model)}
 
     @app.post("/v1/monitor/refresh")
     async def refresh_monitor(context: tuple[str, dict[str, Any]] = Depends(root_context)) -> dict[str, Any]:

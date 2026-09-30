@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
 import tempfile
 import time
 from pathlib import Path
@@ -33,6 +34,28 @@ class BrowserClient(FakeNewApi):
 
     async def get_groups(self, token: str):
         return ['plus', 'empty', 'other', 'long-group-with-a-very-long-name-for-layout-verification']
+
+    async def quota_per_unit(self, token):
+        return 500_000
+
+    async def request_logs(self, token, channel_id, log_type, start, end, *, model=None, limit=None):
+        if channel_id not in {100, 105, 101}:
+            return []
+        rows = []
+        for index in range(180):
+            name = 'gpt-4o' if index % 3 else 'legacy'
+            kind = 5 if index % 17 == 0 else 2
+            timestamp = end - index * 3600
+            if kind != log_type or timestamp < start or (model is not None and model != name):
+                continue
+            rows.append({'id': channel_id * 1000 + index, 'request_id': f'traffic-{channel_id}-{index}',
+                         'created_at': timestamp, 'type': kind, 'channel': channel_id, 'model_name': name,
+                         'is_stream': True, 'prompt_tokens': 2000 if kind == 2 else 0,
+                         'completion_tokens': 400 if kind == 2 else 0, 'quota': 1500 if kind == 2 else 0,
+                         'other': json.dumps({'frt': [450, 750, 1200, 2400, 3500, 5000][index % 6],
+                                              'cache_tokens': [0, 200, 500, 1000, 1500, 1800][index % 6],
+                                              'group_ratio': 2})})
+        return rows[:limit] if limit else rows
 
     async def batch_status(self, token, channel_ids, status):
         await asyncio.sleep(0.3)
@@ -84,7 +107,7 @@ async def fixture_auth(path: str):
 
 @app.post('/__test/reset')
 async def reset():
-    for table in ['changes', 'change_migrations', 'execution_creations', 'route_configs', 'physical_records', 'logical_channels', 'monitor_snapshots']:
+    for table in ['changes', 'change_migrations', 'execution_creations', 'route_configs', 'physical_records', 'monitor_channel_bindings', 'logical_channels', 'monitor_snapshots']:
         database.execute(f'DELETE FROM {table}')
     client.channels = {}
     client.next_id = 100
